@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ImageUpload } from '@/components/ui/image-upload' // Import the upload component
+import  ImageUpload  from '@/components/ui/image-upload' // Import the upload component
 
 interface TicketTypeInput {
   name: string
