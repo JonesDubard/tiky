@@ -31,6 +31,10 @@ model User {
   tickets       Ticket[]
   votes         Vote[]
 
+  // Tikky relations
+  createdEvents   Event[] @relation("CreatedEvents")
+  organizedEvents Event[] @relation("OrganizedEvents")
+
   @@map("users")
 }
 
@@ -77,17 +81,26 @@ model Event {
   title       String
   description String?
   date        DateTime
-  location    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  published   Boolean  @default(false)
-  organizerId String
+  location    String
   imageUrl    String?
-  organizer   User     @relation(fields: [organizerId], references: [id])
-  polls       Poll[]
-  tickets     Ticket[]
 
-  @@map("events")
+  // Event creator (admin who created it)
+  createdById String
+  createdBy   User   @relation("CreatedEvents", fields: [createdById], references: [id], onDelete: Cascade)
+
+  // Event organizer (host of event)
+  organizerId String?
+  organizer   User?   @relation("OrganizedEvents", fields: [organizerId], references: [id])
+
+  tickets Ticket[]
+  polls   Poll[]
+
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+
+  @@index([createdById])
+  @@index([organizerId])
 }
 
 model Ticket {

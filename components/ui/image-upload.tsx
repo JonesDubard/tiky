@@ -13,7 +13,8 @@ interface ImageUploadProps {
 
 const ImageUpload: React.FC<ImageUploadProps> = ({
   onChange,
-  value
+  value,
+  disabled
 }) => {
   const handleUpload = useCallback((result: any) => {
     onChange(result.info.secure_url)
@@ -32,9 +33,12 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
       {({ open }) => {
         return (
           <div
-            onClick={() => open?.()}
-            className="relative cursor-pointer hover:opacity-70 transition border-dashed border-2 p-20 border-neutral-300 flex flex-col justify-center items-center gap-4 text-neutral-600"
-          >
+  onClick={() => !disabled && open?.()}
+  className={`relative border-dashed border-2 p-20 flex flex-col justify-center items-center gap-4 transition
+    ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:opacity-70"}
+    border-neutral-300 text-neutral-600`}
+>
+
             <Upload size={50} />  {/* Changed from TbPhotoPlus to Upload */}
             <div className="font-semibold text-lg">
               Click to upload
