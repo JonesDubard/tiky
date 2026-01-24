@@ -1,15 +1,12 @@
-﻿// app/(public)/layout.tsx - SIMPLIFIED (NO PROVIDERS)
-import Nav from "./components/Nav"
+﻿import Navbar from "@/components/navigation/Navbar"
 
-export default function PublicLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <Nav />
-      <main>{children}</main>
+      
+      <main className="min-h-screen">
+        {children}
+      </main>
     </>
   )
 }

@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session || !session.user) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     const { title, description, date, location, imageUrl } = body
 
     if (!title || !date || !location) {
-      return NextResponse.json({ error: "Missing fields" }, { status: 400 })
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
     const event = await prisma.event.create({
@@ -29,13 +29,20 @@ export async function POST(req: Request) {
         date: new Date(date),
         location,
         imageUrl,
-        createdById: session.user.id
+
+        // ✅ Explicit relation write (this is the key fix)
+        createdBy: {
+          connect: { id: session.user.id }
+        }
       }
     })
 
-    return NextResponse.json(event)
+    return NextResponse.json(event, { status: 201 })
   } catch (error) {
     console.error("EVENT CREATE ERROR:", error)
-    return NextResponse.json({ error: "Server error" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Failed to create event" },
+      { status: 500 }
+    )
   }
 }

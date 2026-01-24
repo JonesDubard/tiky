@@ -17,14 +17,22 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   disabled
 }) => {
   const handleUpload = useCallback((result: any) => {
-    onChange(result.info.secure_url)
-  }, [onChange])
+  console.log("CLOUDINARY UPLOAD RESULT:", result)
+
+  if (!result?.info?.secure_url) {
+    console.error("NO secure_url returned")
+    return
+  }
+
+  onChange(result.info.secure_url)
+}, [onChange])
+
 
   const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
 
   return (
     <CldUploadWidget 
-      onUpload={handleUpload} 
+      onSuccess={handleUpload} 
       uploadPreset={uploadPreset}
       options={{
         maxFiles: 1
