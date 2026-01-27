@@ -1,12 +1,17 @@
-﻿import Navbar from "@/components/navigation/Navbar"
+﻿import Navbar from "@/components/navigation/Navbar";
 
-export default function PublicLayout({ children }: { children: React.ReactNode }) {
+export default function PublicLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <>
-      
-      <main className="min-h-screen">
+      <Navbar />
+      <main className="pt-16 pb-20 md:pb-0">
         {children}
       </main>
     </>
-  )
+  );
 }
+

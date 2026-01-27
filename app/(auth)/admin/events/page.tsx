@@ -122,11 +122,13 @@ export default async function EventsPage() {
                       
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          event.published
+                          new Date(event.date) >= new Date()
+
                             ? 'bg-green-100 text-green-800' 
                             : 'bg-yellow-100 text-yellow-800'
                         }`}>
-                          {event.published ? 'Published' : 'Draft'}
+                          {new Date(event.date) >= new Date()
+ ? 'Published' : 'Draft'}
                         </span>
                       </td>
                       

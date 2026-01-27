@@ -22,46 +22,51 @@ export default function EventForm() {
   ])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setLoading(true)
-    setError('')
+  event.preventDefault()
+  setLoading(true)
+  setError('')
 
-    const formData = new FormData(event.currentTarget)
-    const data = {
-      title: formData.get('title'),
-      description: formData.get('description'),
-      date: formData.get('date'),
-      location: formData.get('location'), // Changed from venue to location
-      imageUrl: imageUrl || formData.get('imageUrl') || '', // Use uploaded image first
-      tickets: ticketTypes.filter(t => t.name && t.price && t.quantity).map(ticket => ({
-        type: ticket.name, // Changed from name to type
-        price: parseFloat(ticket.price),
-        quantity: parseInt(ticket.quantity)
-      }))
+  const formData = new FormData(event.currentTarget)
+
+  // Convert date input to proper ISO string
+  const rawDate = formData.get('date') as string
+  const formattedDate = rawDate ? new Date(rawDate).toISOString() : ''
+
+  const data = {
+  title: formData.get('title'),
+  description: formData.get('description'),
+  date: new Date(formData.get('date') as string).toISOString(), // ensure ISO format
+  location: formData.get('location'),
+  imageUrl: imageUrl || (formData.get('imageUrl') as string) || '',
+  tickets: ticketTypes.map(ticket => ({
+    type: ticket.name,
+    price: parseFloat(ticket.price),
+    quantity: parseInt(ticket.quantity)
+  }))
+}
+
+  console.log('Submitting:', data)
+
+  try {
+    const response = await fetch('/api/admin/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    })
+
+    if (response.ok) {
+      router.push('/admin/events')
+      router.refresh()
+    } else {
+      const errorData = await response.json()
+      setError(errorData.error || 'Failed to create event')
     }
-
-    console.log('Submitting:', data)
-
-    try {
-      const response = await fetch('/api/admin/events', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-      
-      if (response.ok) {
-        router.push('/admin/events')
-        router.refresh()
-      } else {
-        const errorData = await response.json()
-        setError(errorData.error || 'Failed to create event')
-      }
-    } catch (err) {
-      setError('Network error. Please try again.')
-    } finally {
-      setLoading(false)
-    }
+  } catch (err) {
+    setError('Network error. Please try again.')
+  } finally {
+    setLoading(false)
   }
+}
 
   // Add new ticket type
   const addTicketType = () => {

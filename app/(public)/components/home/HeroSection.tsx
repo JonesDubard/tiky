@@ -27,7 +27,6 @@ export default function HeroSection() {
           Events in Liberia,{' '}
           <span className="text-[#FF6B35]">Made Simple</span>
         </h1>
-        <SearchBar />
       </div>
     </section>
   );

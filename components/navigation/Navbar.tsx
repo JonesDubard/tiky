@@ -1,50 +1,42 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { useTheme } from "next-themes"
-import { Sun, Moon, Bell } from "lucide-react"
-import { useSession } from "next-auth/react"
+import Link from "next/link";
+import { Home, Bell, LayoutDashboard } from "lucide-react";
 
 export default function Navbar() {
-  const { theme, setTheme } = useTheme()
-  const { data: session } = useSession()
-
   return (
-    <nav className="sticky top-0 z-50 w-full border-b bg-white dark:bg-black">
-      <div className="mx-auto max-w-7xl px-4 h-16 flex items-center justify-between">
-
-        {/* Logo */}
-        <Link href="/home" className="text-xl font-black">
-          Tikky
+    <>
+      {/* Desktop Top Nav */}
+      <nav className="hidden md:flex fixed top-0 inset-x-0 z-50 h-16 items-center justify-between px-6 border-b bg-white">
+        <Link href="/" className="font-bold text-lg">
+          Tiky
         </Link>
 
-        {/* Right Actions */}
-        <div className="flex items-center gap-4">
-
-          {/* Polls */}
+        <div className="flex items-center gap-6">
           <Link href="/polls">
-            <Bell className="h-5 w-5" />
+            <Bell className="w-5 h-5" />
           </Link>
 
-          {/* Theme Toggle */}
-          {/* <button
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
-          >
-            {theme === "dark" ? <Sun /> : <Moon />}
-          </button> */}
-
-          {/* Admin shortcut */}
-          {session?.user?.role === "ADMIN" && (
-            <Link
-              href="/admin/dashboard"
-              className="px-3 py-1 rounded-md bg-black text-white text-sm"
-            >
-              Admin
-            </Link>
-          )}
+          <Link href="/admin/dashboard">
+            <LayoutDashboard className="w-5 h-5" />
+          </Link>
         </div>
-      </div>
-    </nav>
-  )
+      </nav>
+
+      {/* Mobile Bottom Nav */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 h-16 border-t bg-white flex justify-around items-center">
+        <Link href="/">
+          <Home className="w-6 h-6" />
+        </Link>
+
+        <Link href="/polls">
+          <Bell className="w-6 h-6" />
+        </Link>
+
+        <Link href="/admin/dashboard">
+          <LayoutDashboard className="w-6 h-6" />
+        </Link>
+      </nav>
+    </>
+  );
 }

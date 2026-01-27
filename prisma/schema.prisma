@@ -23,15 +23,15 @@ model User {
   image         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  accounts      Account[]
-  events        Event[]
-  orders        Order[]
-  polls         Poll[]
-  sessions      Session[]
-  tickets       Ticket[]
-  votes         Vote[]
 
-  // Tikky relations
+  accounts Account[]
+  orders   Order[]
+  polls    Poll[]
+  sessions Session[]
+  tickets  Ticket[]
+  votes    Vote[]
+
+  // Event relations
   createdEvents   Event[] @relation("CreatedEvents")
   organizedEvents Event[] @relation("OrganizedEvents")
 
@@ -81,14 +81,13 @@ model Event {
   title       String
   description String?
   date        DateTime
+  published   Boolean  @default(false)
   location    String
   imageUrl    String?
 
-  // Admin who created the event
   createdById String
   createdBy   User   @relation("CreatedEvents", fields: [createdById], references: [id], onDelete: Cascade)
 
-  // Organizer / host of the event
   organizerId String?
   organizer   User?   @relation("OrganizedEvents", fields: [organizerId], references: [id])
 
@@ -96,8 +95,6 @@ model Event {
   polls   Poll[]
 
   createdAt DateTime @default(now())
-  user      User?    @relation(fields: [userId], references: [id])
-  userId    String?
 
   @@index([createdById])
   @@index([organizerId])
