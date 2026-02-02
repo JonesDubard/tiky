@@ -1,31 +1,73 @@
-// app/components/home/CategoryFilters.tsx
-'use client';
+// app/(public)/components/home/CategoryFilters.tsx
+'use client'
 
-// Updated categories to match your screenshot
-const categories = ['All', 'Music', 'Sports', 'Conference', 'Party', 'Food'];
+import { Music, Users, Cake, Sparkles, Trophy, Utensils } from 'lucide-react'
+import { useSearchParams, useRouter } from 'next/navigation'
+
+const categories = [
+  { id: 'all', name: 'All', icon: Sparkles },
+  { id: 'music', name: 'Music', icon: Music },
+  { id: 'sports', name: 'Sports', icon: Trophy },
+  { id: 'conference', name: 'Conference', icon: Users },
+  { id: 'party', name: 'Party', icon: Cake },
+  { id: 'food', name: 'Food', icon: Utensils },
+]
 
 export default function CategoryFilters() {
-  const activeCategory = 'All';
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const activeCategory = searchParams.get('category') ?? 'all'
+
+  const setCategory = (category: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+
+    if (category === 'all') {
+      params.delete('category')
+    } else {
+      params.set('category', category)
+    }
+
+    router.push(`/home?${params.toString()}`)
+  }
 
   return (
-    <div className="mt-6 px-6"> {/* Adjusted padding to match HeroSection */}
-      {/* Removed the "Browse Categories" subheader as per your design */}
-      <div className="flex space-x-3 overflow-x-auto pb-2">
-        {categories.map((category) => (
-          <button
-            key={category}
-            className={`flex-shrink-0 px-5 py-2 rounded-xl text-sm font-medium whitespace-nowrap
-transition-all duration-200 active:scale-95
-${activeCategory === category
-  ? 'bg-black text-white shadow-md'
-  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:-translate-y-[1px]'
-}`}
+    <div className="mb-12">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h3 className="text-lg font-bold text-slate-900">Browse Categories</h3>
+          <p className="text-slate-600 text-sm mt-1">
+            Filter events by category
+          </p>
+        </div>
 
-          >
-            {category}
-          </button>
-        ))}
+        <button
+          onClick={() => setCategory('all')}
+          className="text-sm text-brand-primary hover:text-brand-accent font-medium"
+        >
+          Clear filters
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        {categories.map(({ id, name, icon: Icon }) => {
+          const isActive = activeCategory === id
+
+          return (
+            <button
+              key={id}
+              onClick={() => setCategory(id)}
+              className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium transition-all ${
+                isActive
+                  ? 'bg-gradient-to-r from-brand-primary to-brand-accent text-white shadow-lg scale-105'
+                  : 'bg-white text-slate-700 border border-brand-subtle/50 hover:bg-brand-subtle/30'
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              <span>{name}</span>
+            </button>
+          )
+        })}
       </div>
     </div>
-  );
+  )
 }

@@ -3,7 +3,7 @@ import EventCard from '@/components/EventCard'; // We will update this component
 
 const featuredEvents = [
   {
-    id: 1,
+    id: '1',
     title: 'Afro Nation Liberia',
     date: 'Thu, May 15 • 6:00 PM',
     location: 'Liberia National Stadium',

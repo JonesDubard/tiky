@@ -1,201 +1,201 @@
-﻿'use client'
+﻿// app/login/page.tsx
+'use client';
 
-import { useState, useEffect, Suspense } from "react"
-import { signIn, useSession } from "next-auth/react"
-import { useRouter, useSearchParams } from "next/navigation"
-import Link from "next/link"
+import { useState } from 'react';
+import { signIn } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
 
-// Create a separate component that uses useSearchParams
-function LoginForm() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get("callbackUrl") || "/admin/dashboard"
-  const { data: session, status } = useSession()
-  
-  const [email, setEmail] = useState("admin@tikky.com")
-  const [password, setPassword] = useState("admin123")
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [debug, setDebug] = useState("")
-
-  // Redirect if already logged in
-  useEffect(() => {
-    if (status === "authenticated") {
-      router.push(callbackUrl)
-    }
-  }, [status, router, callbackUrl])
+export default function LoginPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError("")
-    setDebug("")
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
     try {
-      console.log("Attempting sign in...")
-      setDebug("Attempting sign in...")
-      
-      const result = await signIn("credentials", {
-        email,
-        password,
+      const result = await signIn('credentials', {
+        email: formData.email,
+        password: formData.password,
         redirect: false,
-        callbackUrl,
-      })
-
-      console.log("Sign in result:", result)
-      setDebug(`Result: ${JSON.stringify(result, null, 2)}`)
+      });
 
       if (result?.error) {
-        setError(`Sign in failed: ${result.error}`)
-      } else if (result?.ok) {
-        setDebug("Redirecting...")
-        router.push(callbackUrl)
-        router.refresh()
+        setError('Invalid email or password');
       } else {
-        setError("Unexpected response from server")
+        router.push('/');
+        router.refresh();
       }
-    } catch (err: any) {
-      console.error("Sign in error:", err)
-      setError(`Error: ${err.message || "Unknown error"}`)
+    } catch (error) {
+      setError('Something went wrong. Please try again.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
-            Tiky Admin Login
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            {status === "loading" ? "Checking session..." : "Enter your credentials"}
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-subtle/20 via-white to-white py-12 px-4">
+      <div className="max-w-md w-full">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-r from-brand-primary to-brand-accent mb-4">
+            <LogIn className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold text-slate-900">
+            Welcome Back
+          </h1>
+          <p className="text-slate-600 mt-2">
+            Sign in to your Tiky account
           </p>
         </div>
 
-        {/* Debug Info (Development only) */}
-        {process.env.NODE_ENV === "development" && debug && (
-          <div className="bg-gray-100 p-4 rounded text-sm font-mono">
-            <div className="font-bold mb-2">Debug:</div>
-            <div className="whitespace-pre-wrap">{debug}</div>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="mt-8 space-y-6 bg-white p-8 rounded-lg shadow">
+        {/* Login Card */}
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-8">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-              <strong>Error:</strong> {error}
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+              <div className="flex items-center gap-2 text-red-700">
+                <AlertCircle className="w-5 h-5" />
+                <span className="font-medium">{error}</span>
+              </div>
             </div>
           )}
 
-          <div className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Email
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Email Address
               </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                required
-                disabled={loading}
-              />
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  placeholder="you@example.com"
+                  className="w-full pl-12 pr-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-all"
+                  disabled={loading}
+                />
+              </div>
             </div>
 
+            {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                required
-                disabled={loading}
-              />
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm font-medium text-slate-700">
+                  Password
+                </label>
+                <Link
+                  href="/forgot-password"
+                  className="text-sm text-brand-primary hover:text-brand-primary/80"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="password"
+                  required
+                  value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  placeholder="••••••••"
+                  className="w-full pl-12 pr-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-all"
+                  disabled={loading}
+                />
+              </div>
             </div>
-          </div>
 
-          <div>
+            {/* Remember Me */}
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="remember"
+                className="h-4 w-4 text-brand-primary rounded focus:ring-brand-primary"
+              />
+              <label htmlFor="remember" className="ml-2 text-sm text-slate-600">
+                Remember me for 30 days
+              </label>
+            </div>
+
+            {/* Submit Button */}
             <button
               type="submit"
-              disabled={loading || status === "loading"}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading}
+              className="w-full py-3.5 bg-gradient-to-r from-brand-primary to-brand-accent text-white rounded-xl font-bold hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
             >
               {loading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
+                <span className="flex items-center justify-center gap-2">
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   Signing in...
-                </>
-              ) : "Sign in"}
-            </button>
-          </div>
-
-          <div className="text-center text-sm">
-            <Link
-              href="/"
-              className="font-medium text-blue-600 hover:text-blue-500"
-            >
-              ← Back to home
-            </Link>
-          </div>
-
-          {/* Session Status */}
-          {process.env.NODE_ENV === "development" && (
-            <div className="text-xs text-gray-500 mt-4 pt-4 border-t">
-              Session status: {status}
-              {session && (
-                <div className="mt-1">
-                  Logged in as: {session.user?.email}
-                </div>
+                </span>
+              ) : (
+                'Sign In'
               )}
-            </div>
-          )}
-        </form>
+            </button>
+          </form>
 
-        {/* Quick Test Buttons */}
-        {process.env.NODE_ENV === "development" && (
-          <div className="space-y-2">
+          {/* Divider */}
+          <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-white text-slate-500">
+                Or continue with
+              </span>
+            </div>
+          </div>
+
+          {/* Alternative Login (Future) */}
+          <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => {
-                setEmail("admin@tiky.com")
-                setPassword("admin123")
-              }}
-              className="w-full text-sm bg-gray-100 hover:bg-gray-200 py-2 px-4 rounded"
+              type="button"
+              disabled
+              className="flex items-center justify-center gap-2 py-3 border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
-              Load Test Credentials
+              <span className="text-slate-700 font-medium">Google</span>
             </button>
             <button
-              onClick={() => router.push("/api/auth/signin")}
-              className="w-full text-sm bg-gray-100 hover:bg-gray-200 py-2 px-4 rounded"
+              type="button"
+              disabled
+              className="flex items-center justify-center gap-2 py-3 border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
-              Try Default NextAuth Page
+              <span className="text-slate-700 font-medium">Facebook</span>
             </button>
           </div>
-        )}
-      </div>
-    </div>
-  )
-}
 
-// Main component with Suspense
-export default function LoginPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading login page...</p>
+          {/* Sign Up Link */}
+          <p className="text-center mt-8 text-slate-600">
+            Don't have an account?{' '}
+            <Link
+              href="/signup"
+              className="font-medium text-brand-primary hover:text-brand-primary/80"
+            >
+              Sign up for free
+            </Link>
+          </p>
+        </div>
+
+        {/* Guest Access Note */}
+        <div className="mt-6 text-center">
+          <p className="text-sm text-slate-500">
+            Want to browse events?{' '}
+            <Link href="/events" className="text-brand-accent hover:underline">
+              Continue as guest
+            </Link>
+          </p>
         </div>
       </div>
-    }>
-      <LoginForm />
-    </Suspense>
-  )
+    </div>
+  );
 }

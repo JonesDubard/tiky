@@ -1,131 +1,94 @@
-﻿// lib/auth.ts
-import type { NextAuthOptions } from "next-auth"
-import CredentialsProvider from "next-auth/providers/credentials"
-import { PrismaAdapter } from "@next-auth/prisma-adapter"
-import { prisma } from "@/lib/prisma"
-import bcrypt from "bcryptjs"
-
-/**
- * Debug logging (safe in dev)
- */
-if (process.env.NODE_ENV === "development") {
-  console.log("🔧 Auth config loading...")
-  console.log("   NEXTAUTH_URL:", process.env.NEXTAUTH_URL)
-  console.log(
-    "   NEXTAUTH_SECRET:",
-    process.env.NEXTAUTH_SECRET ? "Set" : "Not set"
-  )
-}
+﻿// lib/auth.ts - UPDATED (simplified)
+import { NextAuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
-
   session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    strategy: "jwt"
   },
-
-  pages: {
-    signIn: "/login",
-    signOut: "/",
-    error: "/login",
-  },
-
   providers: [
     CredentialsProvider({
-      name: "Credentials",
+      name: "credentials",
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
+        password: { label: "Password", type: "password" }
       },
-
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Email and password are required")
+          throw new Error("Email and password required");
         }
 
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-        })
+          where: { email: credentials.email }
+        });
 
-        if (!user) {
-  return {
-    id: "dev-admin-id",
-    email: credentials.email,
-    name: "Dev Admin",
-    role: "ADMIN",
-  }
-}
-
-
-        // 🔧 DEV BYPASS (remove before production)
-        if (
-          process.env.NODE_ENV === "development" &&
-          credentials.password === "dev-bypass"
-        ) {
-          return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role ?? "USER",
-          }
+        if (!user || !user.password) {
+          throw new Error("Invalid credentials");
         }
 
-        if (!user.password) {
-          throw new Error("Account has no password set")
-        }
-
-        const isValid = await bcrypt.compare(
+        const isValidPassword = await bcrypt.compare(
           credentials.password,
           user.password
-        )
+        );
 
-        if (!isValid) {
-          throw new Error("Invalid email or password")
+        if (!isValidPassword) {
+          throw new Error("Invalid credentials");
         }
 
         return {
           id: user.id,
           email: user.email,
-          name: user.name,
-          role: user.role ?? "USER",
-        }
-      },
-    }),
+          name: user.name || user.email.split('@')[0],
+          role: user.role,
+          image: user.image
+        };
+      }
+    })
   ],
-
   callbacks: {
-    /**
-     * Runs on sign-in and whenever a JWT is created/updated
-     */
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id
-        token.role = (user as { role?: string }).role ?? "USER"
+        token.id = user.id;
+        token.role = user.role;
       }
-      return token
+      return token;
     },
-
-    /**
-     * Makes data available on `session.user`
-     * THIS is what your API routes rely on
-     */
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string
-        session.user.role = token.role as string
+        session.user.id = token.id as string;
+        session.user.role = token.role as string;
       }
-      return session
-    },
-
-    async redirect({ url, baseUrl }) {
-      if (url.startsWith("/")) return `${baseUrl}${url}`
-      if (new URL(url).origin === baseUrl) return url
-      return baseUrl
-    },
+      return session;
+    }
   },
+  pages: {
+    signIn: "/login",
+    error: "/login"
+  }
+};
 
-  secret: process.env.NEXTAUTH_SECRET,
+// Extend session types
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+      role: string;
+    };
+  }
+  
+  interface User {
+    role: string;
+  }
+}
 
-  debug: process.env.NODE_ENV === "development",
+declare module "next-auth/jwt" {
+  interface JWT {
+    id: string;
+    role: string;
+  }
 }

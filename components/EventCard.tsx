@@ -1,68 +1,148 @@
-// components/EventCard.tsx
-import { Calendar, MapPin } from 'lucide-react';
+// components/EventCard.tsx - UPDATED (Safe Version)
+'use client';
+import { Calendar, MapPin, Users, Ticket as TicketIcon } from 'lucide-react';
+import Image from 'next/image';
+import Link from "next/link";
+
 
 interface EventCardProps {
   event: {
-    id: number;
+    id: string;
     title: string;
-    date: string; // e.g., "Thu, May 15 • 6:00 PM"
-    location: string;
-    category: string;
-    price: number;
-    image: string;
+    description?: string;
+    date: string;
+    location?: string;
+    imageUrl?: string;
+    tickets?: Array<{ // Make tickets optional
+      type: string;
+      price: number;
+      quantity: number;
+    }>;
   };
 }
 
 export default function EventCard({ event }: EventCardProps) {
+  // Safe defaults for missing data
+  const eventDate = event.date ? new Date(event.date) : new Date();
+  const tickets = event.tickets || []; // Default to empty array
+  const lowestPrice = tickets.length > 0 
+    ? Math.min(...tickets.map(t => t.price)) 
+    : 0; // Default to 0 if no tickets
+  const totalTickets = tickets.reduce((sum, t) => sum + (t.quantity || 0), 0);
+  const ticketsSold = Math.floor(totalTickets * 0.7); // Mock data
+
   return (
-    <article className="group bg-white rounded-2xl overflow-hidden border border-gray-200 
-transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
-
-
-      {/* Image and Category Tag */}
-      <div className="relative h-48 w-full overflow-hidden">
-  <div
-    className="w-full h-full bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
-    style={{ backgroundImage: `url(${event.image})` }}
-  />
-
-        {/* Category Tag - Top Left */}
-        <span className="absolute top-3 left-3 px-3 py-1 rounded-lg text-xs font-semibold 
-bg-black/80 text-white backdrop-blur-sm">
-          {event.category}
-        </span>
+     <Link
+    href={`/events/${event.id}`}
+    className="block focus:outline-none"
+     >
+    <div className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 card-hover border border-brand-subtle/30">
+      {/* Live Indicator */}
+      <div className="absolute top-4 left-4 z-10">
+        <div className="flex items-center gap-1.5 bg-brand-accent text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg">
+          <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+          LIVE
+        </div>
       </div>
 
-      {/* Card Content */}
-      <div className="p-5">
+      {/* Image Container */}
+      <div className="relative h-56 overflow-hidden bg-gradient-to-br from-brand-subtle to-brand-primary/20">
+        {event.imageUrl ? (
+          <Image
+            src={event.imageUrl}
+            alt={event.title}
+            fill
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <TicketIcon className="w-16 h-16 text-brand-primary/30" />
+          </div>
+        )}
+        
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+      </div>
+
+      {/* Content */}
+      <div className="p-6">
         {/* Event Title */}
-        <h3 className="font-bold text-xl text-black mb-3">{event.title}</h3>
+        <h3 className="text-xl font-bold text-slate-900 mb-2 line-clamp-1 group-hover:text-brand-primary transition-colors">
+          {event.title || 'Untitled Event'}
+        </h3>
 
-        {/* Date and Location */}
-        <div className="space-y-2 text-sm text-gray-600 mb-4">
-          <div className="flex items-center">
-            <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />
-            <span>{event.date}</span>
+        {/* Description */}
+        <p className="text-slate-600 mb-4 line-clamp-2 text-sm">
+          {event.description || 'Join us for an unforgettable experience!'}
+        </p>
+
+        {/* Details */}
+        <div className="space-y-3 mb-6">
+          <div className="flex items-center gap-3 text-slate-600">
+            <Calendar className="w-4 h-4 text-brand-primary" />
+            <span className="text-sm font-medium">
+              {eventDate.toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+              })}
+            </span>
+            <span className="text-xs text-slate-400">•</span>
+            <span className="text-sm">
+              {eventDate.toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+              })}
+            </span>
           </div>
-          <div className="flex items-center">
-            <MapPin className="w-4 h-4 mr-2 flex-shrink-0" />
-            <span className="line-clamp-1">{event.location}</span>
+
+          <div className="flex items-center gap-3 text-slate-600">
+            <MapPin className="w-4 h-4 text-brand-primary" />
+            <span className="text-sm font-medium">{event.location || 'Location TBD'}</span>
           </div>
+
+          {tickets.length > 0 && (
+            <div className="flex items-center gap-3 text-slate-600">
+              <Users className="w-4 h-4 text-brand-primary" />
+              <div className="flex-1">
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="font-medium">Tickets Available</span>
+                  <span className="font-bold text-brand-primary">
+                    {ticketsSold}/{totalTickets}
+                  </span>
+                </div>
+                <div className="h-2 bg-brand-subtle/30 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-brand-primary to-brand-accent rounded-full transition-all duration-500"
+                    style={{ width: `${totalTickets > 0 ? (ticketsSold / totalTickets) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Price and CTA Button - Side by side */}
-        <div className="flex items-center justify-between border-t border-gray-100 pt-4">
+        {/* Price & Action */}
+        <div className="flex items-center justify-between pt-4 border-t border-brand-subtle/30">
           <div>
-            <p className="text-xs text-gray-500">From</p>
-            <p className="text-xl font-black text-black">${event.price}</p>
+            <div className="text-xs text-slate-500 mb-1">Starting from</div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-bold text-brand-accent">${lowestPrice}</span>
+              <span className="text-sm text-slate-500">/ticket</span>
+            </div>
           </div>
-          <button className="px-6 py-3 bg-black text-white font-semibold rounded-xl
-hover:shadow-lg hover:-translate-y-[1px]
-active:scale-[0.97] transition-all duration-200">
-  Book Now
-</button>
+          
+          <div className="btn-primary flex items-center gap-2 text-sm px-6 py-3">
+
+            <TicketIcon className="w-4 h-4" />
+            Book Now
+          </div>
         </div>
       </div>
-    </article>
+
+      {/* Hover Effect Border */}
+      <div className="absolute inset-0 border-2 border-transparent group-hover:border-brand-primary/20 rounded-2xl pointer-events-none transition-all duration-300" />
+    </div>
+    </Link>
   );
 }

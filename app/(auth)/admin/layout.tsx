@@ -33,7 +33,7 @@ export default async function AdminLayout({
           <div className="px-4 py-3">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-lg font-semibold text-gray-900">Tikky Admin</h1>
+                <h1 className="text-lg font-semibold text-gray-900">Tiky Admin</h1>
                 <p className="text-sm text-gray-600 truncate">
                   {session.user?.email}
                 </p>

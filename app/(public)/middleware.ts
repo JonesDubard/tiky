@@ -13,12 +13,13 @@ export default withAuth(
     }
     
     // Admin routes require ADMIN role
-    if (req.nextUrl.pathname.startsWith('/admin')) {
-      const token = req.nextauth.token
-      if (token?.role !== 'ADMIN' && token?.role !== 'ORGANIZER') {
-        return NextResponse.redirect(new URL('/unauthorized', req.url))
-      }
-    }
+   if (req.nextUrl.pathname.startsWith('/admin')) {
+  const token = req.nextauth.token
+  if (token?.role !== 'ADMIN') {
+    return NextResponse.redirect(new URL('/unauthorized', req.url))
+  }
+}
+
     
     return NextResponse.next()
   },

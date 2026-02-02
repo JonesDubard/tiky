@@ -1,25 +1,51 @@
 // app/(public)/components/home/FeaturedEvents.tsx
-import EventCard from "@/components/EventCard"
+import EventCard from "@/components/EventCard";
+import { PublicEvent } from '@/types/events';
 
-interface FeaturedEventsProps {
-  events?: any[]   // 👈 optional
+
+export interface PublicEvent {
+  id: string
+  title: string
+  description?: string
+  date: string
+  location?: string
+  imageUrl?: string
+  tickets?: {
+    type: string
+    price: number
+    quantity: number
+  }[]
 }
 
-export default function FeaturedEvents({ events = [] }: FeaturedEventsProps) {
-  if (events.length === 0) {
+interface FeaturedEventsProps {
+  events: PublicEvent[]
+}
+
+export default function FeaturedEvents({ events }: FeaturedEventsProps) {
+  if (!events || events.length === 0) {
     return (
-      <div className="text-center py-20 text-gray-500">
+      <div className="text-center py-20 text-slate-500">
         No upcoming events
       </div>
     )
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {events.map(event => (
-        <EventCard key={event.id} event={event} />
+    <section
+      className="
+        grid gap-6
+        grid-cols-1
+        sm:grid-cols-2
+        lg:grid-cols-3
+      "
+    >
+      {events.map((event) => (
+        <EventCard
+          key={event.id}
+          event={event}
+          //href={`/events/${event.id}`} // 👈 critical
+        />
       ))}
-    </div>
+    </section>
   )
 }
-
