@@ -1,3 +1,4 @@
+// prisma/schema.prisma - COMPLETE AND CORRECT
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,29 +14,19 @@ enum Role {
   ADMIN
 }
 
-model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  name          String?
-  password      String?
-  role Role @default(USER)
-  emailVerified DateTime?
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
 
-  accounts Account[]
-  orders   Order[]
-  polls    Poll[]
-  sessions Session[]
-  tickets  Ticket[]
-  votes    Vote[]
-
-  // Event relations
-  createdEvents   Event[] @relation("CreatedEvents")
-  organizedEvents Event[] @relation("OrganizedEvents")
-
-  @@map("users")
+enum PaymentProvider {
+  MTN_MOMO
+  ORANGE_MONEY
+  CARD
+  CASH
 }
 
 model Account {
@@ -76,12 +67,42 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String?
+  role          Role      @default(USER)
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  orders        Order[]
+  tickets       Ticket[]
+  payments      Payment[]
+  
+  // Poll relations
+  polls         Poll[]
+  votes         Vote[]
+  
+  // Event relations
+  createdEvents   Event[] @relation("CreatedEvents")
+  organizedEvents Event[] @relation("OrganizedEvents")
+
+  @@map("users")
+}
+
 model Event {
   id          String   @id @default(cuid())
   title       String
   description String?
   date        DateTime
   published   Boolean  @default(false)
+  isFeatured  Boolean  @default(false)
   location    String
   imageUrl    String?
 
@@ -91,8 +112,9 @@ model Event {
   organizerId String?
   organizer   User?   @relation("OrganizedEvents", fields: [organizerId], references: [id])
 
-  tickets Ticket[]
-  polls   Poll[]
+  tickets     Ticket[]
+  polls       Poll[]
+  payments    Payment[]
 
   createdAt DateTime @default(now())
 
@@ -108,6 +130,7 @@ model Ticket {
   eventId  String
   userId   String
   orders   Order[]
+  payments Payment[]
   user     User    @relation(fields: [userId], references: [id])
   event    Event   @relation(fields: [eventId], references: [id])
 
@@ -171,4 +194,28 @@ model Vote {
 
   @@unique([pollId, userId])
   @@map("votes")
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  amount        Float
+  currency      String   @default("LRD")
+  status        PaymentStatus @default(PENDING)
+  provider      PaymentProvider @default(MTN_MOMO)
+  providerRef   String?  // MTN transaction ID
+  callbackData  Json?    // Store MoMo callback payload
+  
+  // Relationships
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id])
+  eventId       String
+  event         Event    @relation(fields: [eventId], references: [id])
+  ticketId      String?
+  ticket        Ticket?  @relation(fields: [ticketId], references: [id])
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([providerRef])
+  @@index([status])
 }

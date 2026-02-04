@@ -1,15 +1,23 @@
-// app/api/events/route.ts - Updated for public access
+// app/api/events/route.ts - FIXED IMPORT
 import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { prisma } from "../../../lib/prisma"  // FIXED PATH
 
 export async function GET() {
   try {
     const events = await prisma.event.findMany({
       where: {
         published: true,
-        
+        isFeatured: true,
+        date: {
+          gte: new Date()
+        }
       },
       include: {
+        organizer: {
+          select: {
+            name: true
+          }
+        },
         tickets: {
           select: {
             type: true,
@@ -21,6 +29,7 @@ export async function GET() {
       orderBy: {
         date: "asc",
       },
+      take: 6
     })
 
     return NextResponse.json(events)

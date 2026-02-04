@@ -1,7 +1,7 @@
-﻿// app/layout.tsx
+﻿// app/layout.tsx - UPDATED WITH CORRECT PATHS
 import "./globals.css"
-import { ThemeProvider } from "@/components/providers/theme-provider"
-import { Providers } from "@/components/providers/session-provider"
+import { ThemeProvider } from "../components/providers/theme-provider"
+import Providers from "@/(public)/providers"  
 
 export const metadata = {
   title: "Tiky - Discover events in Liberia",

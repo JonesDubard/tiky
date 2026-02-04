@@ -1,20 +1,20 @@
-// app/(public)/page.tsx - UPDATED with proper type handling
-import FeaturedEvents from "./components/home/FeaturedEvents";
-import LivePolls from "./components/home/LivePolls";
-import HeroSection from "./components/home/HeroSection";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { PublicEvent } from '@/types/events';
+// app/(public)/page.tsx - UPDATED
+import FeaturedEvents from './components/home/FeaturedEvents'
+import LivePolls from './components/home/LivePolls'
+import HeroSection from './components/home/HeroSection'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '../../lib/auth'
+import { prisma } from '../../lib/prisma'
+import { PublicEvent } from '@/types/events'
+import { PublicPoll } from '@/types/polls'
 
-// Fetch events directly from database with proper type casting
 async function getEvents(): Promise<PublicEvent[]> {
   try {
     const events = await prisma.event.findMany({
       where: {
         published: true,
         date: {
-          gte: new Date()
+          gte: new Date() // Only future events
         }
       },
       include: {
@@ -26,100 +26,81 @@ async function getEvents(): Promise<PublicEvent[]> {
           }
         }
       },
-      orderBy: {
-        date: "asc"
-      },
+      orderBy: { date: 'asc' },
       take: 12
-    });
+    })
 
-    // Transform to match PublicEvent type
-    const transformedEvents: PublicEvent[] = events.map(event => ({
+    return events.map((event: typeof events[number]) => ({
       id: event.id,
       title: event.title,
-      description: event.description || undefined, // Convert null to undefined
-      date: event.date,
+      description: event.description ?? undefined,
+      date: event.date.toISOString(),
+      location: event.location ?? undefined,
+      imageUrl: event.imageUrl ?? undefined,
       published: event.published,
-      location: event.location,
-      imageUrl: event.imageUrl || undefined, // Convert null to undefined
-      createdById: event.createdById,
-      organizerId: event.organizerId || undefined,
       tickets: event.tickets,
       createdAt: event.createdAt
-    }));
-
-    console.log('✅ Events fetched:', transformedEvents.length, 'events');
-    return transformedEvents;
+    }))
   } catch (error) {
-    console.error('❌ Error fetching events:', error);
-    return [];
+    console.error('❌ Error fetching events:', error)
+    return []
   }
 }
 
-// Fetch polls directly from database
-async function getPolls() {
+async function getPolls(): Promise<PublicPoll[]> {
   try {
     const polls = await prisma.poll.findMany({
       where: {
-        status: "ACTIVE",
-        OR: [
-          { endDate: { gte: new Date() } },
-          { endDate: null }
-        ]
+        status: 'ACTIVE',
+        isFeatured: true // 👈 ADD THIS FILTER
       },
       include: {
         options: {
           include: {
-            _count: {
-              select: { votes: true }
-            }
+            _count: { select: { votes: true } }
           }
         },
-        _count: {
-          select: { votes: true }
-        }
+        _count: { select: { votes: true } }
       },
-      orderBy: {
-        createdAt: "desc"
-      },
+      orderBy: { createdAt: 'desc' },
       take: 6
-    });
+    })
 
-    // Transform data for LivePolls component
-    const transformedPolls = polls.map(poll => ({
+    return polls.map((poll: typeof polls[number]) => ({
       id: poll.id,
       title: poll.title,
-      description: poll.description || "",
-      endDate: poll.endDate?.toISOString() || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      options: poll.options.map(option => ({
-        id: option.id,
-        text: option.text,
-        votes: option._count.votes
+      description: poll.description ?? '',
+      endDate: poll.endDate?.toISOString() ?? new Date().toISOString(),
+      options: poll.options.map((o: typeof poll.options[number]) => ({
+        id: o.id,
+        text: o.text,
+        votes: o._count.votes
       })),
       totalVotes: poll._count.votes
-    }));
-
-    console.log('✅ Polls fetched:', transformedPolls.length, 'polls');
-    return transformedPolls;
+    }))
   } catch (error) {
-    console.error('❌ Error fetching polls:', error);
-    return [];
+    console.error('❌ Error fetching polls:', error)
+    return []
   }
 }
 
 export default async function HomePage() {
-  // Get session on server side
-  const session = await getServerSession(authOptions);
-  const isAdmin = session?.user?.role === 'ADMIN';
-  
-  // Fetch both in parallel
+  await getServerSession(authOptions)
+
   const [events, polls] = await Promise.all([
     getEvents(),
     getPolls()
-  ]);
+  ])
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-brand-subtle/10 via-white to-white">
-      {/* ... rest of your HomePage component remains the same ... */}
+      <HeroSection />
+
+      <div className="max-w-7xl mx-auto px-4 py-12 space-y-20">
+        {/* Pass events as prop */}
+        <FeaturedEvents events={events} />
+        <LivePolls polls={polls} />
+      </div>
     </div>
-  );
+  )
 }

@@ -42,16 +42,28 @@ export interface Ticket {
   quantity: number;
 }
 
-export interface Event {
-  id: string;
-  title: string;
-  description?: string;
-  date: Date;
-  published: boolean;
-  location: string;
-  imageUrl?: string;
-  createdById: string;
-  organizerId?: string;
-  tickets: Ticket[];
-  createdAt?: Date;
+// export interface Event {
+//   id: string;
+//   title: string;
+//   description?: string;
+//   date: Date;
+//   published: boolean;
+//   location: string;
+//   imageUrl?: string;
+//   createdById: string;
+//   organizerId?: string;
+//   tickets: Ticket[];
+//   createdAt?: Date;
+// }
+
+// types/events.ts
+export type Event = {
+  id: string
+  title: string
+  description?: string
+  image?: string
+  location?: string
+  date: string
+  status: 'DRAFT' | 'PUBLISHED'
+  createdAt: string
 }
