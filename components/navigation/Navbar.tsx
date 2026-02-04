@@ -27,9 +27,14 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const navLinks = isAdmin
-    ? [{ name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard }]
+    const navLinks = isAdmin
+    ? [
+        { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+        { name: 'Events', href: '/admin/events', icon: Ticket },
+        { name: 'Polls', href: '/admin/polls', icon: Bell },
+      ]
     : [
+        { name: 'Home', href: '/', icon: LayoutDashboard },
         { name: 'Events', href: '/events', icon: Ticket },
         { name: 'Polls', href: '/polls', icon: Bell },
       ];
@@ -82,15 +87,37 @@ export default function Navbar() {
 
       {/* User Actions - Right side */}
       <div className="flex items-center gap-4 flex-shrink-0">
-        {!isAdmin && (
+        {session ? (
+          // Logged in user
+          <div className="flex items-center gap-4">
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:shadow-lg transition-all duration-200"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span className="text-sm font-medium">Admin</span>
+              </Link>
+            )}
+            <Link
+              href={isAdmin ? "/admin" : "/profile"}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium bg-gradient-to-r from-brand-primary to-brand-accent text-white hover:shadow-lg transition-all duration-200 hover:gap-3 group"
+            >
+              <User className="w-4 h-4" />
+              <span className="text-sm font-medium">
+                {isAdmin ? "Dashboard" : userDisplayName}
+              </span>
+              <ChevronRight className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
+            </Link>
+          </div>
+        ) : (
+          // Guest user
           <Link
-            href="/profile"
+            href="/login"
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium bg-gradient-to-r from-brand-primary to-brand-accent text-white hover:shadow-lg transition-all duration-200 hover:gap-3 group"
           >
             <User className="w-4 h-4" />
-            <span className="text-sm font-medium">
-              {session ? userDisplayName : 'Login'}
-            </span>
+            <span className="text-sm font-medium">Login</span>
             <ChevronRight className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
           </Link>
         )}
@@ -125,15 +152,17 @@ export default function Navbar() {
         </Link>
         
         {/* Profile Icon/Card - Using brand accent colors */}
-        {!isAdmin && (
-          <Link
-            href="/profile"
-            className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-primary to-brand-accent flex items-center justify-center transition-transform hover:scale-110 shadow-sm hover:shadow-md"
-            aria-label="Profile"
-          >
-            <User className="w-4 h-4 text-white" />
-          </Link>
-        )}
+                  {/* Admin Dashboard Link in Mobile */}
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="flex items-center gap-3 p-4 rounded-xl bg-purple-50 hover:bg-purple-100 transition-colors mb-4"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <LayoutDashboard className="w-5 h-5 text-purple-600" />
+              <span className="font-medium text-purple-700">Admin Dashboard</span>
+            </Link>
+          )}
       </div>
 
       {/* Mobile Menu Overlay */}

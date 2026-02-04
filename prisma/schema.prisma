@@ -1,4 +1,4 @@
-// prisma/schema.prisma - COMPLETE AND CORRECT
+// prisma/schema.prisma - SIMPLIFIED VERSION
 generator client {
   provider = "prisma-client-js"
 }
@@ -27,6 +27,21 @@ enum PaymentProvider {
   ORANGE_MONEY
   CARD
   CASH
+  MOCK
+}
+
+enum TicketStatus {
+  PENDING
+  PAID
+  USED
+  CANCELLED
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
 }
 
 model Account {
@@ -84,6 +99,7 @@ model User {
   orders        Order[]
   tickets       Ticket[]
   payments      Payment[]
+  transactions  Transaction[]
   
   // Poll relations
   polls         Poll[]
@@ -105,6 +121,7 @@ model Event {
   isFeatured  Boolean  @default(false)
   location    String
   imageUrl    String?
+  price       Float?   @default(0)
 
   createdById String
   createdBy   User   @relation("CreatedEvents", fields: [createdById], references: [id], onDelete: Cascade)
@@ -115,6 +132,7 @@ model Event {
   tickets     Ticket[]
   polls       Poll[]
   payments    Payment[]
+  transactions Transaction[]
 
   createdAt DateTime @default(now())
 
@@ -122,40 +140,132 @@ model Event {
   @@index([organizerId])
 }
 
+// ===== TICKET MODEL =====
 model Ticket {
-  id       String  @id @default(cuid())
-  type     String
-  price    Float
-  quantity Int
-  eventId  String
-  userId   String
-  orders   Order[]
-  payments Payment[]
-  user     User    @relation(fields: [userId], references: [id])
-  event    Event   @relation(fields: [eventId], references: [id])
-
-  @@map("tickets")
+  id            String      @id @default(cuid())
+  ticketId      String      @unique
+  qrCodeHash    String      @unique
+  status        TicketStatus @default(PENDING)
+  type          String?
+  price         Float
+  quantity      Int         @default(1)
+  
+  // Guest information
+  guestEmail    String?
+  guestName     String?
+  
+  // Scan tracking
+  scannedAt     DateTime?
+  scannedBy     String?
+  
+  // Relationships
+  eventId       String
+  event         Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  
+  userId        String?
+  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  // One-to-one with Transaction
+  transaction   Transaction?
+  
+  // One-to-one with Payment
+  payment       Payment?
+  
+  // Many-to-one with Order
+  orders        Order[]
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  @@index([eventId])
+  @@index([userId])
+  @@index([qrCodeHash])
+  @@index([status])
+  @@index([ticketId])
 }
 
+// ===== TRANSACTION MODEL =====
+model Transaction {
+  id              String            @id @default(cuid())
+  transactionRef  String            @unique
+  amount          Float
+  fee             Float?            @default(0)
+  total           Float
+  currency        String            @default("LRD")
+  status          TransactionStatus @default(PENDING)
+  paymentMethod   PaymentProvider
+  provider        String?
+  
+  // Payment details
+  phoneNumber     String?
+  email           String?
+  fullName        String?
+  
+  // Provider response data
+  providerRef     String?
+  providerData    Json?
+  
+  // Relationships
+  userId          String?
+  user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  eventId         String
+  event           Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  
+  // One-to-one with Ticket
+  ticketId        String?           @unique
+  ticket          Ticket?           @relation(fields: [ticketId], references: [id])
+  
+  // One-to-one with Payment (Payment references Transaction)
+  payment         Payment?
+  
+  // One-to-many with Order
+  orders          Order[]
+  
+  // Metadata
+  ipAddress       String?
+  userAgent       String?
+  metadata        Json?
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  completedAt     DateTime?
+  
+  @@index([transactionRef])
+  @@index([userId])
+  @@index([eventId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ===== ORDER MODEL =====
 model Order {
   id         String   @id @default(cuid())
-  userId     String
-  ticketId   String
   quantity   Int
   totalPrice Float
   status     String   @default("PENDING")
   createdAt  DateTime @default(now())
-  ticket     Ticket   @relation(fields: [ticketId], references: [id])
-  user       User     @relation(fields: [userId], references: [id])
-
+  
+  // Relationships
+  ticketId   String
+  ticket     Ticket      @relation(fields: [ticketId], references: [id])
+  
+  userId     String
+  user       User        @relation(fields: [userId], references: [id])
+  
+  transactionId String?
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+  
   @@map("orders")
 }
 
+// ===== POLL & VOTE MODELS =====
 model Poll {
   id          String    @id @default(cuid())
   title       String
   description String?
   type        String    @default("POLL")
+  pollType    String    @default("single")
   status      String    @default("ACTIVE")
   isFeatured  Boolean   @default(false)
   endDate     DateTime?
@@ -196,25 +306,32 @@ model Vote {
   @@map("votes")
 }
 
+// ===== PAYMENT MODEL =====
 model Payment {
-  id            String   @id @default(cuid())
+  id            String         @id @default(cuid())
   amount        Float
-  currency      String   @default("LRD")
-  status        PaymentStatus @default(PENDING)
+  currency      String         @default("LRD")
+  status        PaymentStatus  @default(PENDING)
   provider      PaymentProvider @default(MTN_MOMO)
-  providerRef   String?  // MTN transaction ID
-  callbackData  Json?    // Store MoMo callback payload
+  providerRef   String?
+  callbackData  Json?
   
   // Relationships
   userId        String?
-  user          User?    @relation(fields: [userId], references: [id])
+  user          User?          @relation(fields: [userId], references: [id])
   eventId       String
-  event         Event    @relation(fields: [eventId], references: [id])
-  ticketId      String?
-  ticket        Ticket?  @relation(fields: [ticketId], references: [id])
+  event         Event          @relation(fields: [eventId], references: [id])
   
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  // One-to-one with Ticket
+  ticketId      String?        @unique
+  ticket        Ticket?        @relation(fields: [ticketId], references: [id])
+  
+  // One-to-one with Transaction (explicit relation)
+  transactionId String?        @unique
+  transaction   Transaction?   @relation(fields: [transactionId], references: [id])
+  
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   
   @@index([providerRef])
   @@index([status])

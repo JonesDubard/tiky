@@ -1,20 +1,33 @@
-﻿// app/login/page.tsx
+﻿// app/login/page.tsx - UPDATED (Client Component)
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import { useEffect } from 'react';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (session) {
+      if (session.user.role === 'ADMIN') {
+        router.push('/admin');
+      } else {
+        router.push('/profile');
+      }
+    }
+  }, [session, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +44,7 @@ export default function LoginPage() {
       if (result?.error) {
         setError('Invalid email or password');
       } else {
-        router.push('/');
+        // Let the useEffect handle the redirection based on role
         router.refresh();
       }
     } catch (error) {
@@ -40,6 +53,27 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  // Show loading while checking session
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-brand-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  // If already logged in, show redirect message
+  if (session) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-2 border-brand-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-700">Redirecting to your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-subtle/20 via-white to-white py-12 px-4">
@@ -144,34 +178,20 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Divider */}
-          <div className="relative my-8">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-slate-500">
-                Or continue with
-              </span>
-            </div>
-          </div>
-
-          {/* Alternative Login (Future) */}
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              disabled
-              className="flex items-center justify-center gap-2 py-3 border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
-            >
-              <span className="text-slate-700 font-medium">Google</span>
-            </button>
-            <button
-              type="button"
-              disabled
-              className="flex items-center justify-center gap-2 py-3 border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
-            >
-              <span className="text-slate-700 font-medium">Facebook</span>
-            </button>
+          {/* Admin Demo Note */}
+          <div className="mt-6 p-4 bg-purple-50 border border-purple-200 rounded-xl">
+            <p className="text-sm text-purple-800 font-medium">
+              👑 Admin Demo Account
+            </p>
+            <p className="text-xs text-purple-600 mt-1">
+              Email: <code className="bg-purple-100 px-2 py-1 rounded">admin@tiky.com</code>
+            </p>
+            <p className="text-xs text-purple-600">
+              Password: <code className="bg-purple-100 px-2 py-1 rounded">admintiky123!</code>
+            </p>
+            <p className="text-xs text-purple-500 mt-2">
+              Regular users can register new accounts
+            </p>
           </div>
 
           {/* Sign Up Link */}

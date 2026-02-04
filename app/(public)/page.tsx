@@ -51,8 +51,7 @@ async function getPolls(): Promise<PublicPoll[]> {
   try {
     const polls = await prisma.poll.findMany({
       where: {
-        status: 'ACTIVE',
-        isFeatured: true // 👈 ADD THIS FILTER
+        status: { in: ['ACTIVE', 'LIVE'] }, // Show both ACTIVE and LIVE polls
       },
       include: {
         options: {
@@ -66,12 +65,12 @@ async function getPolls(): Promise<PublicPoll[]> {
       take: 6
     })
 
-    return polls.map((poll: typeof polls[number]) => ({
+    return polls.map(poll => ({
       id: poll.id,
       title: poll.title,
       description: poll.description ?? '',
-      endDate: poll.endDate?.toISOString() ?? new Date().toISOString(),
-      options: poll.options.map((o: typeof poll.options[number]) => ({
+      endDate: poll.endDate?.toISOString() ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      options: poll.options.map(o => ({
         id: o.id,
         text: o.text,
         votes: o._count.votes

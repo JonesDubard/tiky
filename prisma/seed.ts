@@ -1,7 +1,71 @@
+// prisma/seed.ts - CORRECTED VERSION
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
+
+async function seedPolls(adminId: string) {
+  console.log('📊 Creating featured polls...')
+  
+  const polls = [
+    {
+      title: 'Which Liberian artist should headline our next festival?',
+      description: 'Help us decide the main act for the upcoming music festival',
+      options: ['K-Zee', 'Takun J', 'CIC', 'F.A.', 'DenG']
+    },
+    {
+      title: 'What type of events do you want to see more in Liberia?',
+      description: 'Your opinion helps us bring better events to the community',
+      options: ['Music Concerts', 'Tech Conferences', 'Food Festivals', 'Sports Events', 'Art Exhibitions']
+    },
+    {
+      title: 'Which payment method do you prefer for tickets?',
+      description: 'We want to improve our payment options',
+      options: ['MTN MoMo', 'Orange Money', 'Bank Card', 'Cash on Delivery']
+    }
+  ]
+
+  for (const [index, pollData] of polls.entries()) {
+    const poll = await prisma.poll.create({
+      data: {
+        title: pollData.title,
+        description: pollData.description,
+        isFeatured: true,
+        status: 'ACTIVE',
+        creatorId: adminId,
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+      }
+    })
+
+    // Add options
+    for (const [optIndex, optionText] of pollData.options.entries()) {
+      await prisma.option.create({
+        data: {
+          text: optionText,
+          pollId: poll.id,
+        }
+      })
+    }
+
+    // Add some demo votes
+    for (let i = 0; i < 10 + Math.random() * 20; i++) {
+      const options = await prisma.option.findMany({
+        where: { pollId: poll.id }
+      })
+      const randomOption = options[Math.floor(Math.random() * options.length)]
+      
+      await prisma.vote.create({
+        data: {
+          pollId: poll.id,
+          optionId: randomOption.id,
+          userId: `demo-voter-${i}-${poll.id}`
+        }
+      })
+    }
+
+    console.log(`✅ Created poll: ${poll.title} with ${pollData.options.length} options`)
+  }
+}
 
 async function main() {
   const email = 'admin@tiky.com'
@@ -66,6 +130,9 @@ async function main() {
     
     console.log(`✅ Created featured event: ${event.title}`)
   }
+
+  // 🎯 CRITICAL: CALL THE SEED POLLS FUNCTION
+  await seedPolls(admin.id)
 
   console.log('🎉 Database seeded successfully!')
   console.log('🔑 Login with:', email, '/', password)

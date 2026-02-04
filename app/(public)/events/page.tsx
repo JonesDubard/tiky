@@ -1,6 +1,6 @@
 // app/events/page.tsx
-import { prisma } from '@/lib/prisma';
-import EventCard from '@/components/EventCard';
+import { prisma } from 'lib/prisma';
+import EventCard from 'components/Events/EventCard';
 import Link from 'next/link';
 import { CalendarDays, MapPin, Filter } from 'lucide-react';
 

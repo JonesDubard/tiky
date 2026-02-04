@@ -120,8 +120,8 @@
 // }
 
 // app/(public)/polls/page.tsx - Complete polls listing page
-import { prisma } from '@/lib/prisma';
-import PollCard from '@/components/polls/PollCard';
+import { prisma } from 'lib/prisma';
+import PollCard from 'components/polls/PollCard';
 import { BarChart3, Vote, TrendingUp } from 'lucide-react';
 
 async function getPolls() {
