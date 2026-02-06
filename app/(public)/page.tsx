@@ -8,16 +8,28 @@ import { prisma } from '../../lib/prisma'
 import { PublicEvent } from '@/types/events'
 import { PublicPoll } from '@/types/polls'
 
+// app/(public)/page.tsx - UPDATED getEvents()
+// app/(public)/page.tsx - FINAL FIX
 async function getEvents(): Promise<PublicEvent[]> {
   try {
     const events = await prisma.event.findMany({
       where: {
         published: true,
         date: {
-          gte: new Date() // Only future events
+          gte: new Date()
         }
       },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        date: true,
+        location: true,
+        imageUrl: true,
+        published: true,
+        isFeatured: true,
+        price: true,
+        createdAt: true,
         tickets: {
           select: {
             type: true,
@@ -30,7 +42,7 @@ async function getEvents(): Promise<PublicEvent[]> {
       take: 12
     })
 
-    return events.map((event: typeof events[number]) => ({
+    return events.map((event) => ({
       id: event.id,
       title: event.title,
       description: event.description ?? undefined,
@@ -38,7 +50,14 @@ async function getEvents(): Promise<PublicEvent[]> {
       location: event.location ?? undefined,
       imageUrl: event.imageUrl ?? undefined,
       published: event.published,
-      tickets: event.tickets,
+      isFeatured: event.isFeatured,
+      price: event.price,
+      // Convert nullable type to string with default
+      tickets: event.tickets.map(ticket => ({
+        type: ticket.type ?? 'General Admission',  // Default value
+        price: ticket.price,
+        quantity: ticket.quantity
+      })),
       createdAt: event.createdAt
     }))
   } catch (error) {

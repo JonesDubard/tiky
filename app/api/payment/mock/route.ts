@@ -2,7 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from 'lib/auth'
-import { getPaymentProcessor, PaymentProvider } from '@/lib/payment/processors'
+import { getPaymentProcessor } from 'app/lib/payment/index'
+import { PaymentProvider } from '@prisma/client'
 import { prisma } from 'lib/prisma'
 
 export async function POST(request: NextRequest) {
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Prepare payment request
+    // Prepare payment request (without IP for now)
     const paymentRequest = {
       eventId,
       userId: session?.user?.id,
@@ -36,7 +37,8 @@ export async function POST(request: NextRequest) {
       quantity,
       metadata: {
         userAgent: request.headers.get('user-agent'),
-        ipAddress: request.ip || request.headers.get('x-forwarded-for')
+        // Remove ipAddress for now
+        timestamp: new Date().toISOString()
       }
     }
     

@@ -4,6 +4,7 @@ import { Calendar, MapPin, Users, Ticket as TicketIcon } from 'lucide-react';
 import Image from 'next/image';
 import Link from "next/link";
 
+// components/EventCard.tsx - UPDATE interface
 interface EventCardProps {
   event: {
     id: string;
@@ -12,15 +13,15 @@ interface EventCardProps {
     date: string;
     location?: string;
     imageUrl?: string;
-    isFeatured?: boolean; // 👈 ADD THIS
+    isFeatured?: boolean;
+    price?: number | null;
     tickets: Array<{
-      type: string;
+      type: string;  // Changed from string | null to just string
       price: number;
       quantity: number;
     }>;
   };
 }
-
 export default function EventCard({ event }: EventCardProps) {
   const eventDate = new Date(event.date);
   const tickets = event.tickets || [];
