@@ -1,29 +1,27 @@
 // app/api/tickets/[id]/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from 'lib/auth'
-import { prisma } from 'lib/prisma'
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from 'lib/prisma';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const ticketId = params.id;
     
-    const ticket = await prisma.ticket.findUnique({
-      where: { id: params.id },
+    console.log('Fetching ticket with ID:', ticketId);
+    
+    // Try to find the ticket by id or ticketId
+    const ticket = await prisma.ticket.findFirst({
+      where: {
+        OR: [
+          { id: ticketId },
+          { ticketId: ticketId }
+        ]
+      },
       include: {
-        event: {
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            date: true,
-            location: true,
-            imageUrl: true
-          }
-        },
+        event: true,
+        transaction: true,
         user: {
           select: {
             name: true,
@@ -31,34 +29,58 @@ export async function GET(
           }
         }
       }
-    })
-    
+    });
+
     if (!ticket) {
+      console.log('Ticket not found for ID:', ticketId);
       return NextResponse.json(
         { error: 'Ticket not found' },
         { status: 404 }
-      )
+      );
     }
+
+    console.log('Ticket found:', ticket.ticketId);
     
-    // Check authorization
-    const isOwner = ticket.userId === session?.user?.id || 
-                   ticket.guestEmail === session?.user?.email
-    const isAdmin = session?.user?.role === 'ADMIN'
-    
-    if (!isOwner && !isAdmin) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 403 }
-      )
-    }
-    
-    return NextResponse.json(ticket)
-    
+    // Format the response
+    const ticketData = {
+      id: ticket.id,
+      ticketId: ticket.ticketId,
+      qrCodeHash: ticket.qrCodeHash,
+      status: ticket.status,
+      price: ticket.price,
+      quantity: ticket.quantity,
+      guestName: ticket.guestName,
+      guestEmail: ticket.guestEmail,
+      createdAt: ticket.createdAt.toISOString(),
+      event: {
+        id: ticket.event.id,
+        title: ticket.event.title,
+        description: ticket.event.description,
+        date: ticket.event.date?.toISOString(),
+        location: ticket.event.location,
+        imageUrl: ticket.event.imageUrl
+      },
+      user: ticket.user ? {
+        name: ticket.user.name,
+        email: ticket.user.email
+      } : undefined,
+      transaction: ticket.transaction ? {
+        paymentMethod: ticket.transaction.paymentMethod,
+        provider: ticket.transaction.provider,
+        phoneNumber: ticket.transaction.phoneNumber
+      } : undefined
+    };
+
+    return NextResponse.json(ticketData);
+
   } catch (error) {
-    console.error('Ticket API error:', error)
+    console.error('Error fetching ticket:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
-    )
+    );
   }
 }

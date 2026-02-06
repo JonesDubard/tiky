@@ -5,8 +5,8 @@ import HeroSection from './components/home/HeroSection'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../../lib/auth'
 import { prisma } from '../../lib/prisma'
-import { PublicEvent } from '@/types/events'
-import { PublicPoll } from '@/types/polls'
+import { PublicEvent } from 'types/events'
+import { PublicPoll } from 'types/polls'
 
 // app/(public)/page.tsx - UPDATED getEvents()
 // app/(public)/page.tsx - FINAL FIX

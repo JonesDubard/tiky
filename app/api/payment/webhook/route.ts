@@ -1,7 +1,8 @@
-// app/api/payments/webhook/route.ts
+// app/api/payment/webhook/route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from 'lib/prisma'
 
+// Your existing POST function remains the same
 export async function POST(request: Request) {
   try {
     const payload = await request.json()
@@ -58,7 +59,6 @@ export async function POST(request: Request) {
         }
       })
 
-      // TODO: Send email confirmation
       console.log('✅ Payment completed, order created for user:', payment.userId)
     }
 
@@ -70,5 +70,58 @@ export async function POST(request: Request) {
       { error: 'Webhook processing failed' },
       { status: 500 }
     )
+  }
+}
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const transactionRef = searchParams.get('transactionId');
+    const status = searchParams.get('status') || 'SUCCESSFUL';
+
+    if (!transactionRef) {
+      return NextResponse.json(
+        { error: 'transactionId required' },
+        { status: 400 }
+      );
+    }
+
+    // Find and update transaction
+    const transaction = await prisma.transaction.update({
+      where: { transactionRef },
+      data: {
+        status: status === 'SUCCESSFUL' ? 'COMPLETED' : 'FAILED',
+        providerData: {
+          webhookReceived: new Date().toISOString(),
+          simulated: true
+        }
+      },
+      include: {
+        event: true,
+        ticket: true
+      }
+    });
+
+    // Update associated tickets
+    if (status === 'SUCCESSFUL' && transaction.ticket) {
+      await prisma.ticket.update({
+        where: { id: transaction.ticket.id },
+        data: { status: 'PAID' }
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Payment ${status.toLowerCase()}`,
+      transactionId: transaction.id,
+      ticketId: transaction.ticket?.id
+    });
+
+  } catch (error) {
+    console.error('Simulated webhook error:', error);
+    return NextResponse.json(
+      { error: 'Transaction not found or update failed' },
+      { status: 404 }
+    );
   }
 }

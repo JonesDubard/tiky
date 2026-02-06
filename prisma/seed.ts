@@ -108,25 +108,25 @@ async function main() {
       }
     })
     
-    // Add tickets to each event
-    await prisma.ticket.createMany({
-      data: [
-        {
-          type: 'General Admission',
-          price: 5000,
-          quantity: 100,
-          eventId: event.id,
-          userId: admin.id,
-        },
-        {
-          type: 'VIP',
-          price: 15000,
-          quantity: 50,
-          eventId: event.id,
-          userId: admin.id,
-        }
-      ]
-    })
+    // // Add tickets to each event
+    // await prisma.ticket.createMany({
+    //   data: [
+    //     {
+    //       type: 'General Admission',
+    //       price: 5000,
+    //       quantity: 100,
+    //       eventId: event.id,
+    //       userId: admin.id,
+    //     },
+    //     {
+    //       type: 'VIP',
+    //       price: 15000,
+    //       quantity: 50,
+    //       eventId: event.id,
+    //       userId: admin.id,
+    //     }
+    //   ]
+    // })
     
     console.log(`✅ Created featured event: ${event.title}`)
   }

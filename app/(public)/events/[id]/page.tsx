@@ -1,447 +1,300 @@
-// // app/events/[id]/page.tsx
-// import { prisma } from 'lib/prisma';
-// import { notFound } from 'next/navigation';
-// import Image from 'next/image';
-// import { CalendarDays, MapPin, Ticket, Clock, Users, Share2 } from 'lucide-react';
-// import TicketSelector from 'components/Events/TicketSelector';
-
-// async function getEvent(id: string) {
-//   const event = await prisma.event.findUnique({
-//     where: {
-//       id,
-//       published: true,
-//     },
-//     include: {
-//       tickets: true,
-//       organizer: {
-//         select: {
-//           name: true,
-//           image: true,
-//         }
-//       },
-//       polls: {
-//         where: {
-//           status: 'ACTIVE',
-//         },
-//         take: 3,
-//       }
-//     }
-//   });
-  
-//   if (!event) return null;
-//   return event;
-// }
-
-// interface EventPageProps {
-//   params: Promise<{ id: string }>;
-// }
-
-// export default async function EventPage({ params }: EventPageProps) {
-//   const { id } = await params;
-//   const event = await getEvent(id);
-  
-//   if (!event) {
-//     notFound();
-//   }
-
-//   const eventDate = new Date(event.date);
-//   const formattedDate = eventDate.toLocaleDateString('en-US', {
-//     weekday: 'long',
-//     year: 'numeric',
-//     month: 'long',
-//     day: 'numeric',
-//   });
-//   const formattedTime = eventDate.toLocaleTimeString('en-US', {
-//     hour: 'numeric',
-//     minute: '2-digit',
-//   });
-
-//   return (
-//     <div className="min-h-screen bg-gradient-to-b from-brand-subtle/5 to-white">
-//       {/* Event Header */}
-//       <div className="bg-slate-900 text-white">
-//         <div className="max-w-7xl mx-auto px-4 py-8">
-//           <div className="flex items-center gap-2 text-sm text-slate-300 mb-4">
-//             <a href="/events" className="hover:text-white transition-colors">
-//               Events
-//             </a>
-//             <span>•</span>
-//             <span>{event.location}</span>
-//           </div>
-          
-//           <h1 className="text-4xl md:text-5xl font-bold mb-6">
-//             {event.title}
-//           </h1>
-          
-//           <div className="flex flex-wrap gap-6">
-//             <div className="flex items-center gap-2">
-//               <CalendarDays className="w-5 h-5" />
-//               <span className="font-medium">{formattedDate}</span>
-//             </div>
-//             <div className="flex items-center gap-2">
-//               <Clock className="w-5 h-5" />
-//               <span className="font-medium">{formattedTime}</span>
-//             </div>
-//             <div className="flex items-center gap-2">
-//               <MapPin className="w-5 h-5" />
-//               <span className="font-medium">{event.location}</span>
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-
-//       <div className="max-w-7xl mx-auto px-4 py-8">
-//         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-//           {/* Left Column - Event Details */}
-//           <div className="lg:col-span-2 space-y-8">
-//             {/* Event Image */}
-//             <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-slate-200">
-//               {event.imageUrl ? (
-//                 <div className="relative h-96">
-//                   <Image
-//                     src={event.imageUrl}
-//                     alt={event.title}
-//                     fill
-//                     className="object-cover"
-//                     sizes="(max-width: 1024px) 100vw, 66vw"
-//                   />
-//                 </div>
-//               ) : (
-//                 <div className="h-96 bg-gradient-to-br from-brand-primary/20 to-brand-accent/20 flex items-center justify-center">
-//                   <CalendarDays className="w-32 h-32 text-brand-primary/30" />
-//                 </div>
-//               )}
-//             </div>
-
-//             {/* Event Description */}
-//             <div className="bg-white rounded-2xl shadow-lg p-8 border border-slate-200">
-//               <h2 className="text-2xl font-bold text-slate-900 mb-6">
-//                 About This Event
-//               </h2>
-//               <div className="prose prose-lg max-w-none">
-//                 <p className="text-slate-700 leading-relaxed">
-//                   {event.description || "Join us for an unforgettable experience! This event promises excitement, entertainment, and great memories."}
-//                 </p>
-//               </div>
-              
-//               {/* Organizer Info */}
-//               {event.organizer && (
-//                 <div className="mt-8 pt-8 border-t border-slate-200">
-//                   <h3 className="text-xl font-bold text-slate-900 mb-4">
-//                     Organized By
-//                   </h3>
-//                   <div className="flex items-center gap-4">
-//                     {event.organizer.image ? (
-//                       <Image
-//                         src={event.organizer.image}
-//                         alt={event.organizer.name || 'Organizer'}
-//                         width={64}
-//                         height={64}
-//                         className="rounded-full"
-//                       />
-//                     ) : (
-//                       <div className="w-16 h-16 rounded-full bg-gradient-to-r from-brand-primary to-brand-accent flex items-center justify-center text-white font-bold text-xl">
-//                         {event.organizer.name?.[0] || 'O'}
-//                       </div>
-//                     )}
-//                     <div>
-//                       <h4 className="font-bold text-slate-900">
-//                         {event.organizer.name || 'Event Organizer'}
-//                       </h4>
-//                       <p className="text-slate-600">
-//                         Professional event organizer with verified events
-//                       </p>
-//                     </div>
-//                   </div>
-//                 </div>
-//               )}
-//             </div>
-//           </div>
-
-//           {/* Right Column - Ticket Selection */}
-//           <div className="lg:col-span-1">
-//             <TicketSelector event={event} tickets={event.tickets} />
-            
-//             {/* Share Event */}
-//             <div className="mt-6 bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
-//               <h3 className="text-lg font-bold text-slate-900 mb-4">
-//                 Share This Event
-//               </h3>
-//               <div className="flex gap-3">
-//                 <button className="flex-1 flex items-center justify-center gap-2 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors">
-//                   <Share2 className="w-4 h-4" />
-//                   <span className="text-sm font-medium">Share</span>
-//                 </button>
-//                 <button className="flex-1 flex items-center justify-center gap-2 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors">
-//                   <Users className="w-4 h-4" />
-//                   <span className="text-sm font-medium">Invite</span>
-//                 </button>
-//               </div>
-//             </div>
-
-//             {/* Event Stats */}
-//             <div className="mt-6 bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
-//               <h3 className="text-lg font-bold text-slate-900 mb-4">
-//                 Event Details
-//               </h3>
-//               <div className="space-y-4">
-//                 <div className="flex justify-between">
-//                   <span className="text-slate-600">Date & Time</span>
-//                   <span className="font-medium">{formattedDate} at {formattedTime}</span>
-//                 </div>
-//                 <div className="flex justify-between">
-//                   <span className="text-slate-600">Venue</span>
-//                   <span className="font-medium text-right">{event.location}</span>
-//                 </div>
-//                 <div className="flex justify-between">
-//                   <span className="text-slate-600">Tickets Available</span>
-//                   <span className="font-medium">
-//                     {event.tickets.reduce((sum, t) => sum + t.quantity, 0)}
-//                   </span>
-//                 </div>
-//               </div>
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-// app/events/[id]/page.tsx
+// app/(public)/events/[id]/page.tsx - COMPLETE FIXED VERSION
 import { prisma } from 'lib/prisma';
-import { notFound } from 'next/navigation';
-import Image from 'next/image';
-import { CalendarDays, MapPin, Ticket, Clock, Users, Share2, CreditCard } from 'lucide-react';
 import TicketSelector from 'components/Events/TicketSelector';
-import MockPaymentButton from 'components/Payment/MockPaymentButton';
+import { ArrowLeft, Share2, Calendar, MapPin, Users } from 'lucide-react';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
 
-async function getEvent(id: string) {
-  const event = await prisma.event.findUnique({
-    where: {
-      id,
-      published: true,
-    },
-    include: {
-      tickets: true,
-      organizer: {
-        select: {
-          name: true,
-          image: true,
-        }
-      },
-      polls: {
-        where: {
-          status: 'ACTIVE',
-        },
-        take: 3,
-      }
+async function getEventData(id: string) {
+  try {
+    // Validate id is not undefined
+    if (!id || id === 'undefined') {
+      return null;
     }
-  });
-  
-  if (!event) return null;
-  return event;
+
+    const event = await prisma.event.findUnique({
+      where: { id },
+      include: {
+        tickets: {
+          select: {
+            id: true,
+            type: true,
+            price: true,
+            quantity: true,
+            status: true
+          },
+          where: {
+            status: { in: ['PENDING', 'PAID'] } // Only show available tickets
+          }
+        },
+        createdBy: {
+          select: {
+            name: true,
+            email: true
+          }
+        },
+        _count: {
+          select: {
+            tickets: true
+          }
+        }
+      }
+    });
+
+    if (!event) {
+      return null;
+    }
+
+    return event;
+  } catch (error) {
+    console.error('Error fetching event:', error);
+    return null;
+  }
 }
 
-interface EventPageProps {
+async function getRelatedEvents(eventId: string) {
+  try {
+    const events = await prisma.event.findMany({
+      where: {
+        published: true,
+        date: {
+          gte: new Date()
+        },
+        NOT: {
+          id: eventId
+        }
+      },
+      include: {
+        tickets: {
+          select: {
+            price: true
+          }
+        }
+      },
+      orderBy: { date: 'asc' },
+      take: 3
+    });
+    return events;
+  } catch (error) {
+    console.error('Error fetching related events:', error);
+    return [];
+  }
+}
+
+interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function EventPage({ params }: EventPageProps) {
-  const { id } = await params;
-  const event = await getEvent(id);
+export default async function EventPage(props: PageProps) {
+  // FIX: Properly await params
+  const params = await props.params;
+  const id = params.id;
+  
+  if (!id || id === 'undefined') {
+    notFound();
+  }
+
+  const [event, relatedEvents] = await Promise.all([
+    getEventData(id),
+    getRelatedEvents(id)
+  ]);
   
   if (!event) {
     notFound();
   }
 
   const eventDate = new Date(event.date);
-  const formattedDate = eventDate.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-  const formattedTime = eventDate.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-brand-subtle/5 to-white">
-      {/* Event Header */}
-      <div className="bg-slate-900 text-white">
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="flex items-center gap-2 text-sm text-slate-300 mb-4">
-            <a href="/events" className="hover:text-white transition-colors">
-              Events
-            </a>
-            <span>•</span>
-            <span>{event.location}</span>
-          </div>
-          
-          <h1 className="text-4xl md:text-5xl font-bold mb-6">
-            {event.title}
-          </h1>
-          
-          <div className="flex flex-wrap gap-6">
-            <div className="flex items-center gap-2">
-              <CalendarDays className="w-5 h-5" />
-              <span className="font-medium">{formattedDate}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5" />
-              <span className="font-medium">{formattedTime}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <MapPin className="w-5 h-5" />
-              <span className="font-medium">{event.location}</span>
-            </div>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      {/* Header */}
+      <div className="bg-white border-b border-slate-200">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <Link 
+              href="/events"
+              className="flex items-center gap-2 text-slate-600 hover:text-brand-primary transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span className="font-medium">Back to Events</span>
+            </Link>
+            <button className="flex items-center gap-2 text-slate-600 hover:text-brand-primary transition-colors">
+              <Share2 className="w-5 h-5" />
+              <span className="font-medium">Share</span>
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      {/* Main Content */}
+      <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Event Details */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Event Image */}
-            <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-slate-200">
-              {event.imageUrl ? (
-                <div className="relative h-96">
-                  <Image
-                    src={event.imageUrl}
-                    alt={event.title}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 1024px) 100vw, 66vw"
-                  />
-                </div>
-              ) : (
-                <div className="h-96 bg-gradient-to-br from-brand-primary/20 to-brand-accent/20 flex items-center justify-center">
-                  <CalendarDays className="w-32 h-32 text-brand-primary/30" />
-                </div>
-              )}
+            {/* Event Header */}
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                {event.isFeatured && (
+                  <div className="flex items-center gap-1.5 bg-brand-accent text-white px-3 py-1 rounded-full text-sm font-semibold">
+                    <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                    FEATURED
+                  </div>
+                )}
+                {event.published && (
+                  <span className="text-sm font-medium text-green-600 bg-green-50 px-3 py-1 rounded-full">
+                    ACTIVE
+                  </span>
+                )}
+              </div>
+              <h1 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">
+                {event.title}
+              </h1>
+              <p className="text-lg text-slate-600 mb-6">
+                {event.description || "Join us for an amazing event!"}
+              </p>
             </div>
 
-            {/* Event Description */}
-            <div className="bg-white rounded-2xl shadow-lg p-8 border border-slate-200">
+            {/* Event Image */}
+            <div className="relative h-64 lg:h-96 rounded-2xl overflow-hidden bg-gradient-to-br from-brand-subtle to-brand-primary/20">
+              {event.imageUrl ? (
+                <img 
+                  src={event.imageUrl} 
+                  alt={event.title}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-r from-brand-primary/10 to-brand-accent/10">
+                  <span className="text-2xl font-bold text-slate-400">Event Image</span>
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+            </div>
+
+            {/* Event Details Card */}
+            <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
               <h2 className="text-2xl font-bold text-slate-900 mb-6">
-                About This Event
+                Event Details
               </h2>
-              <div className="prose prose-lg max-w-none">
-                <p className="text-slate-700 leading-relaxed">
-                  {event.description || "Join us for an unforgettable experience! This event promises excitement, entertainment, and great memories."}
-                </p>
-              </div>
               
-              {/* Organizer Info */}
-              {event.organizer && (
-                <div className="mt-8 pt-8 border-t border-slate-200">
-                  <h3 className="text-xl font-bold text-slate-900 mb-4">
-                    Organized By
-                  </h3>
-                  <div className="flex items-center gap-4">
-                    {event.organizer.image ? (
-                      <Image
-                        src={event.organizer.image}
-                        alt={event.organizer.name || 'Organizer'}
-                        width={64}
-                        height={64}
-                        className="rounded-full"
-                      />
+              <div className="space-y-4">
+                <div className="flex items-start gap-4">
+                  <Calendar className="w-5 h-5 text-brand-primary mt-1 flex-shrink-0" />
+                  <div>
+                    <h3 className="font-bold text-slate-900">Date & Time</h3>
+                    <p className="text-slate-600">
+                      {eventDate.toLocaleDateString('en-US', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </p>
+                    <p className="text-slate-600">
+                      {eventDate.toLocaleTimeString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <MapPin className="w-5 h-5 text-brand-primary mt-1 flex-shrink-0" />
+                  <div>
+                    <h3 className="font-bold text-slate-900">Location</h3>
+                    <p className="text-slate-600">{event.location || "Location to be announced"}</p>
+                    <button className="text-brand-primary hover:text-brand-accent font-medium mt-1">
+                      View on map →
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <Users className="w-5 h-5 text-brand-primary mt-1 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h3 className="font-bold text-slate-900 mb-2">Tickets Available</h3>
+                    {event.tickets.length === 0 ? (
+                      <p className="text-slate-500">No tickets available yet</p>
                     ) : (
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-r from-brand-primary to-brand-accent flex items-center justify-center text-white font-bold text-xl">
-                        {event.organizer.name?.[0] || 'O'}
+                      <div className="space-y-3">
+                        {event.tickets.map((ticket) => (
+                          <div key={ticket.id} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
+                            <div>
+                              <span className="font-medium text-slate-900">{ticket.type || "General Admission"}</span>
+                              <span className="text-sm text-slate-500 ml-3">
+                                {ticket.quantity > 0 
+                                  ? `Remaining: ${ticket.quantity}` 
+                                  : "SOLD OUT"}
+                              </span>
+                            </div>
+                            <span className="font-bold text-brand-accent">
+                              ${ticket.price.toFixed(2)}
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     )}
-                    <div>
-                      <h4 className="font-bold text-slate-900">
-                        {event.organizer.name || 'Event Organizer'}
-                      </h4>
-                      <p className="text-slate-600">
-                        Professional event organizer with verified events
+                    <div className="mt-4 pt-4 border-t border-slate-100">
+                      <p className="text-sm text-slate-500">
+                        Total tickets sold: {event._count.tickets}
                       </p>
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
-          </div>
 
-          {/* Right Column - Ticket Selection & Payment */}
-          <div className="lg:col-span-1">
-            <TicketSelector event={event} tickets={event.tickets} />
-            
-            {/* Mock Payment Section */}
-            <div className="mt-6 bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
-              <div className="flex items-center gap-2 mb-4">
-                <CreditCard className="w-5 h-5 text-green-600" />
-                <h3 className="text-lg font-bold text-slate-900">
-                  Quick Checkout (Demo)
-                </h3>
-              </div>
-              <p className="text-sm text-slate-600 mb-4">
-                Test the payment flow with our mock payment system. This simulates a real transaction.
-              </p>
-              
-              <MockPaymentButton eventId={event.id} />
-              
-              <div className="mt-4 text-xs text-slate-500">
-                <p>• No real money is charged</p>
-                <p>• Generates a test ticket with QR code</p>
-                <p>• Full payment flow simulation</p>
-              </div>
-            </div>
-
-            {/* Share Event */}
-            <div className="mt-6 bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
-              <h3 className="text-lg font-bold text-slate-900 mb-4">
-                Share This Event
-              </h3>
-              <div className="flex gap-3">
-                <button className="flex-1 flex items-center justify-center gap-2 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors">
-                  <Share2 className="w-4 h-4" />
-                  <span className="text-sm font-medium">Share</span>
-                </button>
-                <button className="flex-1 flex items-center justify-center gap-2 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors">
-                  <Users className="w-4 h-4" />
-                  <span className="text-sm font-medium">Invite</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Event Stats */}
-            <div className="mt-6 bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
-              <h3 className="text-lg font-bold text-slate-900 mb-4">
-                Event Details
-              </h3>
-              <div className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Date & Time</span>
-                  <span className="font-medium">{formattedDate} at {formattedTime}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Venue</span>
-                  <span className="font-medium text-right">{event.location}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Tickets Available</span>
-                  <span className="font-medium">
-                    {event.tickets.reduce((sum, t) => sum + t.quantity, 0)}
-                  </span>
-                </div>
-                {event.price && event.price > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Ticket Price</span>
-                    <span className="font-medium text-green-600">
-                      ${event.price.toFixed(2)} LRD
-                    </span>
+                {event.createdBy && (
+                  <div className="flex items-start gap-4">
+                    <Users className="w-5 h-5 text-brand-primary mt-1 flex-shrink-0" />
+                    <div>
+                      <h3 className="font-bold text-slate-900">Organizer</h3>
+                      <p className="text-slate-600">{event.createdBy.name || event.createdBy.email}</p>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
           </div>
+
+          {/* Right Column - Ticket Selector */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-24">
+              <TicketSelector 
+                event={event}
+                tickets={event.tickets}
+              />
+            </div>
+          </div>
         </div>
+
+        {/* Related Events */}
+        {relatedEvents.length > 0 && (
+          <div className="mt-16">
+            <h2 className="text-2xl font-bold text-slate-900 mb-6">
+              You Might Also Like
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {relatedEvents.map(relatedEvent => (
+                <Link 
+                  key={relatedEvent.id} 
+                  href={`/events/${relatedEvent.id}`}
+                  className="block"
+                >
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-shadow">
+                    <h3 className="font-bold text-slate-900 mb-2">{relatedEvent.title}</h3>
+                    <p className="text-sm text-slate-600 mb-3">
+                      {new Date(relatedEvent.date).toLocaleDateString()}
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      {relatedEvent.tickets.length > 0 
+                        ? `From $${Math.min(...relatedEvent.tickets.map(t => t.price)).toFixed(2)}`
+                        : "Free"}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

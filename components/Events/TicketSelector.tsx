@@ -4,6 +4,8 @@
 import { useState } from 'react';
 import { Ticket, CreditCard, Smartphone } from 'lucide-react';
 import { Ticket as TicketType, Event } from '@prisma/client';
+import { useRouter } from 'next/navigation';
+
 
 interface TicketSelectorProps {
   event: Event;
@@ -11,6 +13,9 @@ interface TicketSelectorProps {
 }
 
 export default function TicketSelector({ event, tickets }: TicketSelectorProps) {
+
+  const router = useRouter();
+
   const [selectedTickets, setSelectedTickets] = useState<Record<string, number>>({});
   const [paymentMethod, setPaymentMethod] = useState<'momo' | 'card'>('momo');
 
@@ -29,26 +34,33 @@ export default function TicketSelector({ event, tickets }: TicketSelectorProps) 
   }, 0);
 
   const handleCheckout = () => {
-    if (totalQuantity === 0) {
-      alert('Please select at least one ticket');
-      return;
-    }
-    
-    // In a real implementation, this would redirect to checkout
-    // For now, we'll simulate the guest checkout flow
-    const ticketData = {
-      eventId: event.id,
-      tickets: selectedTickets,
-      totalAmount,
-      paymentMethod
-    };
-    
-    localStorage.setItem('guestCheckout', JSON.stringify(ticketData));
-    
-    // Redirect to checkout page (to be implemented)
-    // router.push('/checkout');
-    alert(`Proceeding to checkout with ${totalQuantity} ticket(s). Total: $${totalAmount.toFixed(2)}`);
+  if (totalQuantity === 0) {
+    alert('Please select at least one ticket');
+    return;
+  }
+  
+  // Prepare checkout data
+  const checkoutData = {
+    eventId: event.id,
+    eventTitle: event.title,
+    tickets: selectedTickets,
+    ticketDetails: tickets.map(ticket => ({
+      id: ticket.id,
+      type: ticket.type,
+      price: ticket.price,
+      quantity: selectedTickets[ticket.id] || 0
+    })).filter(t => t.quantity > 0),
+    totalAmount: totalAmount,
+    paymentMethod,
+    timestamp: new Date().toISOString()
   };
+  
+  // Save to localStorage for checkout page
+  localStorage.setItem('guestCheckout', JSON.stringify(checkoutData));
+  
+  // Redirect to checkout
+  router.push('/checkout');
+};
 
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 sticky top-6">

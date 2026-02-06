@@ -1,4 +1,4 @@
-// components/EventCard.tsx - UPDATED (Safe Version)
+// app\(public)\components\home\EventCard.tsx
 'use client';
 import { Calendar, MapPin, Users, Ticket as TicketIcon } from 'lucide-react';
 import Image from 'next/image';
