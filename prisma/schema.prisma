@@ -49,17 +49,17 @@ model Event {
 }
 
 model TicketType {
-  id       String @id @default(cuid())
-  name     String
-  price    Float
-  quantity Int
-  maxPerOrder Int @default(5)
-  salesStart DateTime?
-  salesEnd   DateTime?
+  id          String    @id @default(cuid())
+  name        String
+  price       Float
+  quantity    Int
+  maxPerOrder Int       @default(5)
+  salesStart  DateTime?
+  salesEnd    DateTime?
   description String?
-  
+
   eventId String
-  event   Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event   Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
   tickets TicketInstance[]
 
   createdAt DateTime @default(now())
@@ -70,23 +70,23 @@ model TicketType {
 }
 
 model TicketInstance {
-  id          String   @id @default(cuid())
-  status      String   @default("RESERVED") // RESERVED, PAID, USED, CANCELLED, EXPIRED
-  qrCode      String   @unique
+  id          String  @id @default(cuid())
+  status      String  @default("RESERVED") // RESERVED, PAID, USED, CANCELLED, EXPIRED
+  qrCode      String  @unique
   guestName   String?
   guestEmail  String?
   phoneNumber String?
-  
+
   ticketTypeId String
   ticketType   TicketType @relation(fields: [ticketTypeId], references: [id], onDelete: Cascade)
-  
+
   orderId String?
-  order   Order?    @relation(fields: [orderId], references: [id])
-  
+  order   Order?  @relation(fields: [orderId], references: [id])
+
   validatedAt DateTime?
   // ❌ REMOVED: metadata Json? - Not supported in SQLite
   // Store metadata as String (JSON) if needed
-  metadata    String?   // Store as JSON string
+  metadata    String? // Store as JSON string
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -97,16 +97,16 @@ model TicketInstance {
 }
 
 model Order {
-  id         String   @id @default(cuid())
-  status     String   @default("PENDING") // PENDING, CONFIRMED, CANCELLED, REFUNDED
+  id         String @id @default(cuid())
+  status     String @default("PENDING") // PENDING, CONFIRMED, CANCELLED, REFUNDED
   totalPrice Float
 
   userId String?
-  user   User?    @relation(fields: [userId], references: [id])
-  
-  paymentId String @unique
+  user   User?   @relation(fields: [userId], references: [id])
+
+  paymentId String  @unique
   payment   Payment @relation(fields: [paymentId], references: [id])
-  
+
   tickets TicketInstance[]
 
   createdAt DateTime @default(now())
@@ -117,23 +117,23 @@ model Order {
 }
 
 model Payment {
-  id           String   @id @default(cuid())
-  providerRef  String   @unique
+  id           String  @id @default(cuid())
+  providerRef  String  @unique
   amount       Float
-  currency     String   @default("LRD")
-  status       String   @default("PENDING") // PENDING, COMPLETED, FAILED, REFUNDED
+  currency     String  @default("LRD")
+  status       String  @default("PENDING") // PENDING, COMPLETED, FAILED, REFUNDED
   // ❌ REMOVED: callbackData Json? - Not supported in SQLite
   // Store as String
-  callbackData String?  // JSON string
-  
+  callbackData String? // JSON string
+
   userId String?
   user   User?   @relation(fields: [userId], references: [id])
-  
+
   eventId String?
   event   Event?  @relation(fields: [eventId], references: [id])
-  
+
   paymentMethod String? // MTN, ORANGE, CARD, CASH
-  processedAt DateTime?
+  processedAt   DateTime?
 
   order Order?
 
@@ -150,7 +150,7 @@ model Poll {
   id          String    @id @default(cuid())
   title       String
   description String?
-  pollType    String    @default("FREE") 
+  pollType    String    @default("FREE")
   status      String    @default("ACTIVE")
   endDate     DateTime?
   isFeatured  Boolean   @default(false)
@@ -171,13 +171,13 @@ model Poll {
 }
 
 model Option {
-  id       String @id @default(cuid())
+  id       String  @id @default(cuid())
   text     String
   imageUrl String?
-  
+
   pollId String
   poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
-  
+
   votes Vote[]
 
   createdAt DateTime @default(now())
@@ -185,8 +185,8 @@ model Option {
 }
 
 model Vote {
-  id        String   @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   pollId   String
   optionId String
   userId   String
@@ -196,8 +196,8 @@ model Vote {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // For guest voting
-  deviceId String?  // For non-authenticated users
-  
+  deviceId String? // For non-authenticated users
+
   createdAt DateTime @default(now())
 
   @@unique([pollId, userId]) // Registered users
