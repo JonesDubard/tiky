@@ -1,15 +1,236 @@
-// app/(public)/page.tsx - UPDATED
-import FeaturedEvents from './components/home/FeaturedEvents'
-import LivePolls from './components/home/LivePolls'
-import HeroSection from './components/home/HeroSection'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../../lib/auth'
-import { prisma } from '../../lib/prisma'
-import { PublicEvent } from 'types/events'
-import { PublicPoll } from 'types/polls'
+// // app/(public)/page.tsx
+// import { prisma } from "lib/prisma";
+// import HeroSection from "app/(public)/components/home/HeroSection";
+// import FeaturedEvents from "app/(public)/components/home/FeaturedEvents";
+// import LivePolls from "app/(public)/components/home/LivePolls";
+// import Footer from "app/(public)/components/home/Footer";
+// import Link from "next/link";
+// import { ArrowRight } from "lucide-react";
 
-// app/(public)/page.tsx - UPDATED getEvents()
-// app/(public)/page.tsx - FINAL FIX
+// // Types
+// interface PublicEvent {
+//   id: string;
+//   title: string;
+//   description: string | null;
+//   date: Date;
+//   location: string;
+//   imageUrl: string | null;
+//   ticketTypes: {
+//     id: string;
+//     name: string;
+//     price: number;
+//     quantity: number;
+//   }[];
+// }
+
+// interface PublicPoll {
+//   id: string;
+//   title: string;
+//   description: string;
+//   endDate: string;
+//   options: {
+//     id: string;
+//     text: string;
+//     votes: number;
+//   }[];
+//   totalVotes: number;
+// }
+
+// async function getEvents(): Promise<PublicEvent[]> {
+//   try {
+//     const events = await prisma.event.findMany({
+//       where: {
+//         published: true,
+//         date: {
+//           gte: new Date()
+//         }
+//       },
+//       select: {
+//         id: true,
+//         title: true,
+//         description: true,
+//         date: true,
+//         location: true,
+//         imageUrl: true,
+//         ticketTypes: {
+//           select: {
+//             id: true,
+//             name: true,
+//             price: true,
+//             quantity: true
+//           }
+//         }
+//       },
+//       orderBy: {
+//         date: "asc"
+//       },
+//       take: 4 // Phase 3: Show only first 4
+//     });
+
+//     return events;
+//   } catch (error) {
+//     console.error("Error fetching events:", error);
+//     return [];
+//   }
+// }
+
+// async function getPolls(): Promise<PublicPoll[]> {
+//   try {
+//     const polls = await prisma.poll.findMany({
+//       where: {
+//         status: 'ACTIVE',
+//         OR: [
+//           { endDate: { gte: new Date() } },
+//           { endDate: null }
+//         ]
+//       },
+//       select: {
+//         id: true,
+//         title: true,
+//         description: true,
+//         endDate: true,
+//         options: {
+//           select: {
+//             id: true,
+//             text: true,
+//             _count: {
+//               select: { votes: true }
+//             }
+//           }
+//         },
+//         _count: {
+//           select: { votes: true }
+//         }
+//       },
+//       orderBy: {
+//         createdAt: "desc"
+//       },
+//       take: 4 // Phase 3: Show only first 4
+//     });
+
+//     return polls.map(poll => ({
+//       id: poll.id,
+//       title: poll.title,
+//       description: poll.description || "",
+//       endDate: poll.endDate?.toISOString() || 
+//                new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+//       options: poll.options.map(option => ({
+//         id: option.id,
+//         text: option.text,
+//         votes: option._count.votes
+//       })),
+//       totalVotes: poll._count.votes
+//     }));
+//   } catch (error) {
+//     console.error("[POLLS_API] Error:", error);
+//     return [];
+//   }
+// }
+
+// export default async function HomePage() {
+//   const [events, polls] = await Promise.all([
+//     getEvents(),
+//     getPolls()
+//   ]);
+
+//   return (
+//     <main className="min-h-screen">
+//       <HeroSection />
+      
+//       {/* Featured Events Section */}
+//       <section className="section-container py-16">
+//         <div className="flex justify-between items-center mb-8">
+//           <div>
+//             <h2 className="text-3xl font-bold text-gray-900">Upcoming Events</h2>
+//             <p className="text-gray-600 mt-2">Discover amazing events in Liberia</p>
+//           </div>
+//           {events.length > 0 && (
+//             <Link 
+//               href="/events" 
+//               className="inline-flex items-center text-brand-primary hover:text-brand-accent font-medium transition-colors"
+//             >
+//               View All Events
+//               <ArrowRight className="ml-2 w-4 h-4" />
+//             </Link>
+//           )}
+//         </div>
+        
+//         {events.length > 0 ? (
+//           <FeaturedEvents events={events} />
+//         ) : (
+//           <div className="text-center py-12 bg-gray-50 rounded-lg">
+//             <p className="text-gray-600">No upcoming events at the moment.</p>
+//           </div>
+//         )}
+//       </section>
+
+//       {/* Live Polls Section */}
+//       <section className="section-container py-16 bg-gray-50">
+//         <div className="flex justify-between items-center mb-8">
+//           <div>
+//             <h2 className="text-3xl font-bold text-gray-900">Live Polls</h2>
+//             <p className="text-gray-600 mt-2">Share your opinion on trending topics</p>
+//           </div>
+//           {polls.length > 0 && (
+//             <Link 
+//               href="/polls" 
+//               className="inline-flex items-center text-brand-primary hover:text-brand-accent font-medium transition-colors"
+//             >
+//               View All Polls
+//               <ArrowRight className="ml-2 w-4 h-4" />
+//             </Link>
+//           )}
+//         </div>
+        
+//         {polls.length > 0 ? (
+//           <LivePolls polls={polls} />
+//         ) : (
+//           <div className="text-center py-12 bg-white rounded-lg">
+//             <p className="text-gray-600">No active polls at the moment.</p>
+//           </div>
+//         )}
+//       </section>
+//     </main>
+//   );
+// }
+
+// app/(public)/page.tsx
+import { prisma } from "lib/prisma";
+import HeroSection from "app/(public)/components/home/HeroSection";
+import EventCard from "app/(public)/components/home/EventCard";
+import LivePolls from "app/(public)/components/home/LivePolls";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+
+// Types
+interface PublicEvent {
+  id: string;
+  title: string;
+  description: string | null;
+  date: Date;
+  location: string;
+  imageUrl: string | null;
+  ticketTypes: {
+    id: string;
+    name: string;
+    price: number;
+    quantity: number;
+  }[];
+}
+
+interface PublicPoll {
+  id: string;
+  title: string;
+  description: string;
+  endDate: string;
+  options: {
+    id: string;
+    text: string;
+    votes: number;
+  }[];
+  totalVotes: number;
+}
+
 async function getEvents(): Promise<PublicEvent[]> {
   try {
     const events = await prisma.event.findMany({
@@ -26,43 +247,25 @@ async function getEvents(): Promise<PublicEvent[]> {
         date: true,
         location: true,
         imageUrl: true,
-        published: true,
-        isFeatured: true,
-        price: true,
-        createdAt: true,
-        tickets: {
+        ticketTypes: {
           select: {
-            type: true,
+            id: true,
+            name: true,
             price: true,
             quantity: true
           }
         }
       },
-      orderBy: { date: 'asc' },
-      take: 12
-    })
+      orderBy: {
+        date: "asc"
+      },
+      take: 4
+    });
 
-    return events.map((event) => ({
-      id: event.id,
-      title: event.title,
-      description: event.description ?? undefined,
-      date: event.date.toISOString(),
-      location: event.location ?? undefined,
-      imageUrl: event.imageUrl ?? undefined,
-      published: event.published,
-      isFeatured: event.isFeatured,
-      price: event.price,
-      // Convert nullable type to string with default
-      tickets: event.tickets.map(ticket => ({
-        type: ticket.type ?? 'General Admission',  // Default value
-        price: ticket.price,
-        quantity: ticket.quantity
-      })),
-      createdAt: event.createdAt
-    }))
+    return events;
   } catch (error) {
-    console.error('❌ Error fetching events:', error)
-    return []
+    console.error("Error fetching events:", error);
+    return [];
   }
 }
 
@@ -70,55 +273,137 @@ async function getPolls(): Promise<PublicPoll[]> {
   try {
     const polls = await prisma.poll.findMany({
       where: {
-        status: { in: ['ACTIVE', 'LIVE'] }, // Show both ACTIVE and LIVE polls
+        status: 'ACTIVE',
+        OR: [
+          { endDate: { gte: new Date() } },
+          { endDate: null }
+        ]
       },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        endDate: true,
         options: {
-          include: {
-            _count: { select: { votes: true } }
+          select: {
+            id: true,
+            text: true,
+            _count: {
+              select: { votes: true }
+            }
           }
         },
-        _count: { select: { votes: true } }
+        _count: {
+          select: { votes: true }
+        }
       },
-      orderBy: { createdAt: 'desc' },
-      take: 6
-    })
+      orderBy: {
+        createdAt: "desc"
+      },
+      take: 4
+    });
 
     return polls.map(poll => ({
       id: poll.id,
       title: poll.title,
-      description: poll.description ?? '',
-      endDate: poll.endDate?.toISOString() ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      options: poll.options.map(o => ({
-        id: o.id,
-        text: o.text,
-        votes: o._count.votes
+      description: poll.description || "",
+      endDate: poll.endDate?.toISOString() || 
+               new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      options: poll.options.map(option => ({
+        id: option.id,
+        text: option.text,
+        votes: option._count.votes
       })),
       totalVotes: poll._count.votes
-    }))
+    }));
   } catch (error) {
-    console.error('❌ Error fetching polls:', error)
-    return []
+    console.error("[POLLS_API] Error:", error);
+    return [];
   }
 }
 
 export default async function HomePage() {
-  await getServerSession(authOptions)
-
   const [events, polls] = await Promise.all([
     getEvents(),
     getPolls()
-  ])
+  ]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-brand-subtle/10 via-white to-white">
+    <main className="min-h-screen">
       <HeroSection />
+      
+      {/* Upcoming Events Section - Simplified to one section */}
+      <section className="section-container py-16">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900">Upcoming Events</h2>
+            <p className="text-gray-600 mt-2">Discover and book amazing events in Liberia</p>
+          </div>
+          {events.length > 0 && (
+            <Link 
+              href="/events" 
+              className="inline-flex items-center text-brand-primary hover:text-brand-accent font-medium transition-colors"
+            >
+              View All Events
+              <ArrowRight className="ml-2 w-4 h-4" />
+            </Link>
+          )}
+        </div>
+        
+        {events.length > 0 ? (
+          <div className="space-y-4">
+            {events.map((event) => (
+              <EventCard key={event.id} event={event} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-gray-50 rounded-lg">
+            <p className="text-gray-600">No upcoming events at the moment.</p>
+          </div>
+        )}
+      </section>
 
-      <div className="max-w-7xl mx-auto px-4 py-12 space-y-20">
-        {/* Pass events as prop */}
-        <FeaturedEvents events={events} />
-        <LivePolls polls={polls} />
-      </div>
-    </div>
-  )
+      {/* Live Polls Section */}
+      <section className="section-container py-16 bg-gray-50">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900">Live Polls</h2>
+            <p className="text-gray-600 mt-2">Share your opinion on trending topics</p>
+          </div>
+          {polls.length > 0 && (
+            <Link 
+              href="/polls" 
+              className="inline-flex items-center text-brand-primary hover:text-brand-accent font-medium transition-colors"
+            >
+              View All Polls
+              <ArrowRight className="ml-2 w-4 h-4" />
+            </Link>
+          )}
+        </div>
+        
+        {polls.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {polls.map((poll) => (
+              <Link key={poll.id} href={`/polls/${poll.id}`} className="block group">
+                <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-all duration-300">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-brand-primary">
+                    {poll.title}
+                  </h3>
+                  <p className="text-gray-600 mb-4 line-clamp-2">{poll.description}</p>
+                  <div className="flex items-center justify-between text-sm text-gray-500">
+                    <span>{poll.totalVotes} votes</span>
+                    <span>Ends {new Date(poll.endDate).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-white rounded-lg">
+            <p className="text-gray-600">No active polls at the moment.</p>
+          </div>
+        )}
+      </section>
+    </main>
+  );
 }

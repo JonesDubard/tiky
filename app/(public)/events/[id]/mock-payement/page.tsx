@@ -1,289 +1,121 @@
-// // app/(public)/events/[id]/mock-payment/page.tsx
-// 'use client';
-
-// import { useState } from 'react';
-// import { useRouter, useParams } from 'next/navigation';
-// import { CheckCircle, Shield, Zap, Phone } from 'lucide-react';
-// import dynamic from 'next/dynamic';
-
-// // Dynamically import the overlay to prevent SSR issues
-// import MomoAuthOverlay from '../../../components/payment/MomoAuthOverlay';
-
-// export default function MockPaymentPage() {
-//   const router = useRouter();
-//   const params = useParams();
-//   const eventId = params.id as string;
-//   const [phoneNumber, setPhoneNumber] = useState('');
-//   const [showMomoOverlay, setShowMomoOverlay] = useState(false);
-//   const [isProcessing, setIsProcessing] = useState(false);
-//   const [error, setError] = useState('');
-
-//   const validatePhoneNumber = (phone: string) => {
-//     // Basic validation for Liberian phone numbers (077, 088, 055)
-//     const regex = /^(077|088|055)\d{6}$/;
-//     return regex.test(phone.replace(/\s+/g, ''));
-//   };
-
-//   const handlePhoneSubmit = async (e: React.FormEvent) => {
-//     e.preventDefault();
-//     setError('');
-
-//     if (!validatePhoneNumber(phoneNumber)) {
-//       setError('Please enter a valid Liberian phone number (e.g., 0771234567)');
-//       return;
-//     }
-
-//     setIsProcessing(true);
-    
-//     try {
-//       // 1. Initiate mock payment
-//       const response = await fetch('/api/payment/mock', {
-//         method: 'POST',
-//         headers: { 'Content-Type': 'application/json' },
-//         body: JSON.stringify({
-//           eventId,
-//           phoneNumber,
-//           tickets: { 'general': 1 }, // Default to 1 general ticket
-//           totalAmount: '0.00',
-//           guestName: 'Demo User',
-//           guestEmail: 'demo@example.com'
-//         })
-//       });
-
-//       const data = await response.json();
-
-//       if (!response.ok) {
-//         throw new Error(data.error || 'Payment initiation failed');
-//       }
-
-//       // 2. Show MoMo overlay for 4 seconds
-//       setShowMomoOverlay(true);
-//       setIsProcessing(false);
-
-//     } catch (err) {
-//       console.error('Payment error:', err);
-//       setError(err instanceof Error ? err.message : 'Payment failed');
-//       setIsProcessing(false);
-//     }
-//   };
-
-//   const handleAuthComplete = () => {
-//     // After MoMo overlay completes, redirect to success page
-//     // We need to get the transaction ID from somewhere
-//     // For now, redirect to a generic success page
-//     router.push(`/checkout/success/${eventId}?payment=success&method=momo`);
-//   };
-
-//   const handleBack = () => {
-//     router.back();
-//   };
-// app/(public)/events/[id]/mock-payment/page.tsx - SIMPLIFIED WORKING VERSION
-// app/(public)/events/[id]/mock-payment/page.tsx - FINAL FIXED VERSION
 'use client';
 
-import { useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { CheckCircle, Shield, Zap, Phone } from 'lucide-react';
-import MomoAuthOverlay from '../../../components/payment/MomoAuthOverlay';
+import { useState, Suspense } from 'react';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { Phone, Shield, CheckCircle, Zap, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
-export default function MockPaymentPage() {
+function PaymentContent() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const eventId = params.id as string;
+  
+  const ticketType = searchParams.get('type') || 'General';
+  const ticketPrice = parseFloat(searchParams.get('price') || '50');
+  const quantity = parseInt(searchParams.get('quantity') || '1');
+  
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [showMomoOverlay, setShowMomoOverlay] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
 
-  const ticketPrice = 50.00;
-  const serviceFee = 2.50;
-  const totalAmount = ticketPrice + serviceFee;
+  const subtotal = ticketPrice * quantity;
+  const serviceFee = subtotal * 0.05;
+  const total = subtotal + serviceFee;
 
-  const validatePhoneNumber = (phone: string) => {
-    const cleaned = phone.replace(/\D/g, '');
-    return cleaned.length === 9;
-  };
-
-  const handlePhoneSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!validatePhoneNumber(phoneNumber)) {
+    const cleaned = phoneNumber.replace(/\D/g, '');
+    if (cleaned.length !== 9) {
       setError('Please enter a valid 9-digit phone number');
       return;
     }
 
-    // Show MoMo overlay immediately
-    setShowMomoOverlay(true);
     setIsProcessing(true);
     
-    try {
-      // Process payment in background
-      const response = await fetch('/api/payment/mock', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          eventId,
-          phoneNumber,
-          tickets: { 'general': 1 },
-          totalAmount: totalAmount.toString(),
-          guestName: 'Demo User',
-          guestEmail: 'demo@example.com'
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Payment initiation failed');
-      }
-
-      setIsProcessing(false);
-      // Overlay will auto-close after 4 seconds via onAuthComplete
-
-    } catch (err) {
-      console.error('Payment error:', err);
-      setError(err instanceof Error ? err.message : 'Payment failed');
-      setIsProcessing(false);
-      setShowMomoOverlay(false);
-    }
-  };
-
-  const handleAuthComplete = () => {
-    // Redirect to success page with amount
-    router.push(`/checkout/success/${eventId}?payment=success&method=momo&phone=${phoneNumber}&amount=${totalAmount}&mock=true`);
-  };
-
-  const handleBack = () => {
-    router.back();
+    // Simulate payment processing
+    setTimeout(() => {
+      router.push(`/checkout/success/${eventId}?amount=${total.toFixed(2)}&phone=${cleaned}`);
+    }, 2000);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-slate-200 p-8">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-[#C2185B] rounded-full flex items-center justify-center mx-auto mb-4">
-            <Phone className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">
-            MTN MoMo Payment
-          </h1>
-          <p className="text-slate-600">
-            Enter your phone number to complete payment
-          </p>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      <div className="bg-white border-b">
+        <div className="container mx-auto px-4 py-4">
+          <Link href={`/events/${eventId}`} className="flex items-center gap-2 text-slate-600">
+            <ArrowLeft className="w-5 h-5" /> Back to Event
+          </Link>
         </div>
-
-        {/* Phone Input Form */}
-        <form onSubmit={handlePhoneSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-slate-700 mb-2">
-              Mobile Money Number
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <span className="text-slate-500">+231</span>
-              </div>
-              <input
-                type="tel"
-                id="phone"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
-                placeholder="771234567"
-                className="pl-16 w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-[#C2185B] focus:border-[#C2185B] outline-none transition"
-                maxLength={9}
-                required
-                disabled={isProcessing || showMomoOverlay}
-              />
-            </div>
-            <p className="mt-2 text-sm text-slate-500">
-              Enter your MTN MoMo number (9 digits)
-            </p>
-            {error && (
-              <p className="mt-2 text-sm text-red-600">{error}</p>
-            )}
-          </div>
-
-          {/* Payment Details */}
-          <div className="space-y-4">
-            <div className="flex justify-between py-3 border-b border-slate-100">
-              <span className="text-slate-600">Ticket Price:</span>
-              <span className="font-medium">${ticketPrice.toFixed(2)} LRD</span>
-            </div>
-            <div className="flex justify-between py-3 border-b border-slate-100">
-              <span className="text-slate-600">Service Fee:</span>
-              <span className="font-medium">${serviceFee.toFixed(2)} LRD</span>
-            </div>
-            <div className="flex justify-between py-3">
-              <span className="text-slate-600 text-lg font-semibold">Total:</span>
-              <span className="font-bold text-2xl text-[#C2185B]">${totalAmount.toFixed(2)} LRD</span>
-            </div>
-          </div>
-
-          {/* Security Features */}
-          <div className="bg-slate-50 rounded-xl p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <Shield className="w-5 h-5 text-[#C2185B]" />
-              <h3 className="font-bold text-slate-900">Secure Payment</h3>
-            </div>
-            <ul className="space-y-2 text-sm text-slate-600">
-              <li className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-500" />
-                Encrypted transaction
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-500" />
-                MTN Mobile Money secured
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-500" />
-                Instant ticket delivery
-              </li>
-            </ul>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="space-y-3">
-            <button
-              type="submit"
-              disabled={isProcessing || showMomoOverlay}
-              className="w-full py-4 bg-gradient-to-r from-[#C2185B] to-[#E91E63] text-white rounded-xl font-bold text-lg hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50"
-            >
-              {isProcessing ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Zap className="w-5 h-5" />
-                  Pay ${totalAmount.toFixed(2)} with MoMo
-                </>
-              )}
-            </button>
-            
-            <button
-              type="button"
-              onClick={handleBack}
-              disabled={isProcessing || showMomoOverlay}
-              className="w-full py-3 border border-slate-300 text-slate-700 rounded-xl font-medium hover:bg-slate-50 transition-colors disabled:opacity-50"
-            >
-              Cancel & Return
-            </button>
-          </div>
-        </form>
-
-        <p className="text-xs text-center text-slate-500 mt-6">
-          A payment request will be sent to your phone. Enter your PIN to confirm.
-        </p>
       </div>
 
-      {/* MoMo Overlay - Shows immediately when form is submitted */}
-      {showMomoOverlay && (
-        <MomoAuthOverlay
-          phoneNumber={phoneNumber}
-          onAuthComplete={handleAuthComplete}
-        />
-      )}
+      <div className="container mx-auto px-4 py-8 max-w-md">
+        <div className="bg-white rounded-2xl shadow-xl border p-8">
+          <div className="text-center mb-8">
+            <div className="w-20 h-20 bg-[#C2185B] rounded-full flex items-center justify-center mx-auto mb-4">
+              <Phone className="w-10 h-10 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold">MTN Mobile Money</h1>
+            <p className="text-slate-600 mt-2">{quantity}x {ticketType}</p>
+          </div>
+
+          <div className="bg-slate-50 rounded-xl p-4 mb-6">
+            <div className="flex justify-between mb-2">
+              <span>Subtotal:</span>
+              <span>{subtotal.toFixed(2)} LRD</span>
+            </div>
+            <div className="flex justify-between mb-2">
+              <span>Fee (5%):</span>
+              <span>{serviceFee.toFixed(2)} LRD</span>
+            </div>
+            <div className="flex justify-between pt-2 border-t font-bold">
+              <span>Total:</span>
+              <span className="text-[#C2185B] text-xl">{total.toFixed(2)} LRD</span>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit}>
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-2">MTN MoMo Number</label>
+              <div className="relative">
+                <span className="absolute left-3 top-3 text-slate-500">+231</span>
+                <input
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
+                  placeholder="771234567"
+                  className="pl-16 w-full p-3 border rounded-xl focus:ring-2 focus:ring-[#C2185B]"
+                  maxLength={9}
+                  required
+                />
+              </div>
+              {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
+            </div>
+
+            <button
+              type="submit"
+              disabled={isProcessing}
+              className="w-full py-4 bg-gradient-to-r from-[#C2185B] to-[#E91E63] text-white rounded-xl font-bold hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isProcessing ? (
+                <>Processing...</>
+              ) : (
+                <>Pay {total.toFixed(2)} LRD <Zap className="w-5 h-5" /></>
+              )}
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
+  );
+}
+
+export default function MockPaymentPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+      <PaymentContent />
+    </Suspense>
   );
 }

@@ -1,35 +1,112 @@
-﻿@tailwind base;
+﻿/* app/globals.css */
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --brand-primary: #1E96C8;   /* Ocean Blue from your config */
-  --brand-accent: #F54502;    /* Vibrant Orange from your config */
-  --brand-subtle: #A8CFEA;    /* Soft Sky Blue from your config */
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #ffffff;
+    --foreground: #171717;
+    --brand-primary: #1E96C8;   /* Ocean Blue from your config */
+    --brand-accent: #F54502;    /* Vibrant Orange from your config */
+    --brand-subtle: #A8CFEA;    /* Soft Sky Blue from your config */
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --background: #0a0a0a;
+      --foreground: #ededed;
+    }
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: ui-sans-serif, system-ui, -apple-system,
+      BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-brand-subtle/20;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-brand-primary/30 rounded-full hover:bg-brand-primary/50 transition-colors;
   }
 }
 
-html {
-  scroll-behavior: smooth;
+@layer components {
+  /* Button styles */
+  .btn-primary {
+    @apply bg-brand-accent text-white font-semibold py-3 px-6 rounded-xl hover:bg-[#e03d00] active:scale-[0.98] transition-all duration-200 shadow-lg hover:shadow-xl;
+  }
+
+  .btn-secondary {
+    @apply bg-brand-primary text-white font-semibold py-3 px-6 rounded-xl hover:bg-[#1a86b4] active:scale-[0.98] transition-all duration-200;
+  }
+
+  /* Card styles */
+  .card-hover {
+    @apply transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl;
+  }
+
+  .event-card {
+    @apply bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300;
+  }
+
+  /* Navigation */
+  .nav-link {
+    @apply text-slate-600 hover:text-brand-primary transition-colors duration-200 font-medium;
+  }
+
+  .mobile-nav-link {
+    @apply block px-4 py-3 text-lg font-medium text-slate-700 hover:bg-brand-subtle hover:text-brand-primary rounded-lg transition-colors;
+  }
+
+  /* Poll components */
+  .poll-option {
+    @apply p-4 border-2 border-gray-200 rounded-xl hover:border-brand-primary cursor-pointer transition-all duration-200;
+  }
+
+  .poll-option.selected {
+    @apply border-brand-primary bg-brand-subtle/20;
+  }
+
+  /* Badges */
+  .badge {
+    @apply px-3 py-1 rounded-full text-sm font-medium;
+  }
+
+  .badge-primary {
+    @apply bg-brand-primary/10 text-brand-primary;
+  }
+
+  .badge-accent {
+    @apply bg-brand-accent/10 text-brand-accent;
+  }
+
+  /* Layout */
+  .section-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Text gradients */
+  .text-gradient {
+    @apply bg-gradient-to-r from-brand-primary to-brand-accent bg-clip-text text-transparent;
+  }
 }
 
-body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-}
-
-/* Brand utility classes */
-@layer base {
+@layer utilities {
+  /* Your existing brand utility classes */
   .bg-brand-primary {
     background-color: var(--brand-primary);
   }
@@ -56,5 +133,32 @@ body {
   }
   .border-brand-subtle {
     border-color: var(--brand-subtle);
+  }
+
+  /* Animation utilities */
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+  
+  .animation-delay-4000 {
+    animation-delay: 4s;
+  }
+
+  /* Gradient backgrounds */
+  .bg-gradient-brand {
+    @apply bg-gradient-to-r from-brand-primary to-brand-accent;
+  }
+
+  .bg-gradient-subtle {
+    @apply bg-gradient-to-br from-brand-subtle via-white to-white;
+  }
+
+  /* Hover effects */
+  .hover-lift {
+    @apply transition-transform duration-300 hover:-translate-y-1;
   }
 }

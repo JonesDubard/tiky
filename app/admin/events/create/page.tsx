@@ -1,386 +1,434 @@
-﻿// app/admin/events/create/page.tsx - FIXED VERSION
-"use client"
+﻿'use client';
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Calendar, MapPin, DollarSign, Ticket, Plus, Trash2, AlertCircle, ArrowLeft } from "lucide-react"
-import Link from "next/link"
-import ImageUpload from "components/ui/image-upload"
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, Plus, Trash2, Upload, X } from 'lucide-react';
+import Link from 'next/link';
 
-type TicketType = {
-  id: string
-  type: string
-  price: number
-  quantity: number
+// ✅ HELPER FUNCTION #1: Create valid date from form inputs
+function createEventDate(dateStr: string, timeStr: string): Date | null {
+  if (!dateStr) return null;
+  
+  try {
+    // Ensure date format is YYYY-MM-DD
+    if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      console.error('Invalid date format:', dateStr);
+      return null;
+    }
+    
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const [hours, minutes] = (timeStr || '12:00').split(':').map(Number);
+    
+    // Create date (months are 0-indexed in JS)
+    const date = new Date(year, month - 1, day, hours, minutes);
+    
+    // Validate
+    if (isNaN(date.getTime())) {
+      console.error('Invalid date object created');
+      return null;
+    }
+    
+    return date;
+  } catch (e) {
+    console.error('Error creating date:', e);
+    return null;
+  }
+}
+
+// ✅ HELPER FUNCTION #2: Format date for display
+function formatDateForInput(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// ✅ HELPER FUNCTION #3: Format time for display
+function formatTimeForInput(date: Date): string {
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
 }
 
 export default function CreateEventPage() {
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    date: "",
-    location: "",
-    imageUrl: "",
-    isFeatured: false,
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  
+  // Set default date to tomorrow
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    date: formatDateForInput(tomorrow),
+    time: formatTimeForInput(tomorrow),
+    location: '',
+    imageUrl: '',
     published: true,
-  })
-  const [tickets, setTickets] = useState<TicketType[]>([
-    { id: "1", type: "General Admission", price: 0, quantity: 100 }
-  ])
+    isFeatured: false
+  });
 
-  const handleAddTicket = () => {
-    const newId = (tickets.length + 1).toString()
-    setTickets([...tickets, { id: newId, type: "", price: 0, quantity: 1 }])
-  }
+  const [tickets, setTickets] = useState([
+    { type: 'Regular', price: 50, quantity: 100 }
+  ]);
 
-  const handleRemoveTicket = (id: string) => {
-    if (tickets.length > 1) {
-      setTickets(tickets.filter(ticket => ticket.id !== id))
+  // Simulate image upload - in production, use Cloudinary, UploadThing, etc.
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        setImagePreview(result);
+        // For demo, store as base64 - in production, upload to cloud storage
+        setForm({ ...form, imageUrl: result });
+      };
+      reader.readAsDataURL(file);
     }
-  }
+  };
 
-  const handleTicketChange = (id: string, field: keyof TicketType, value: string | number) => {
-    setTickets(tickets.map(ticket => 
-      ticket.id === id ? { ...ticket, [field]: value } : ticket
-    ))
-  }
+  const removeImage = () => {
+    setImagePreview(null);
+    setForm({ ...form, imageUrl: '' });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError("")
-
-    // Basic validation
-    if (!formData.title || !formData.date || !formData.location) {
-      setError("Please fill in all required fields")
-      setLoading(false)
-      return
-    }
-
-    // Validate tickets
-    const invalidTicket = tickets.find(t => !t.type || t.price < 0 || t.quantity < 1)
-    if (invalidTicket) {
-      setError("Please check all ticket fields - type is required, price and quantity must be positive")
-      setLoading(false)
-      return
-    }
+    e.preventDefault();
+    setLoading(true);
 
     try {
-      const res = await fetch("/api/events", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          tickets
-        }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to create event")
+      // ✅ USE HELPER FUNCTION #1
+      const eventDate = createEventDate(form.date, form.time);
+      
+      // Validate date
+      if (!eventDate) {
+        alert('Please enter a valid date and time (YYYY-MM-DD format)');
+        setLoading(false);
+        return;
       }
 
-      // Success - redirect to events list
-      router.push("/admin/events")
-      router.refresh()
-    } catch (err: any) {
-      setError(err.message || "Something went wrong")
-    } finally {
-      setLoading(false)
-    }
-  }
+      // Check if date is in the past
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const compareDate = new Date(eventDate);
+      compareDate.setHours(0, 0, 0, 0);
+      
+      if (compareDate < now) {
+        alert('Event date cannot be in the past');
+        setLoading(false);
+        return;
+      }
 
-  // Helper function for cancel button - either navigates or prevents if loading
-  const handleCancel = (e: React.MouseEvent) => {
-    if (loading) {
-      e.preventDefault()
+      console.log('✅ Submitting event:', {
+        title: form.title,
+        date: eventDate.toISOString(),
+        location: form.location,
+        tickets: tickets.length
+      });
+
+      // ✅ Prepare request body
+      const requestBody = {
+        title: form.title,
+        description: form.description || '',
+        date: eventDate.toISOString(), // ✅ Send as ISO string
+        location: form.location,
+        imageUrl: form.imageUrl || null,
+        published: form.published,
+        isFeatured: form.isFeatured,
+        tickets: tickets.map(t => ({
+          type: t.type,
+          price: t.price,
+          quantity: t.quantity
+        }))
+      };
+
+      const res = await fetch('/api/admin/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.error('❌ Server error:', data);
+        throw new Error(data.error || data.details || 'Failed to create event');
+      }
+
+      console.log('✅ Event created:', data);
+      
+      // Show success message
+      alert('Event created successfully!');
+      
+      // Redirect to events list
+      router.push('/admin/events');
+      router.refresh();
+      
+    } catch (err) {
+      console.error('❌ Submit error:', err);
+      alert(err instanceof Error ? err.message : 'Failed to create event. Check console for details.');
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <Link
-            href="/admin/events"
-            className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-2"
-            onClick={handleCancel}
-          >
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            Back to Events
+    <div className="min-h-screen bg-slate-50 p-6">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-6">
+          <Link href="/admin/events" className="flex items-center gap-2 text-slate-600 hover:text-brand-primary">
+            <ArrowLeft className="w-5 h-5" /> Back to Events
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Create New Event</h1>
-          <p className="text-gray-600 mt-1">Fill in the details for your new event</p>
         </div>
-      </div>
 
-      {/* Form */}
-      <div className="bg-white rounded-xl shadow border border-gray-200 p-6">
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
-            <div className="flex items-center gap-2 text-red-700">
-              <AlertCircle className="w-5 h-5" />
-              <span className="font-medium">{error}</span>
-            </div>
-          </div>
-        )}
+        <div className="bg-white rounded-2xl shadow-lg p-8">
+          <h1 className="text-3xl font-bold text-slate-900 mb-8">Create New Event</h1>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Title */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Event Title *
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.title}
-              onChange={(e) => setFormData({...formData, title: e.target.value})}
-              placeholder="e.g., Summer Music Festival 2024"
-              className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                loading ? "opacity-50 cursor-not-allowed" : ""
-              }`}
-              disabled={loading}
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description
-            </label>
-            <textarea
-              rows={4}
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-              placeholder="Describe your event..."
-              className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                loading ? "opacity-50 cursor-not-allowed" : ""
-              }`}
-              disabled={loading}
-            />
-          </div>
-
-          {/* Image Upload */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Event Image
-            </label>
-            <ImageUpload
-              value={formData.imageUrl}
-              onChange={(url) => setFormData({...formData, imageUrl: url})}
-              disabled={loading}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Date */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Image Upload Section */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Calendar className="inline w-4 h-4 mr-1" />
-                Event Date & Time *
+              <label className="block font-medium text-slate-900 mb-2">
+                Event Image
               </label>
-              <input
-                type="datetime-local"
-                required
-                value={formData.date}
-                onChange={(e) => setFormData({...formData, date: e.target.value})}
-                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                  loading ? "opacity-50 cursor-not-allowed" : ""
-                }`}
-                disabled={loading}
-              />
+              <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-brand-primary transition-colors relative">
+                {!imagePreview ? (
+                  <div>
+                    <div className="flex justify-center mb-4">
+                      <div className="p-3 bg-slate-100 rounded-full">
+                        <Upload className="w-6 h-6 text-slate-500" />
+                      </div>
+                    </div>
+                    <p className="text-sm text-slate-600 mb-2">
+                      Drag and drop or click to upload
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      PNG, JPG, GIF up to 10MB
+                    </p>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <div className="relative h-48 w-full rounded-lg overflow-hidden">
+                      <img 
+                        src={imagePreview} 
+                        alt="Preview" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={removeImage}
+                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Location */}
+            {/* Event Title */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <MapPin className="inline w-4 h-4 mr-1" />
-                Location *
+              <label className="block font-medium text-slate-900 mb-2">
+                Event Title <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 required
-                value={formData.location}
-                onChange={(e) => setFormData({...formData, location: e.target.value})}
-                placeholder="e.g., National Stadium, Monrovia"
-                className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                  loading ? "opacity-50 cursor-not-allowed" : ""
-                }`}
-                disabled={loading}
+                value={form.title}
+                onChange={(e) => setForm({...form, title: e.target.value})}
+                className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none"
+                placeholder="e.g., Miss Liberia 2025"
               />
             </div>
-          </div>
 
-          {/* Ticket Management Section */}
-          <div className="pt-6 border-t border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <label className="block text-sm font-medium text-gray-700">
-                <Ticket className="inline w-4 h-4 mr-1" />
-                Ticket Types & Pricing
+            {/* Description */}
+            <div>
+              <label className="block font-medium text-slate-900 mb-2">
+                Description
               </label>
-              <button
-                type="button"
-                onClick={handleAddTicket}
-                disabled={loading}
-                className={`inline-flex items-center px-3 py-1.5 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 ${
-                  loading ? "opacity-50 cursor-not-allowed" : ""
-                }`}
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                Add Ticket Type
-              </button>
+              <textarea
+                rows={4}
+                value={form.description}
+                onChange={(e) => setForm({...form, description: e.target.value})}
+                className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none"
+                placeholder="Describe your event..."
+              />
             </div>
 
-            <div className="space-y-4">
+            {/* Date and Time */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block font-medium text-slate-900 mb-2">
+                  Date <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={form.date}
+                  onChange={(e) => setForm({...form, date: e.target.value})}
+                  className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none"
+                  min={formatDateForInput(new Date())}
+                />
+              </div>
+              <div>
+                <label className="block font-medium text-slate-900 mb-2">
+                  Time <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="time"
+                  required
+                  value={form.time}
+                  onChange={(e) => setForm({...form, time: e.target.value})}
+                  className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Location */}
+            <div>
+              <label className="block font-medium text-slate-900 mb-2">
+                Location <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={form.location}
+                onChange={(e) => setForm({...form, location: e.target.value})}
+                className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-primary focus:border-brand-primary outline-none"
+                placeholder="e.g., SKD Stadium, Monrovia"
+              />
+            </div>
+
+            {/* Tickets Section */}
+            <div className="border-t border-slate-200 pt-6">
+              <h2 className="text-xl font-bold text-slate-900 mb-4">Ticket Types</h2>
+              
               {tickets.map((ticket, index) => (
-                <div key={ticket.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-gray-50 rounded-lg">
-                  <div className="md:col-span-4">
-                    <label className="block text-xs text-gray-600 mb-1">Ticket Type *</label>
+                <div key={index} className="grid grid-cols-12 gap-4 mb-4 items-end">
+                  <div className="col-span-5">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Type
+                    </label>
                     <input
                       type="text"
-                      required
                       value={ticket.type}
-                      onChange={(e) => handleTicketChange(ticket.id, 'type', e.target.value)}
-                      placeholder="e.g., VIP, General, Early Bird"
-                      className={`w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-purple-500 ${
-                        loading ? "opacity-50 cursor-not-allowed" : ""
-                      }`}
-                      disabled={loading}
+                      onChange={(e) => {
+                        const newTickets = [...tickets];
+                        newTickets[index].type = e.target.value;
+                        setTickets(newTickets);
+                      }}
+                      className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-primary"
+                      placeholder="e.g., VIP"
+                      required
                     />
                   </div>
-                  <div className="md:col-span-3">
-                    <label className="block text-xs text-gray-600 mb-1">Price (LRD) *</label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        required
-                        value={ticket.price}
-                        onChange={(e) => handleTicketChange(ticket.id, 'price', parseFloat(e.target.value) || 0)}
-                        className={`w-full pl-9 pr-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-purple-500 ${
-                          loading ? "opacity-50 cursor-not-allowed" : ""
-                        }`}
-                        disabled={loading}
-                      />
-                    </div>
-                  </div>
-                  <div className="md:col-span-3">
-                    <label className="block text-xs text-gray-600 mb-1">Quantity *</label>
+                  <div className="col-span-3">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Price (LRD)
+                    </label>
                     <input
                       type="number"
-                      min="1"
+                      value={ticket.price}
+                      onChange={(e) => {
+                        const newTickets = [...tickets];
+                        newTickets[index].price = parseFloat(e.target.value);
+                        setTickets(newTickets);
+                      }}
+                      className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-primary"
+                      min="0"
+                      step="0.01"
                       required
-                      value={ticket.quantity}
-                      onChange={(e) => handleTicketChange(ticket.id, 'quantity', parseInt(e.target.value) || 1)}
-                      className={`w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-purple-500 ${
-                        loading ? "opacity-50 cursor-not-allowed" : ""
-                      }`}
-                      disabled={loading}
                     />
                   </div>
-                  <div className="md:col-span-2 flex items-end">
+                  <div className="col-span-3">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Quantity
+                    </label>
+                    <input
+                      type="number"
+                      value={ticket.quantity}
+                      onChange={(e) => {
+                        const newTickets = [...tickets];
+                        newTickets[index].quantity = parseInt(e.target.value);
+                        setTickets(newTickets);
+                      }}
+                      className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-primary"
+                      min="1"
+                      required
+                    />
+                  </div>
+                  <div className="col-span-1">
                     {tickets.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => handleRemoveTicket(ticket.id)}
-                        disabled={loading}
-                        className={`w-full px-3 py-2 bg-red-100 text-red-600 rounded hover:bg-red-200 flex items-center justify-center ${
-                          loading ? "opacity-50 cursor-not-allowed" : ""
-                        }`}
+                        onClick={() => {
+                          const newTickets = tickets.filter((_, i) => i !== index);
+                          setTickets(newTickets);
+                        }}
+                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-5 h-5" />
                       </button>
                     )}
                   </div>
                 </div>
               ))}
-            </div>
 
-            <div className="mt-4 text-sm text-gray-600">
-              <p>💡 Tip: Add multiple ticket types (e.g., VIP, General, Student) with different prices and quantities.</p>
-            </div>
-          </div>
-
-          {/* Checkboxes */}
-          <div className="space-y-4">
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="isFeatured"
-                checked={formData.isFeatured}
-                onChange={(e) => setFormData({...formData, isFeatured: e.target.checked})}
-                className={`h-4 w-4 text-purple-600 rounded focus:ring-purple-500 ${
-                  loading ? "opacity-50 cursor-not-allowed" : ""
-                }`}
-                disabled={loading}
-              />
-              <label 
-                htmlFor="isFeatured" 
-                className={`ml-2 text-sm ${loading ? "text-gray-500" : "text-gray-700"}`}
+              <button
+                type="button"
+                onClick={() => setTickets([...tickets, { type: 'VIP', price: 100, quantity: 50 }])}
+                className="flex items-center gap-2 text-brand-primary font-medium hover:text-brand-accent"
               >
-                Feature this event on homepage
-              </label>
+                <Plus className="w-5 h-5" />
+                Add Ticket Type
+              </button>
             </div>
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="published"
-                checked={formData.published}
-                onChange={(e) => setFormData({...formData, published: e.target.checked})}
-                className={`h-4 w-4 text-purple-600 rounded focus:ring-purple-500 ${
-                  loading ? "opacity-50 cursor-not-allowed" : ""
-                }`}
-                disabled={loading}
-              />
-              <label 
-                htmlFor="published" 
-                className={`ml-2 text-sm ${loading ? "text-gray-500" : "text-gray-700"}`}
-              >
-                Publish immediately (visible to public)
-              </label>
-            </div>
-          </div>
 
-          {/* Form Actions */}
-          <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
-            {/* Cancel Button - Fixed: Use button with Link functionality */}
-            <button
-              type="button"
-              onClick={() => !loading && router.push("/admin/events")}
-              className={`px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors ${
-                loading ? "opacity-50 cursor-not-allowed" : ""
-              }`}
-              disabled={loading}
-            >
-              Cancel
-            </button>
-            
+            {/* Event Options */}
+            <div className="border-t border-slate-200 pt-6">
+              <div className="flex items-center gap-6">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={form.published}
+                    onChange={(e) => setForm({...form, published: e.target.checked})}
+                    className="w-4 h-4 text-brand-primary rounded border-slate-300 focus:ring-brand-primary"
+                  />
+                  <span className="text-sm text-slate-700">Publish immediately</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={form.isFeatured}
+                    onChange={(e) => setForm({...form, isFeatured: e.target.checked})}
+                    className="w-4 h-4 text-brand-primary rounded border-slate-300 focus:ring-brand-primary"
+                  />
+                  <span className="text-sm text-slate-700">Feature this event</span>
+                </label>
+              </div>
+            </div>
+
             {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Creating...
-                </span>
-              ) : (
-                "Create Event"
-              )}
-            </button>
-          </div>
-        </form>
+            <div className="pt-6">
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-4 bg-gradient-to-r from-brand-primary to-brand-accent text-white rounded-xl font-bold text-lg hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {loading ? 'Creating Event...' : 'Create Event'}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
-  )
+  );
 }

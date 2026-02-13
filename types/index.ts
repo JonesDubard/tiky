@@ -1,69 +1,41 @@
-// // types/events.ts
-// export interface Ticket {
-//   type: string;
-//   price: number;
-//   quantity: number;
-// }
-
-// export interface PublicEvent {
-//   id: string;
-//   title: string;
-//   description?: string; // Optional instead of null
-//   date: Date;
-//   published: boolean;
-//   location: string;
-//   imageUrl?: string; // Optional instead of null
-//   createdById: string;
-//   organizerId?: string;
-//   tickets: Ticket[];
-//   createdAt?: Date;
-// }
-
 // types/index.ts
-export interface PollOption {
-  id: string;
-  text: string;
-  votes: number;
-}
-
-export interface Poll {
+export interface EventWithDetails {
   id: string;
   title: string;
-  description: string;
-  endDate: string;
-  options: PollOption[];
-  totalVotes: number;
+  description: string | null;
+  date: Date;
+  location: string;
+  imageUrl: string | null;
+  isFeatured: boolean;
+  ticketTypes: Array<{
+    id: string;
+    name: string;
+    price: number;
+    quantity: number;
+  }>;
 }
 
-export interface Ticket {
-  id?: string;
-  type: string;
-  price: number;
-  quantity: number;
-}
-
-// export interface Event {
-//   id: string;
-//   title: string;
-//   description?: string;
-//   date: Date;
-//   published: boolean;
-//   location: string;
-//   imageUrl?: string;
-//   createdById: string;
-//   organizerId?: string;
-//   tickets: Ticket[];
-//   createdAt?: Date;
-// }
-
-// types/events.ts
-export type Event = {
-  id: string
-  title: string
-  description?: string
-  image?: string
-  location?: string
-  date: string
-  status: 'DRAFT' | 'PUBLISHED'
-  createdAt: string
+export interface PollWithDetails {
+  id: string;
+  title: string;
+  description: string | null;
+  pollType: string;
+  status: string;
+  endDate: Date | null;
+  isFeatured: boolean;
+  creator: {
+    name: string | null;
+    email: string;
+  };
+  options: Array<{
+    id: string;
+    text: string;
+    imageUrl: string | null;
+    _count: {
+      votes: number;
+    };
+  }>;
+  _count: {
+    votes: number;
+  };
 }

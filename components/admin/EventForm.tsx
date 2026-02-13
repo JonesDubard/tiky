@@ -1,72 +1,123 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import  ImageUpload  from 'components/ui/image-upload' // Import the upload component
+import ImageUpload from 'components/ui/image-upload'
 
 interface TicketTypeInput {
+  id?: string
   name: string
   price: string
   quantity: string
 }
 
-export default function EventForm() {
+interface EventFormProps {
+  initialData?: {
+    id: string
+    title: string
+    description: string | null
+    date: Date
+    location: string
+    imageUrl: string | null
+    published: boolean
+    isFeatured: boolean
+    ticketTypes: Array<{
+      id: string
+      name: string
+      price: number
+      quantity: number
+      description?: string | null
+      maxPerOrder?: number
+      salesStart?: Date | null
+      salesEnd?: Date | null
+    }>
+  }
+}
+
+export default function EventForm({ initialData }: EventFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [imageUrl, setImageUrl] = useState('') // Store image URL
+  const [imageUrl, setImageUrl] = useState(initialData?.imageUrl || '')
   
+  const isEditMode = !!initialData
+
+  // Format date for datetime-local input
+  const formatDateForInput = (date: Date) => {
+    const d = new Date(date)
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    const hours = String(d.getHours()).padStart(2, '0')
+    const minutes = String(d.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+  }
+
   // Ticket types state
-  const [ticketTypes, setTicketTypes] = useState<TicketTypeInput[]>([
-    { name: 'General Admission', price: '15', quantity: '100' }
-  ])
+  const [ticketTypes, setTicketTypes] = useState<TicketTypeInput[]>(() => {
+    if (initialData?.ticketTypes) {
+      return initialData.ticketTypes.map(ticket => ({
+        id: ticket.id,
+        name: ticket.name,
+        price: ticket.price.toString(),
+        quantity: ticket.quantity.toString()
+      }))
+    }
+    return [{ name: 'General Admission', price: '15', quantity: '100' }]
+  })
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-  event.preventDefault()
-  setLoading(true)
-  setError('')
+    event.preventDefault()
+    setLoading(true)
+    setError('')
 
-  const formData = new FormData(event.currentTarget)
+    const formData = new FormData(event.currentTarget)
 
-  // Convert date input to proper ISO string
-  const rawDate = formData.get('date') as string
-  const formattedDate = rawDate ? new Date(rawDate).toISOString() : ''
-
-  const data = {
-  title: formData.get('title'),
-  description: formData.get('description'),
-  date: new Date(formData.get('date') as string).toISOString(), // ensure ISO format
-  location: formData.get('location'),
-  imageUrl: imageUrl || (formData.get('imageUrl') as string) || '',
-  tickets: ticketTypes.map(ticket => ({
-    type: ticket.name,
-    price: parseFloat(ticket.price),
-    quantity: parseInt(ticket.quantity)
-  }))
-}
-
-  console.log('Submitting:', data)
-
-  try {
-    const response = await fetch('/api/admin/events', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    })
-
-    if (response.ok) {
-      router.push('/admin/events')
-      router.refresh()
-    } else {
-      const errorData = await response.json()
-      setError(errorData.error || 'Failed to create event')
+    const data = {
+      ...(isEditMode && { id: initialData.id }), // Include ID only in edit mode
+      title: formData.get('title'),
+      description: formData.get('description'),
+      date: new Date(formData.get('date') as string).toISOString(),
+      location: formData.get('location'),
+      imageUrl: imageUrl || (formData.get('imageUrl') as string) || '',
+      published: isEditMode ? initialData.published : false, // Default to false for new events
+      isFeatured: isEditMode ? initialData.isFeatured : false,
+      ticketTypes: ticketTypes.map(ticket => ({
+        ...(ticket.id && { id: ticket.id }), // Include ID only for existing tickets
+        name: ticket.name,
+        price: parseFloat(ticket.price),
+        quantity: parseInt(ticket.quantity)
+      }))
     }
-  } catch (err) {
-    setError('Network error. Please try again.')
-  } finally {
-    setLoading(false)
+
+    console.log('Submitting:', data)
+
+    try {
+      const url = isEditMode 
+        ? `/api/admin/events/${initialData.id}` 
+        : '/api/admin/events'
+      
+      const method = isEditMode ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+
+      if (response.ok) {
+        router.push('/admin/events')
+        router.refresh()
+      } else {
+        const errorData = await response.json()
+        setError(errorData.error || `Failed to ${isEditMode ? 'update' : 'create'} event`)
+      }
+    } catch (err) {
+      setError('Network error. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
-}
 
   // Add new ticket type
   const addTicketType = () => {
@@ -89,7 +140,9 @@ export default function EventForm() {
 
   return (
     <div className="bg-white rounded-xl shadow p-6">
-      <h2 className="text-2xl font-bold mb-6">Create New Event</h2>
+      <h2 className="text-2xl font-bold mb-6">
+        {isEditMode ? 'Edit Event' : 'Create New Event'}
+      </h2>
       
       {error && (
         <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg">
@@ -109,6 +162,7 @@ export default function EventForm() {
               name="title"
               type="text"
               required
+              defaultValue={initialData?.title || ''}
               placeholder="e.g., Afro Nation Liberia"
               className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             />
@@ -122,6 +176,7 @@ export default function EventForm() {
             <textarea
               name="description"
               rows={3}
+              defaultValue={initialData?.description || ''}
               placeholder="Describe your event..."
               className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             />
@@ -136,6 +191,7 @@ export default function EventForm() {
               name="date"
               type="datetime-local"
               required
+              defaultValue={initialData?.date ? formatDateForInput(initialData.date) : ''}
               className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             />
           </div>
@@ -146,9 +202,10 @@ export default function EventForm() {
               Venue/Location *
             </label>
             <input
-              name="location" // Changed from venue to location
+              name="location"
               type="text"
               required
+              defaultValue={initialData?.location || ''}
               placeholder="e.g., Liberia National Stadium"
               className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             />
@@ -173,9 +230,10 @@ export default function EventForm() {
               <input
                 name="imageUrl"
                 type="url"
+                defaultValue={!imageUrl ? initialData?.imageUrl || '' : ''}
                 placeholder="https://images.unsplash.com/photo-..."
                 className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                disabled={!!imageUrl} // Disable if uploaded image exists
+                disabled={!!imageUrl || loading}
               />
               <p className="text-sm text-gray-500 mt-1">
                 {imageUrl 
@@ -269,7 +327,9 @@ export default function EventForm() {
             disabled={loading}
             className="w-full bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Creating Event...' : 'Create Event'}
+            {loading 
+              ? (isEditMode ? 'Updating Event...' : 'Creating Event...') 
+              : (isEditMode ? 'Update Event' : 'Create Event')}
           </button>
         </div>
       </form>

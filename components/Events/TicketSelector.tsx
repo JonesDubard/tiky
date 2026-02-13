@@ -1,178 +1,109 @@
-// components/events/TicketSelector.tsx
 'use client';
 
 import { useState } from 'react';
-import { Ticket, CreditCard, Smartphone } from 'lucide-react';
-import { Ticket as TicketType, Event } from '@prisma/client';
 import { useRouter } from 'next/navigation';
+import { Ticket, Smartphone, ChevronRight } from 'lucide-react';
 
+interface TicketType {
+  id: string;
+  type: string;
+  price: number;
+  quantity: number;
+}
 
 interface TicketSelectorProps {
-  event: Event;
+  eventId: string;
   tickets: TicketType[];
 }
 
-export default function TicketSelector({ event, tickets }: TicketSelectorProps) {
-
+export default function TicketSelector({ eventId, tickets }: TicketSelectorProps) {
   const router = useRouter();
+  const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
+  const [quantity, setQuantity] = useState(1);
 
-  const [selectedTickets, setSelectedTickets] = useState<Record<string, number>>({});
-  const [paymentMethod, setPaymentMethod] = useState<'momo' | 'card'>('momo');
+  const availableTickets = tickets.filter(t => t.quantity > 0);
 
-  const updateQuantity = (ticketId: string, quantity: number) => {
-    if (quantity < 0) return;
-    setSelectedTickets(prev => ({
-      ...prev,
-      [ticketId]: quantity
-    }));
+  const handleBuyNow = () => {
+    if (!selectedTicket) return;
+    
+    const params = new URLSearchParams({
+      type: selectedTicket.type,
+      price: selectedTicket.price.toString(),
+      quantity: quantity.toString(),
+      ticketId: selectedTicket.id
+    });
+    
+    router.push(`/events/${eventId}/mock-payment?${params.toString()}`);
   };
 
-  const totalQuantity = Object.values(selectedTickets).reduce((a, b) => a + b, 0);
-  const totalAmount = tickets.reduce((total, ticket) => {
-    const qty = selectedTickets[ticket.id] || 0;
-    return total + (ticket.price * qty);
-  }, 0);
-
-  const handleCheckout = () => {
-  if (totalQuantity === 0) {
-    alert('Please select at least one ticket');
-    return;
+  if (availableTickets.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+        <Ticket className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+        <h3 className="text-lg font-bold text-slate-900">Sold Out</h3>
+      </div>
+    );
   }
-  
-  // Prepare checkout data
-  const checkoutData = {
-    eventId: event.id,
-    eventTitle: event.title,
-    tickets: selectedTickets,
-    ticketDetails: tickets.map(ticket => ({
-      id: ticket.id,
-      type: ticket.type,
-      price: ticket.price,
-      quantity: selectedTickets[ticket.id] || 0
-    })).filter(t => t.quantity > 0),
-    totalAmount: totalAmount,
-    paymentMethod,
-    timestamp: new Date().toISOString()
-  };
-  
-  // Save to localStorage for checkout page
-  localStorage.setItem('guestCheckout', JSON.stringify(checkoutData));
-  
-  // Redirect to checkout
-  router.push('/checkout');
-};
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 sticky top-6">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 bg-brand-primary/10 rounded-lg">
-          <Ticket className="w-6 h-6 text-brand-primary" />
-        </div>
-        <h2 className="text-2xl font-bold text-slate-900">
-          Get Tickets
-        </h2>
-      </div>
+    <div className="bg-white rounded-2xl shadow-lg border p-6 sticky top-6">
+      <h2 className="text-2xl font-bold mb-6">Get Tickets</h2>
 
-      {/* Ticket Selection */}
       <div className="space-y-4 mb-6">
-        {tickets.map((ticket) => (
-          <div key={ticket.id} className="border border-slate-200 rounded-xl p-4">
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <h3 className="font-bold text-slate-900">{ticket.type}</h3>
-                <p className="text-sm text-slate-600">Remaining: {ticket.quantity}</p>
-              </div>
-              <div className="text-xl font-bold text-slate-900">
-                ${ticket.price.toFixed(2)}
-              </div>
+        {availableTickets.map((ticket) => (
+          <div 
+            key={ticket.id} 
+            className={`border rounded-xl p-4 cursor-pointer transition-all ${
+              selectedTicket?.id === ticket.id 
+                ? 'border-[#C2185B] bg-[#C2185B]/5' 
+                : 'border-slate-200 hover:border-slate-300'
+            }`}
+            onClick={() => setSelectedTicket(ticket)}
+          >
+            <div className="flex justify-between items-center mb-3">
+              <span className="font-bold text-slate-900">{ticket.type}</span>
+              <span className="text-xl font-bold text-[#C2185B]">
+                {ticket.price.toFixed(2)} LRD
+              </span>
             </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-slate-600">
-                Select quantity
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => updateQuantity(ticket.id, (selectedTickets[ticket.id] || 0) - 1)}
-                  disabled={(selectedTickets[ticket.id] || 0) === 0}
-                  className="w-8 h-8 rounded-lg border border-slate-300 flex items-center justify-center hover:bg-slate-50 disabled:opacity-50"
-                >
-                  -
-                </button>
-                <span className="w-8 text-center font-medium">
-                  {selectedTickets[ticket.id] || 0}
-                </span>
-                <button
-                  onClick={() => updateQuantity(ticket.id, (selectedTickets[ticket.id] || 0) + 1)}
-                  disabled={(selectedTickets[ticket.id] || 0) >= ticket.quantity}
-                  className="w-8 h-8 rounded-lg border border-slate-300 flex items-center justify-center hover:bg-slate-50 disabled:opacity-50"
-                >
-                  +
-                </button>
-              </div>
-            </div>
+            <p className="text-sm text-slate-600">{ticket.quantity} remaining</p>
           </div>
         ))}
       </div>
 
-      {/* Payment Method */}
-      <div className="mb-6">
-        <h3 className="font-bold text-slate-900 mb-3">Payment Method</h3>
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => setPaymentMethod('momo')}
-            className={`flex items-center justify-center gap-2 py-3 rounded-lg border transition-all ${
-              paymentMethod === 'momo'
-                ? 'border-brand-primary bg-brand-primary/5 text-brand-primary'
-                : 'border-slate-300 hover:border-slate-400'
-            }`}
-          >
-            <Smartphone className="w-5 h-5" />
-            <span className="font-medium">MoMo</span>
-          </button>
-          <button
-            onClick={() => setPaymentMethod('card')}
-            className={`flex items-center justify-center gap-2 py-3 rounded-lg border transition-all ${
-              paymentMethod === 'card'
-                ? 'border-brand-primary bg-brand-primary/5 text-brand-primary'
-                : 'border-slate-300 hover:border-slate-400'
-            }`}
-          >
-            <CreditCard className="w-5 h-5" />
-            <span className="font-medium">Card</span>
-          </button>
+      {selectedTicket && (
+        <div className="mb-6 p-4 bg-slate-50 rounded-xl">
+          <div className="flex justify-between items-center mb-4">
+            <span className="text-slate-600">Quantity:</span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                className="w-8 h-8 rounded-lg border border-slate-300"
+              >-</button>
+              <span className="w-8 text-center font-bold">{quantity}</span>
+              <button
+                onClick={() => setQuantity(Math.min(selectedTicket.quantity, quantity + 1))}
+                className="w-8 h-8 rounded-lg border border-slate-300"
+              >+</button>
+            </div>
+          </div>
+          
+          <div className="flex justify-between pt-3 border-t border-slate-200">
+            <span className="font-bold">Total:</span>
+            <span className="font-bold text-xl text-[#C2185B]">
+              {(selectedTicket.price * quantity).toFixed(2)} LRD
+            </span>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Order Summary */}
-      <div className="border-t border-slate-200 pt-4 mb-6">
-        <div className="flex justify-between text-slate-600 mb-2">
-          <span>Tickets ({totalQuantity})</span>
-          <span>${totalAmount.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between text-slate-600 mb-2">
-          <span>Service Fee</span>
-          <span>${(totalAmount * 0.05).toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between font-bold text-lg text-slate-900">
-          <span>Total</span>
-          <span>${(totalAmount * 1.05).toFixed(2)}</span>
-        </div>
-      </div>
-
-      {/* Checkout Button */}
       <button
-        onClick={handleCheckout}
-        disabled={totalQuantity === 0}
-        className="w-full py-4 bg-gradient-to-r from-brand-primary to-brand-accent text-white rounded-xl font-bold text-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+        onClick={handleBuyNow}
+        disabled={!selectedTicket}
+        className="w-full py-4 bg-gradient-to-r from-[#C2185B] to-[#E91E63] text-white rounded-xl font-bold hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
       >
-        {totalQuantity === 0 ? 'Select Tickets' : 'Continue to Checkout'}
+        Buy Now <ChevronRight className="w-5 h-5" />
       </button>
-
-      {/* Guest Note */}
-      <p className="text-sm text-center text-slate-500 mt-4">
-        No account required • Secure payment • Instant ticket delivery
-      </p>
     </div>
   );
 }

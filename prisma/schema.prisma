@@ -1,4 +1,3 @@
-// prisma/schema.prisma - SIMPLIFIED VERSION
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,108 +7,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  USER
-  ORGANIZER
-  ADMIN
-}
-
-enum PaymentStatus {
-  PENDING
-  PROCESSING
-  COMPLETED
-  FAILED
-  REFUNDED
-}
-
-enum PaymentProvider {
-  MTN_MOMO
-  ORANGE_MONEY
-  CARD
-  CASH
-  MOCK
-}
-
-enum TicketStatus {
-  PENDING
-  PAID
-  USED
-  CANCELLED
-}
-
-enum TransactionStatus {
-  PENDING
-  COMPLETED
-  FAILED
-  CANCELLED
-}
-
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String?
-  access_token      String?
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?
-  session_state     String?
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-  @@map("accounts")
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("sessions")
-}
-
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
-  @@map("verification_tokens")
-}
-
+// Replace enums with String constraints
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  name          String?
-  password      String?
-  role          Role      @default(USER)
-  emailVerified DateTime?
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String?
+  role      String   @default("USER") // Instead of Role enum
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  // Relations
-  accounts      Account[]
-  sessions      Session[]
-  orders        Order[]
-  tickets       Ticket[]
-  payments      Payment[]
-  transactions  Transaction[]
-  
-  // Poll relations
-  polls         Poll[]
-  votes         Vote[]
-  
-  // Event relations
-  createdEvents   Event[] @relation("CreatedEvents")
-  organizedEvents Event[] @relation("OrganizedEvents")
-
-  @@map("users")
+  events   Event[]
+  polls    Poll[]
+  votes    Vote[]
+  orders   Order[]
+  payments Payment[]
 }
 
 model Event {
@@ -117,222 +29,179 @@ model Event {
   title       String
   description String?
   date        DateTime
-  published   Boolean  @default(false)
-  isFeatured  Boolean  @default(false)
   location    String
   imageUrl    String?
-  price       Float?   @default(0)
+  published   Boolean  @default(false)
+  isFeatured  Boolean  @default(false)
 
   createdById String
-  createdBy   User   @relation("CreatedEvents", fields: [createdById], references: [id], onDelete: Cascade)
-
-  organizerId String?
-  organizer   User?   @relation("OrganizedEvents", fields: [organizerId], references: [id])
-
-  tickets     Ticket[]
+  createdBy   User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  ticketTypes TicketType[]
   polls       Poll[]
   payments    Payment[]
-  transactions Transaction[]
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([createdById])
-  @@index([organizerId])
+  @@index([date])
+  @@index([published])
 }
 
-// ===== TICKET MODEL =====
-model Ticket {
-  id            String      @id @default(cuid())
-  ticketId      String      @unique
-  qrCodeHash    String      @unique
-  status        TicketStatus @default(PENDING)
-  type          String?
-  price         Float
-  quantity      Int         @default(1)
+model TicketType {
+  id       String @id @default(cuid())
+  name     String
+  price    Float
+  quantity Int
+  maxPerOrder Int @default(5)
+  salesStart DateTime?
+  salesEnd   DateTime?
+  description String?
   
-  // Guest information
-  guestEmail    String?
-  guestName     String?
-  
-  // Scan tracking
-  scannedAt     DateTime?
-  scannedBy     String?
-  
-  // Relationships
-  eventId       String
-  event         Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  
-  userId        String?
-  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
-  
-  // One-to-one with Transaction
-  transaction   Transaction?
-  
-  // One-to-one with Payment
-  payment       Payment?
-  
-  // Many-to-one with Order
-  orders        Order[]
-  
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
+  eventId String
+  event   Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tickets TicketInstance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([eventId])
-  @@index([userId])
-  @@index([qrCodeHash])
-  @@index([status])
-  @@index([ticketId])
+  @@index([salesStart, salesEnd])
 }
 
-// ===== TRANSACTION MODEL =====
-model Transaction {
-  id              String            @id @default(cuid())
-  transactionRef  String            @unique
-  amount          Float
-  fee             Float?            @default(0)
-  total           Float
-  currency        String            @default("LRD")
-  status          TransactionStatus @default(PENDING)
-  paymentMethod   PaymentProvider
-  provider        String?
+model TicketInstance {
+  id          String   @id @default(cuid())
+  status      String   @default("RESERVED") // RESERVED, PAID, USED, CANCELLED, EXPIRED
+  qrCode      String   @unique
+  guestName   String?
+  guestEmail  String?
+  phoneNumber String?
   
-  // Payment details
-  phoneNumber     String?
-  email           String?
-  fullName        String?
+  ticketTypeId String
+  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id], onDelete: Cascade)
   
-  // Provider response data
-  providerRef     String?
-  providerData    Json?
+  orderId String?
+  order   Order?    @relation(fields: [orderId], references: [id])
   
-  // Relationships
-  userId          String?
-  user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
-  
-  eventId         String
-  event           Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  
-  // One-to-one with Ticket
-  ticketId        String?           @unique
-  ticket          Ticket?           @relation(fields: [ticketId], references: [id])
-  
-  // One-to-one with Payment (Payment references Transaction)
-  payment         Payment?
-  
-  // One-to-many with Order
-  orders          Order[]
-  
-  // Metadata
-  ipAddress       String?
-  userAgent       String?
-  metadata        Json?
-  
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  completedAt     DateTime?
-  
-  @@index([transactionRef])
-  @@index([userId])
-  @@index([eventId])
+  validatedAt DateTime?
+  // ❌ REMOVED: metadata Json? - Not supported in SQLite
+  // Store metadata as String (JSON) if needed
+  metadata    String?   // Store as JSON string
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ticketTypeId])
   @@index([status])
-  @@index([createdAt])
+  @@index([qrCode])
 }
 
-// ===== ORDER MODEL =====
 model Order {
   id         String   @id @default(cuid())
-  quantity   Int
+  status     String   @default("PENDING") // PENDING, CONFIRMED, CANCELLED, REFUNDED
   totalPrice Float
-  status     String   @default("PENDING")
-  createdAt  DateTime @default(now())
+
+  userId String?
+  user   User?    @relation(fields: [userId], references: [id])
   
-  // Relationships
-  ticketId   String
-  ticket     Ticket      @relation(fields: [ticketId], references: [id])
+  paymentId String @unique
+  payment   Payment @relation(fields: [paymentId], references: [id])
   
-  userId     String
-  user       User        @relation(fields: [userId], references: [id])
-  
-  transactionId String?
-  transaction   Transaction? @relation(fields: [transactionId], references: [id])
-  
-  @@map("orders")
+  tickets TicketInstance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
 }
 
-// ===== POLL & VOTE MODELS =====
+model Payment {
+  id           String   @id @default(cuid())
+  providerRef  String   @unique
+  amount       Float
+  currency     String   @default("LRD")
+  status       String   @default("PENDING") // PENDING, COMPLETED, FAILED, REFUNDED
+  // ❌ REMOVED: callbackData Json? - Not supported in SQLite
+  // Store as String
+  callbackData String?  // JSON string
+  
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+  
+  eventId String?
+  event   Event?  @relation(fields: [eventId], references: [id])
+  
+  paymentMethod String? // MTN, ORANGE, CARD, CASH
+  processedAt DateTime?
+
+  order Order?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([providerRef])
+  @@index([status])
+  @@index([userId])
+}
+
+// Update Poll model 
 model Poll {
   id          String    @id @default(cuid())
   title       String
   description String?
-  type        String    @default("POLL")
-  pollType    String    @default("single")
+  pollType    String    @default("FREE") 
   status      String    @default("ACTIVE")
-  isFeatured  Boolean   @default(false)
   endDate     DateTime?
+  isFeatured  Boolean   @default(false)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  creatorId   String
-  eventId     String?
-  options     Option[]
-  event       Event?    @relation(fields: [eventId], references: [id])
-  creator     User      @relation(fields: [creatorId], references: [id])
-  votes       Vote[]
 
-  @@map("polls")
+  creatorId String
+  creator   User   @relation(fields: [creatorId], references: [id])
+
+  eventId String?
+  event   Event?  @relation(fields: [eventId], references: [id])
+
+  options Option[]
+  votes   Vote[]
+
+  // Add a partial unique index or validation comment
+  // Valid values: "FREE", "PAID" - validated in application
 }
 
 model Option {
-  id       String  @id @default(cuid())
+  id       String @id @default(cuid())
   text     String
   imageUrl String?
-  pollId   String
-  poll     Poll    @relation(fields: [pollId], references: [id])
-  votes    Vote[]
+  
+  pollId String
+  poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  
+  votes Vote[]
 
-  @@map("options")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Vote {
   id        String   @id @default(cuid())
-  pollId    String
-  optionId  String
-  userId    String?
+  
+  pollId   String
+  optionId String
+  userId   String
+
+  poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option Option @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // For guest voting
+  deviceId String?  // For non-authenticated users
+  
   createdAt DateTime @default(now())
-  user      User?    @relation(fields: [userId], references: [id])
-  option    Option   @relation(fields: [optionId], references: [id])
-  poll      Poll     @relation(fields: [pollId], references: [id])
 
-  @@unique([pollId, userId])
-  @@map("votes")
-}
-
-// ===== PAYMENT MODEL =====
-model Payment {
-  id            String         @id @default(cuid())
-  amount        Float
-  currency      String         @default("LRD")
-  status        PaymentStatus  @default(PENDING)
-  provider      PaymentProvider @default(MTN_MOMO)
-  providerRef   String?
-  callbackData  Json?
-  
-  // Relationships
-  userId        String?
-  user          User?          @relation(fields: [userId], references: [id])
-  eventId       String
-  event         Event          @relation(fields: [eventId], references: [id])
-  
-  // One-to-one with Ticket
-  ticketId      String?        @unique
-  ticket        Ticket?        @relation(fields: [ticketId], references: [id])
-  
-  // One-to-one with Transaction (explicit relation)
-  transactionId String?        @unique
-  transaction   Transaction?   @relation(fields: [transactionId], references: [id])
-  
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  
-  @@index([providerRef])
-  @@index([status])
+  @@unique([pollId, userId]) // Registered users
+  @@unique([pollId, deviceId]) // Guest users (if deviceId provided)
+  @@index([pollId])
+  @@index([optionId])
 }

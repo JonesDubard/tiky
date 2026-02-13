@@ -1,4 +1,3 @@
-// app/admin/users/page.tsx
 import { getServerSession } from "next-auth"
 import { redirect } from "next/navigation"
 import { authOptions } from "lib/auth"
@@ -20,17 +19,18 @@ export default async function UsersPage() {
       id: true,
       email: true,
       name: true,
-      password: true,
+      // ❌ REMOVED: password: true (NEVER select passwords!)
       role: true,
-      emailVerified: true,
+      // ❌ REMOVED: emailVerified: true (doesn't exist in schema)
       image: true,
       createdAt: true,
       updatedAt: true,
       _count: {
         select: {
-          orders: true,
-          tickets: true,
-          payments: true
+          // ✅ FIXED: Use 'events' not 'orders' (orders doesn't exist)
+          events: true,
+          // ❌ REMOVED: tickets: true (no direct relation in schema)
+          // ❌ REMOVED: payments: true (no direct relation in schema)
         }
       }
     },
@@ -38,6 +38,17 @@ export default async function UsersPage() {
       createdAt: "desc"
     }
   })
+
+  // Transform the data to match what UsersTable expects
+  const formattedUsers = users.map(user => ({
+    ...user,
+    // Add default values for fields that might be expected by UsersTable
+    _count: {
+      orders: 0, // Mock value since we don't have orders
+      tickets: 0, // Mock value since we don't have direct ticket relation
+      payments: 0 // Mock value since we don't have direct payment relation
+    }
+  }))
 
   return (
     <div className="p-6">
@@ -52,14 +63,17 @@ export default async function UsersPage() {
             Manage all users in the system
           </p>
         </div>
-        <button className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:shadow-md transition-shadow">
+        <Link 
+          href="/admin/users/create"
+          className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:shadow-md transition-shadow"
+        >
           <Plus className="w-4 h-4 mr-2" />
           Add User
-        </button>
+        </Link>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white p-4 rounded-xl border border-gray-200">
           <div className="text-sm text-gray-600">Total Users</div>
           <div className="text-2xl font-bold text-gray-900">{users.length}</div>
@@ -71,8 +85,14 @@ export default async function UsersPage() {
           </div>
         </div>
         <div className="bg-white p-4 rounded-xl border border-gray-200">
-          <div className="text-sm text-gray-600">Regular Users</div>
+          <div className="text-sm text-gray-600">Organizers</div>
           <div className="text-2xl font-bold text-blue-600">
+            {users.filter(u => u.role === "ORGANIZER").length}
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-gray-200">
+          <div className="text-sm text-gray-600">Regular Users</div>
+          <div className="text-2xl font-bold text-emerald-600">
             {users.filter(u => u.role === "USER").length}
           </div>
         </div>
@@ -80,13 +100,13 @@ export default async function UsersPage() {
 
       {/* Users Table */}
       <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
-        <UsersTable users={users} />
+        <UsersTable users={formattedUsers} />
       </div>
 
       {/* Note */}
       <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
         <p className="text-sm text-yellow-800">
-          💡 <span className="font-medium">Note:</span> As admin, you can promote users to admin role or demote them.
+          💡 <span className="font-medium">Note:</span> As admin, you can promote users to admin/organizer roles or demote them.
         </p>
       </div>
     </div>

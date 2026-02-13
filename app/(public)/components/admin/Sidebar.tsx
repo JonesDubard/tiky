@@ -1,4 +1,4 @@
-﻿// app/(public)/components/admin/Sidebar.tsx - FIXED MOBILE VERSION
+﻿// app/(public)/components/admin/Sidebar.tsx
 'use client'
 
 import { useState } from 'react'
@@ -35,7 +35,7 @@ export default function Sidebar({ user }: SidebarProps) {
   const adminNavItems = [
     { name: 'Dashboard', href: '/admin', icon: Home },
     { name: 'Events', href: '/admin/events', icon: Calendar },
-    { name: 'Polls & Contests', href: '/admin/polls', icon: Vote },
+    { name: 'Polls', href: '/admin/polls', icon: Vote },
     { name: 'Tickets', href: '/admin/tickets', icon: Ticket },
     { name: 'Users', href: '/admin/users', icon: Users },
     { name: 'Payments', href: '/admin/payments', icon: CreditCard },
@@ -56,6 +56,7 @@ export default function Sidebar({ user }: SidebarProps) {
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="p-2 rounded-lg hover:bg-gray-100"
+            aria-label="Toggle menu"
           >
             {mobileMenuOpen ? (
               <X className="w-6 h-6 text-gray-600" />
@@ -65,7 +66,10 @@ export default function Sidebar({ user }: SidebarProps) {
           </button>
           
           <div className="flex items-center">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-blue-600 mr-2"></div>
+            <div 
+              className="w-8 h-8 rounded-lg mr-2"
+              style={{ backgroundColor: 'var(--brand-primary)' }}
+            ></div>
             <h2 className="text-lg font-bold text-gray-800">Tikky Admin</h2>
           </div>
           
@@ -83,38 +87,38 @@ export default function Sidebar({ user }: SidebarProps) {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - REDUCED WIDTH from 64 to 56 */}
       <div className={`
-  ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-  md:translate-x-0 transform transition-transform duration-300 ease-in-out
-  fixed md:fixed z-40
-  w-64 h-screen
-  bg-white border-r border-gray-200
-  flex-shrink-0 overflow-y-auto
-`}>
-        {/* Desktop Logo */}
-        <div className="hidden md:flex items-center flex-shrink-0 px-4 pt-5 mb-8">
-          <Link href="/" className="flex items-center">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-blue-600 mr-2"></div>
-            <h2 className="text-lg font-bold text-gray-800">Tikky Admin</h2>
-          </Link>
+        fixed z-40 w-56 h-screen bg-white border-r border-gray-200 overflow-y-auto
+        transition-transform duration-300 ease-in-out
+        ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:translate-x-0
+        top-0 left-0
+      `}>
+        {/* Logo */}
+        <div className="flex items-center px-4 py-5">
+          <div 
+            className="w-8 h-8 rounded-lg mr-2 flex-shrink-0"
+            style={{ backgroundColor: 'var(--brand-primary)' }}
+          ></div>
+          <h2 className="text-lg font-bold text-gray-800 truncate">Tikky</h2>
         </div>
         
-        {/* User info */}
-        <div className="px-4 py-4 border-t border-gray-200 mt-8 md:mt-0">
+        {/* User info - condensed */}
+        <div className="px-4 py-3 border-t border-gray-200">
           <p className="text-sm font-medium text-gray-700 truncate">
             {user.name || user.email}
           </p>
-          <p className="text-xs text-gray-500 capitalize mt-1">
+          <p className="text-xs text-gray-500 capitalize">
             {user.role?.toLowerCase() || 'user'}
           </p>
         </div>
         
-        {/* Navigation */}
-        <nav className="flex-1 px-2 pb-4 space-y-1 mt-2">
+        {/* Navigation - compact */}
+        <nav className="px-2 py-2 space-y-1">
           {adminNavItems.map((item) => {
             const Icon = item.icon
-            const isActive = pathname === item.href
+            const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
             
             return (
               <Link
@@ -123,13 +127,13 @@ export default function Sidebar({ user }: SidebarProps) {
                 onClick={() => setMobileMenuOpen(false)}
                 className={`group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                   isActive
-                    ? 'bg-purple-50 text-purple-700 border-l-4 border-purple-600'
+                    ? 'bg-brand-subtle text-brand-primary'
                     : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
                 <Icon
-                  className={`mr-3 h-5 w-5 flex-shrink-0 ${
-                    isActive ? 'text-purple-600' : 'text-gray-400 group-hover:text-gray-500'
+                  className={`mr-3 h-4 w-4 flex-shrink-0 ${
+                    isActive ? 'text-brand-primary' : 'text-gray-400 group-hover:text-gray-500'
                   }`}
                 />
                 <span className="truncate">{item.name}</span>
@@ -139,16 +143,13 @@ export default function Sidebar({ user }: SidebarProps) {
         </nav>
         
         {/* Sign out */}
-        <div className="border-t border-gray-200 p-4">
+        <div className="border-t border-gray-200 p-3 mt-auto">
           <button
-            onClick={() => {
-              handleSignOut()
-              setMobileMenuOpen(false)
-            }}
+            onClick={handleSignOut}
             className="flex items-center w-full px-3 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-colors"
           >
-            <LogOut className="mr-3 h-5 w-5 text-gray-400 flex-shrink-0" />
-            <span>Sign out</span>
+            <LogOut className="mr-3 h-4 w-4 text-gray-400 flex-shrink-0" />
+            <span className="truncate">Sign out</span>
           </button>
         </div>
       </div>

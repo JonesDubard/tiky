@@ -1,20 +1,23 @@
-// app\(public)\components\home\EventCard.tsx
+// app/(public)/components/home/EventCard.tsx
 'use client';
-import { Calendar, MapPin, Users, Ticket as TicketIcon } from 'lucide-react';
+
+import { Calendar, MapPin, Clock } from 'lucide-react';
 import Image from 'next/image';
 import Link from "next/link";
-
+import { format } from 'date-fns';
 
 interface EventCardProps {
   event: {
     id: string;
     title: string;
-    description?: string;
-    date: string;
-    location?: string;
-    imageUrl?: string;
-    tickets?: Array<{ // Make tickets optional
-      type: string;
+    description: string | null;
+    date: Date;
+    location: string;
+    imageUrl: string | null;
+    isFeatured?: boolean;
+    ticketTypes: Array<{
+      id: string;
+      name: string;
       price: number;
       quantity: number;
     }>;
@@ -22,127 +25,97 @@ interface EventCardProps {
 }
 
 export default function EventCard({ event }: EventCardProps) {
-  // Safe defaults for missing data
-  const eventDate = event.date ? new Date(event.date) : new Date();
-  const tickets = event.tickets || []; // Default to empty array
-  const lowestPrice = tickets.length > 0 
-    ? Math.min(...tickets.map(t => t.price)) 
-    : 0; // Default to 0 if no tickets
-  const totalTickets = tickets.reduce((sum, t) => sum + (t.quantity || 0), 0);
-  const ticketsSold = Math.floor(totalTickets * 0.7); // Mock data
+  // Get lowest ticket price
+  const lowestPrice = event.ticketTypes.length > 0 
+    ? Math.min(...event.ticketTypes.map(t => t.price))
+    : 0;
+
+  // Check if any tickets available
+  const ticketsAvailable = event.ticketTypes.some(t => t.quantity > 0);
 
   return (
-     <Link
-    href={`/events/${event.id}`}
-    className="block focus:outline-none"
-     >
-    <div className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 card-hover border border-brand-subtle/30">
-      {/* Live Indicator */}
-      <div className="absolute top-4 left-4 z-10">
-        <div className="flex items-center gap-1.5 bg-brand-accent text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg">
-          <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-          LIVE
-        </div>
-      </div>
-
-      {/* Image Container */}
-      <div className="relative h-56 overflow-hidden bg-gradient-to-br from-brand-subtle to-brand-primary/20">
-        {event.imageUrl ? (
-          <Image
-            src={event.imageUrl}
-            alt={event.title}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <TicketIcon className="w-16 h-16 text-brand-primary/30" />
-          </div>
-        )}
-        
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-      </div>
-
-      {/* Content */}
-      <div className="p-6">
-        {/* Event Title */}
-        <h3 className="text-xl font-bold text-slate-900 mb-2 line-clamp-1 group-hover:text-brand-primary transition-colors">
-          {event.title || 'Untitled Event'}
-        </h3>
-
-        {/* Description */}
-        <p className="text-slate-600 mb-4 line-clamp-2 text-sm">
-          {event.description || 'Join us for an unforgettable experience!'}
-        </p>
-
-        {/* Details */}
-        <div className="space-y-3 mb-6">
-          <div className="flex items-center gap-3 text-slate-600">
-            <Calendar className="w-4 h-4 text-brand-primary" />
-            <span className="text-sm font-medium">
-              {eventDate.toLocaleDateString('en-US', {
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric',
-              })}
-            </span>
-            <span className="text-xs text-slate-400">•</span>
-            <span className="text-sm">
-              {eventDate.toLocaleTimeString('en-US', {
-                hour: 'numeric',
-                minute: '2-digit',
-              })}
-            </span>
+    <Link href={`/events/${event.id}`} className="block group">
+      <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300">
+        <div className="flex flex-col md:flex-row">
+          {/* Image Section */}
+          <div className="relative w-full md:w-48 h-48 md:h-auto bg-gray-100">
+            {event.imageUrl ? (
+              <Image
+                src={event.imageUrl}
+                alt={event.title}
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 192px"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-brand-primary to-brand-accent flex items-center justify-center">
+                <span className="text-white text-4xl font-bold">
+                  {event.title.charAt(0).toUpperCase()}
+                </span>
+              </div>
+            )}
+            
+            {lowestPrice > 0 && (
+              <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-lg shadow-sm">
+                <span className="text-sm font-semibold text-gray-900">
+                  USD {lowestPrice.toLocaleString()}
+                </span>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center gap-3 text-slate-600">
-            <MapPin className="w-4 h-4 text-brand-primary" />
-            <span className="text-sm font-medium">{event.location || 'Location TBD'}</span>
-          </div>
-
-          {tickets.length > 0 && (
-            <div className="flex items-center gap-3 text-slate-600">
-              <Users className="w-4 h-4 text-brand-primary" />
+          {/* Content Section */}
+          <div className="flex-1 p-5">
+            <div className="flex flex-col h-full">
               <div className="flex-1">
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="font-medium">Tickets Available</span>
-                  <span className="font-bold text-brand-primary">
-                    {ticketsSold}/{totalTickets}
-                  </span>
-                </div>
-                <div className="h-2 bg-brand-subtle/30 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-brand-primary to-brand-accent rounded-full transition-all duration-500"
-                    style={{ width: `${totalTickets > 0 ? (ticketsSold / totalTickets) * 100 : 0}%` }}
-                  />
+                <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-brand-primary transition-colors">
+                  {event.title}
+                </h3>
+                
+                <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                  {event.description || 'No description available'}
+                </p>
+
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Calendar className="w-4 h-4 mr-2 text-brand-primary flex-shrink-0" />
+                    <span>{format(new Date(event.date), 'EEEE, MMMM d, yyyy')}</span>
+                  </div>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Clock className="w-4 h-4 mr-2 text-brand-primary flex-shrink-0" />
+                    <span>{format(new Date(event.date), 'h:mm a')}</span>
+                  </div>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <MapPin className="w-4 h-4 mr-2 text-brand-primary flex-shrink-0" />
+                    <span className="line-clamp-1">{event.location}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
 
-        {/* Price & Action */}
-        <div className="flex items-center justify-between pt-4 border-t border-brand-subtle/30">
-          <div>
-            <div className="text-xs text-slate-500 mb-1">Starting from</div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-2xl font-bold text-brand-accent">${lowestPrice}</span>
-              <span className="text-sm text-slate-500">/ticket</span>
+              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                <div>
+                  {ticketsAvailable ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      {event.ticketTypes.length} ticket type{event.ticketTypes.length !== 1 ? 's' : ''} available
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                      Sold Out
+                    </span>
+                  )}
+                </div>
+                
+                <button className="inline-flex items-center px-4 py-2 bg-brand-primary text-white text-sm font-medium rounded-lg hover:bg-brand-accent transition-colors duration-200">
+                  Book Now
+                  <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
             </div>
-          </div>
-          
-          <div className="btn-primary flex items-center gap-2 text-sm px-6 py-3">
-
-            <TicketIcon className="w-4 h-4" />
-            Book Now
           </div>
         </div>
       </div>
-
-      {/* Hover Effect Border */}
-      <div className="absolute inset-0 border-2 border-transparent group-hover:border-brand-primary/20 rounded-2xl pointer-events-none transition-all duration-300" />
-    </div>
     </Link>
   );
 }

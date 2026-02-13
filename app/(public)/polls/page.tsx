@@ -1,54 +1,41 @@
-// app/(public)/polls/page.tsx - UPDATED WITH MATCHING DESIGN
+// app/(public)/polls/page.tsx - FIXED
 import { prisma } from 'lib/prisma';
 import PollCard from 'components/polls/PollCard';
 import { BarChart3, Vote, TrendingUp, Filter, Search, Lock } from 'lucide-react';
 import { getServerSession } from 'next-auth';
 import { authOptions } from 'lib/auth';
 
+// Define type for poll with relations
+type PollWithRelations = Awaited<ReturnType<typeof getPolls>>[0];
+
 async function getPolls() {
   try {
     const polls = await prisma.poll.findMany({
       where: {
-        status: { in: ["ACTIVE", "LIVE"] },
-        OR: [
-          { endDate: { gte: new Date() } },
-          { endDate: null }
-        ]
+        status: 'ACTIVE',
       },
       include: {
         options: {
           include: {
-            _count: {
-              select: { votes: true }
+            _count: { 
+              select: { votes: true } 
             }
           }
         },
-        _count: {
-          select: { votes: true }
+        _count: { 
+          select: { votes: true } 
         }
       },
-      orderBy: {
-        createdAt: "desc"
-      }
+      orderBy: { createdAt: 'desc' }
     });
 
-    // Transform data for PollCard component
-    const transformedPolls = polls.map(poll => ({
-      id: poll.id,
-      title: poll.title,
-      description: poll.description || "",
-      endDate: poll.endDate?.toISOString() || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      options: poll.options.map(option => ({
-        id: option.id,
-        text: option.text,
-        votes: option._count.votes
-      })),
+    return polls.map(poll => ({
+      ...poll,
       totalVotes: poll._count.votes,
-      isFeatured: poll.isFeatured,
+      // Add featured flag if not in schema
+      isFeatured: false,
       status: poll.status
     }));
-
-    return transformedPolls;
   } catch (error) {
     console.error('Error fetching polls:', error);
     return [];
@@ -63,6 +50,8 @@ export default async function PollsPage() {
   
   const isAdmin = session?.user?.role === 'ADMIN';
   const totalVotes = polls.reduce((sum, poll) => sum + poll.totalVotes, 0);
+  const livePolls = polls.filter(p => p.status === 'LIVE');
+  const featuredPolls = polls.filter(p => p.isFeatured);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
@@ -162,13 +151,13 @@ export default async function PollsPage() {
             </div>
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
               <div className="text-2xl font-bold text-blue-600">
-                {polls.filter(p => p.status === 'LIVE').length}
+                {livePolls.length}
               </div>
               <div className="text-slate-600 text-sm">Live Now</div>
             </div>
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
               <div className="text-2xl font-bold text-orange-600">
-                {polls.filter(p => p.isFeatured).length}
+                {featuredPolls.length}
               </div>
               <div className="text-slate-600 text-sm">Featured</div>
             </div>
@@ -201,7 +190,7 @@ export default async function PollsPage() {
         ) : (
           <div>
             {/* Featured Polls Section */}
-            {polls.filter(p => p.isFeatured).length > 0 && (
+            {featuredPolls.length > 0 && (
               <div className="mb-12">
                 <div className="flex items-center justify-between mb-6">
                   <div>
@@ -209,15 +198,13 @@ export default async function PollsPage() {
                     <p className="text-slate-600">Highlighted polls with high engagement</p>
                   </div>
                   <div className="text-sm text-purple-600 font-medium">
-                    {polls.filter(p => p.isFeatured).length} featured
+                    {featuredPolls.length} featured
                   </div>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {polls
-                    .filter(poll => poll.isFeatured)
-                    .map(poll => (
-                      <PollCard key={poll.id} poll={poll} clickable={true} />
-                    ))}
+                  {featuredPolls.map(poll => (
+                    <PollCard key={poll.id} poll={poll} clickable={true} />
+                  ))}
                 </div>
               </div>
             )}
