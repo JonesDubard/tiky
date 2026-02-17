@@ -6,7 +6,7 @@ import Providers from './providers'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Tikky - Event Ticketing Platform',
+  title: 'Tiky - Event Ticketing Platform',
   description: 'Create, manage, and sell tickets for your events',
 }
 

@@ -3,11 +3,15 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import EventForm from "components/admin/EventForm";
 
+
 export default async function EditEventPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>; // 👈 Change to Promise
 }) {
+  const { id } = await params; // 👈 Await it
+  
+  // Rest of your code using 'id'
   const session = await getServerSession();
   
   if (!session?.user?.email) {

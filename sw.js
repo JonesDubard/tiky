@@ -1,9 +1,9 @@
-// Tikky Service Worker v1.0.0
+// Tiky Service Worker v1.0.0
 // Liberia - Optimized for low-bandwidth & offline support
 
-const CACHE_NAME = 'tikky-cache-v1';
-const API_CACHE_NAME = 'tikky-api-v1';
-const STATIC_CACHE_NAME = 'tikky-static-v1';
+const CACHE_NAME = 'Tiky-cache-v1';
+const API_CACHE_NAME = 'Tiky-api-v1';
+const STATIC_CACHE_NAME = 'Tiky-static-v1';
 
 // Assets to cache immediately on install
 const PRECACHE_URLS = [
@@ -45,7 +45,7 @@ self.addEventListener('activate', event => {
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames
-          .filter(name => name.startsWith('tikky-') && 
+          .filter(name => name.startsWith('Tiky-') && 
                   name !== CACHE_NAME && 
                   name !== API_CACHE_NAME && 
                   name !== STATIC_CACHE_NAME)
@@ -254,7 +254,7 @@ async function syncOfflineVotes() {
 // IndexedDB helper for offline storage
 function openIndexedDB() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('TikkyOfflineDB', 1);
+    const request = indexedDB.open('TikyOfflineDB', 1);
     
     request.onupgradeneeded = event => {
       const db = event.target.result;
@@ -304,7 +304,7 @@ self.addEventListener('push', event => {
   };
   
   event.waitUntil(
-    self.registration.showNotification('Tikky', options)
+    self.registration.showNotification('Tiky', options)
   );
 });
 
@@ -319,4 +319,4 @@ self.addEventListener('notificationclick', event => {
   }
 });
 
-console.log('✅ Tikky Service Worker registered');
+console.log('✅ Tiky Service Worker registered');

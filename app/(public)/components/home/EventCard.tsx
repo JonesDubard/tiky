@@ -1,10 +1,10 @@
-// app/(public)/components/home/EventCard.tsx
 'use client';
 
 import { Calendar, MapPin, Clock } from 'lucide-react';
 import Image from 'next/image';
 import Link from "next/link";
 import { format } from 'date-fns';
+import { useState, useEffect } from 'react';
 
 interface EventCardProps {
   event: {
@@ -25,6 +25,12 @@ interface EventCardProps {
 }
 
 export default function EventCard({ event }: EventCardProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Get lowest ticket price
   const lowestPrice = event.ticketTypes.length > 0 
     ? Math.min(...event.ticketTypes.map(t => t.price))
@@ -33,8 +39,42 @@ export default function EventCard({ event }: EventCardProps) {
   // Check if any tickets available
   const ticketsAvailable = event.ticketTypes.some(t => t.quantity > 0);
 
+  // Format price consistently - CHANGED TO USD
+  const formattedPrice = lowestPrice > 0 
+    ? `$${lowestPrice.toLocaleString()}` 
+    : 'Free';
+
+  const eventHref = `/events/${event.id}`;
+
+  // During SSR, render a simpler version
+  if (!mounted) {
+    return (
+      <div className="block group">
+        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          <div className="flex flex-col md:flex-row">
+            <div className="relative w-full md:w-48 h-48 md:h-auto bg-gray-100">
+              {event.imageUrl ? (
+                <div className="w-full h-full bg-gray-200 animate-pulse" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-brand-primary to-brand-accent" />
+              )}
+            </div>
+            <div className="flex-1 p-5">
+              <div className="h-6 bg-gray-200 rounded w-3/4 mb-2" />
+              <div className="h-4 bg-gray-200 rounded w-full mb-4" />
+              <div className="space-y-2">
+                <div className="h-4 bg-gray-200 rounded w-1/2" />
+                <div className="h-4 bg-gray-200 rounded w-1/3" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <Link href={`/events/${event.id}`} className="block group">
+    <Link href={eventHref} className="block group">
       <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300">
         <div className="flex flex-col md:flex-row">
           {/* Image Section */}
@@ -58,7 +98,7 @@ export default function EventCard({ event }: EventCardProps) {
             {lowestPrice > 0 && (
               <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-lg shadow-sm">
                 <span className="text-sm font-semibold text-gray-900">
-                  USD {lowestPrice.toLocaleString()}
+                  {formattedPrice}
                 </span>
               </div>
             )}
@@ -79,11 +119,15 @@ export default function EventCard({ event }: EventCardProps) {
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center text-sm text-gray-600">
                     <Calendar className="w-4 h-4 mr-2 text-brand-primary flex-shrink-0" />
-                    <span>{format(new Date(event.date), 'EEEE, MMMM d, yyyy')}</span>
+                    <span suppressHydrationWarning>
+                      {format(new Date(event.date), 'EEEE, MMMM d, yyyy')}
+                    </span>
                   </div>
                   <div className="flex items-center text-sm text-gray-600">
                     <Clock className="w-4 h-4 mr-2 text-brand-primary flex-shrink-0" />
-                    <span>{format(new Date(event.date), 'h:mm a')}</span>
+                    <span suppressHydrationWarning>
+                      {format(new Date(event.date), 'h:mm a')}
+                    </span>
                   </div>
                   <div className="flex items-center text-sm text-gray-600">
                     <MapPin className="w-4 h-4 mr-2 text-brand-primary flex-shrink-0" />
@@ -105,7 +149,13 @@ export default function EventCard({ event }: EventCardProps) {
                   )}
                 </div>
                 
-                <button className="inline-flex items-center px-4 py-2 bg-brand-primary text-white text-sm font-medium rounded-lg hover:bg-brand-accent transition-colors duration-200">
+                <button 
+                  className="inline-flex items-center px-4 py-2 bg-brand-primary text-white text-sm font-medium rounded-lg hover:bg-brand-accent transition-colors duration-200"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.location.href = eventHref;
+                  }}
+                >
                   Book Now
                   <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

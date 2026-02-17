@@ -12,7 +12,7 @@ function LoginForm() {
   const callbackUrl = searchParams.get("callbackUrl") || "/admin/dashboard"
   const { data: session, status } = useSession()
   
-  const [email, setEmail] = useState("admin@tikky.com")
+  const [email, setEmail] = useState("admin@Tiky.com")
   const [password, setPassword] = useState("admin123")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")

@@ -21,7 +21,7 @@ export async function POST() {
     
     const admin = await prisma.user.create({
       data: {
-        email: "admin@tikky.com",
+        email: "admin@Tiky.com",
         name: "Admin User",
         password: hashedPassword,
         role: "ADMIN"

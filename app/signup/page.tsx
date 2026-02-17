@@ -74,7 +74,7 @@ export default function SignupPage() {
             Create Account
           </h1>
           <p className="text-slate-600 mt-2">
-            Join Tikky and start exploring events
+            Join Tiky and start exploring events
           </p>
         </div>
 

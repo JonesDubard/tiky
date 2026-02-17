@@ -1,5 +1,5 @@
 # fix-final.ps1
-Write-Host "🔧 Fixing Tikky Platform..." -ForegroundColor Cyan
+Write-Host "🔧 Fixing Tiky Platform..." -ForegroundColor Cyan
 
 # 1. FIX TAILWIND CONFIG (MOST CRITICAL)
 Write-Host "`n1. 🔥 FIXING TAILWIND CONFIG..." -ForegroundColor Red
@@ -45,7 +45,7 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Tikky - Event Ticketing Platform",
+  title: "Tiky - Event Ticketing Platform",
   description: "Create, manage, and sell tickets for your events",
 }
 
@@ -141,7 +141,7 @@ export default async function AdminLayout({
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900">Tikky Admin</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Tiky Admin</h1>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">
                 Logged in as: {session.user?.email} ({userRole})
@@ -198,5 +198,5 @@ Write-Host "   Home: http://localhost:3000" -ForegroundColor White
 Write-Host "   Login: http://localhost:3000/login" -ForegroundColor White
 Write-Host "   Admin: http://localhost:3000/admin" -ForegroundColor White
 Write-Host "`n🔑 Test credentials:" -ForegroundColor Cyan
-Write-Host "   Email: admin@tikky.com" -ForegroundColor White
+Write-Host "   Email: admin@Tiky.com" -ForegroundColor White
 Write-Host "   Password: admin123" -ForegroundColor White

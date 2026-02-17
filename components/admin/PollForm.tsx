@@ -3,40 +3,33 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-interface PollOptionInput {
-  text: string
-  imageUrl: string
+interface PollFormProps {
+  initialData?: {
+    id: string
+    title: string
+    description: string | null
+    pollType: string
+    status: string
+    endDate: Date | null
+    isFeatured: boolean
+    options: Array<{
+      id: string
+      text: string
+    }>
+  }
 }
 
-export default function PollForm() {
+export default function PollForm({ initialData }: PollFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   
-  // Poll options state - start with 2 empty contestants
-  const [options, setOptions] = useState<PollOptionInput[]>([
-    { text: '', imageUrl: '' },
-    { text: '', imageUrl: '' }
-  ])
+  const isEditMode = !!initialData
 
-  // Add new contestant
-  const addOption = () => {
-    setOptions([...options, { text: '', imageUrl: '' }])
-  }
-
-  // Update contestant
-  const updateOption = (index: number, field: keyof PollOptionInput, value: string) => {
-    const updated = [...options]
-    updated[index][field] = value
-    setOptions(updated)
-  }
-
-  // Remove contestant
-  const removeOption = (index: number) => {
-    if (options.length > 2) {
-      setOptions(options.filter((_, i) => i !== index))
-    }
-  }
+  // Options state
+  const [options, setOptions] = useState<string[]>(
+    initialData?.options.map(opt => opt.text) || ['', '']
+  )
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -44,30 +37,46 @@ export default function PollForm() {
     setError('')
 
     const formData = new FormData(event.currentTarget)
-    const data = {
-      title: formData.get('title'),
-      description: formData.get('description'),
-      type: formData.get('type'),
-      endDate: formData.get('endDate') || null,
-      isFeatured: formData.get('isFeatured') === 'on',
-      options: options.filter(opt => opt.text.trim() !== '') // Only include options with text
+
+    // Filter out empty options
+    const validOptions = options.filter(opt => opt.trim() !== '')
+
+    if (validOptions.length < 2) {
+      setError('Please add at least 2 options')
+      setLoading(false)
+      return
     }
 
-    console.log('Submitting poll:', data)
+    const data = {
+      ...(isEditMode && { id: initialData.id }),
+      title: formData.get('title'),
+      description: formData.get('description'),
+      pollType: formData.get('pollType') || 'FREE',
+      status: formData.get('status') || 'ACTIVE',
+      isFeatured: formData.get('isFeatured') === 'on',
+      endDate: formData.get('endDate') || null,
+      options: validOptions,
+    }
 
     try {
-      const response = await fetch('/api/admin/polls', {
-        method: 'POST',
+      const url = isEditMode 
+        ? `/api/admin/polls/${initialData.id}` 
+        : '/api/admin/polls'
+      
+      const method = isEditMode ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       })
-      
+
       if (response.ok) {
         router.push('/admin/polls')
         router.refresh()
       } else {
         const errorData = await response.json()
-        setError(errorData.error || 'Failed to create poll')
+        setError(errorData.error || `Failed to ${isEditMode ? 'update' : 'create'} poll`)
       }
     } catch (err) {
       setError('Network error. Please try again.')
@@ -76,9 +85,27 @@ export default function PollForm() {
     }
   }
 
+  const addOption = () => {
+    setOptions([...options, ''])
+  }
+
+  const updateOption = (index: number, value: string) => {
+    const updated = [...options]
+    updated[index] = value
+    setOptions(updated)
+  }
+
+  const removeOption = (index: number) => {
+    if (options.length > 2) {
+      setOptions(options.filter((_, i) => i !== index))
+    }
+  }
+
   return (
     <div className="bg-white rounded-xl shadow p-6">
-      <h2 className="text-2xl font-bold mb-6">Create New Poll/Contest</h2>
+      <h2 className="text-2xl font-bold mb-6">
+        {isEditMode ? 'Edit Poll' : 'Create New Poll'}
+      </h2>
       
       {error && (
         <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg">
@@ -87,10 +114,9 @@ export default function PollForm() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* ========== POLL BASIC INFO ========== */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Poll Title */}
-          <div className="md:col-span-2">
+        {/* Basic Info */}
+        <div className="grid grid-cols-1 gap-6">
+          <div>
             <label className="block text-sm font-medium mb-2">
               Poll Title *
             </label>
@@ -98,38 +124,55 @@ export default function PollForm() {
               name="title"
               type="text"
               required
-              placeholder="e.g., Best Music Artist 2025"
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              defaultValue={initialData?.title || ''}
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-brand-primary"
+              placeholder="e.g., What topic should we cover next?"
             />
           </div>
 
-          {/* Description */}
-          <div className="md:col-span-2">
+          <div>
             <label className="block text-sm font-medium mb-2">
               Description
             </label>
             <textarea
               name="description"
-              rows={2}
-              placeholder="What is this poll about?"
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              rows={3}
+              defaultValue={initialData?.description || ''}
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-brand-primary"
+              placeholder="Describe your poll..."
             />
           </div>
 
-          {/* Poll Type */}
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Type *
-            </label>
-            <select
-              name="type"
-              required
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              defaultValue="POLL"
-            >
-              <option value="POLL">Free Poll</option>
-              <option value="CONTEST">Paid Contest</option>
-            </select>
+          {/* Poll Type and Status */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Poll Type
+              </label>
+              <select
+                name="pollType"
+                defaultValue={initialData?.pollType || 'FREE'}
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-brand-primary"
+              >
+                <option value="FREE">Free Poll</option>
+                <option value="PAID">Premium Poll (Login Required)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Status
+              </label>
+              <select
+                name="status"
+                defaultValue={initialData?.status || 'ACTIVE'}
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-brand-primary"
+              >
+                <option value="ACTIVE">Active</option>
+                <option value="DRAFT">Draft</option>
+                <option value="CLOSED">Closed</option>
+              </select>
+            </div>
           </div>
 
           {/* End Date */}
@@ -140,145 +183,65 @@ export default function PollForm() {
             <input
               name="endDate"
               type="datetime-local"
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              defaultValue={initialData?.endDate ? new Date(initialData.endDate).toISOString().slice(0, 16) : ''}
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-brand-primary"
             />
           </div>
 
-          {/* Featured */}
-          <div className="md:col-span-2 flex items-center">
+          {/* Featured Toggle */}
+          <div className="flex items-center gap-3">
             <input
-              name="isFeatured"
               type="checkbox"
+              name="isFeatured"
               id="isFeatured"
-              className="h-4 w-4 text-blue-600 rounded"
+              defaultChecked={initialData?.isFeatured}
+              className="w-4 h-4 text-brand-primary rounded focus:ring-brand-primary"
             />
-            <label htmlFor="isFeatured" className="ml-2 text-sm text-gray-700">
+            <label htmlFor="isFeatured" className="text-sm font-medium">
               Feature this poll on homepage
             </label>
           </div>
         </div>
 
-        {/* ========== CONTESTANTS SECTION ========== */}
+        {/* Options Section */}
         <div className="border-t pt-6">
           <div className="flex justify-between items-center mb-4">
-            <div>
-              <h3 className="text-lg font-semibold">Contestants *</h3>
-              <p className="text-sm text-gray-500">Add contestants with names and photos</p>
-            </div>
+            <h3 className="text-lg font-semibold">Poll Options *</h3>
             <button
               type="button"
               onClick={addOption}
               className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
             >
-              + Add Contestant
+              + Add Option
             </button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-3">
             {options.map((option, index) => (
-              <div key={index} className="p-4 bg-gray-50 rounded-lg border">
-                <div className="flex justify-between items-start mb-3">
-                  <div className="font-medium">Contestant #{index + 1}</div>
+              <div key={index} className="flex gap-2 items-center">
+                <input
+                  type="text"
+                  value={option}
+                  onChange={(e) => updateOption(index, e.target.value)}
+                  placeholder={`Option ${index + 1}`}
+                  className="flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-brand-primary"
+                  required
+                />
+                {options.length > 2 && (
                   <button
                     type="button"
                     onClick={() => removeOption(index)}
-                    className="text-sm text-red-600 hover:text-red-800"
-                    disabled={options.length <= 2}
+                    className="p-3 text-red-600 hover:bg-red-50 rounded-lg"
                   >
-                    Remove
+                    ×
                   </button>
-                </div>
-                
-                <div className="space-y-3">
-                  {/* Contestant Name */}
-                  <div>
-                    <label className="block text-sm font-medium mb-1">
-                      Contestant Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={option.text}
-                      onChange={(e) => updateOption(index, 'text', e.target.value)}
-                      placeholder="e.g., Burna Boy, Davido, Wizkid"
-                      className="w-full p-2 border rounded"
-                      required
-                    />
-                  </div>
-                  
-                  {/* Contestant Photo */}
-                  <div>
-                    <label className="block text-sm font-medium mb-1">
-                      Photo URL (Optional)
-                    </label>
-                    <input
-                      type="url"
-                      value={option.imageUrl}
-                      onChange={(e) => updateOption(index, 'imageUrl', e.target.value)}
-                      placeholder="https://images.unsplash.com/photo-..."
-                      className="w-full p-2 border rounded"
-                    />
-                    
-                    {/* Photo Preview */}
-                    {option.imageUrl && (
-                      <div className="mt-2">
-                        <p className="text-xs text-gray-500 mb-1">Preview:</p>
-                        <div className="flex items-center space-x-3">
-                          <img 
-                            src={option.imageUrl} 
-                            alt={`Contestant ${index + 1} preview`}
-                            className="h-16 w-16 object-cover rounded-full border"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none'
-                              const parent = (e.target as HTMLImageElement).parentElement
-                              if (parent) {
-                                const errorMsg = document.createElement('p')
-                                errorMsg.className = 'text-xs text-red-500'
-                                errorMsg.textContent = 'Image failed to load'
-                                parent.appendChild(errorMsg)
-                              }
-                            }}
-                          />
-                          <div className="text-xs text-gray-600">
-                            Circular photo next to name
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Suggested Image Sources */}
-                    <div className="mt-2">
-                      <p className="text-xs text-gray-500 mb-1">Get free photos from:</p>
-                      <div className="text-xs space-x-2">
-                        <a 
-                          href="https://unsplash.com" 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          Unsplash
-                        </a>
-                        <span>•</span>
-                        <a 
-                          href="https://pexels.com" 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          Pexels
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
             ))}
           </div>
           
-          <p className="text-sm text-gray-500 mt-3">
-            Users will see contestants with photos and names. Each contestant gets votes.
-            {options.filter(opt => opt.text.trim() !== '').length < 2 && (
-              <span className="text-red-500 ml-2">Need at least 2 contestants with names</span>
-            )}
+          <p className="text-sm text-gray-500 mt-2">
+            Add at least 2 options for users to choose from.
           </p>
         </div>
 
@@ -286,10 +249,12 @@ export default function PollForm() {
         <div className="pt-4">
           <button
             type="submit"
-            disabled={loading || options.filter(opt => opt.text.trim() !== '').length < 2}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading}
+            className="w-full bg-brand-primary text-white py-3 rounded-lg font-medium hover:bg-brand-accent disabled:opacity-50"
           >
-            {loading ? 'Creating Poll...' : 'Create Poll'}
+            {loading 
+              ? (isEditMode ? 'Updating Poll...' : 'Creating Poll...') 
+              : (isEditMode ? 'Update Poll' : 'Create Poll')}
           </button>
         </div>
       </form>

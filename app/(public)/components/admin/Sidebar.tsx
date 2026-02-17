@@ -70,7 +70,7 @@ export default function Sidebar({ user }: SidebarProps) {
               className="w-8 h-8 rounded-lg mr-2"
               style={{ backgroundColor: 'var(--brand-primary)' }}
             ></div>
-            <h2 className="text-lg font-bold text-gray-800">Tikky Admin</h2>
+            <h2 className="text-lg font-bold text-gray-800">Tiky Admin</h2>
           </div>
           
           <div className="text-sm font-medium text-gray-700 truncate max-w-[100px]">
@@ -101,7 +101,7 @@ export default function Sidebar({ user }: SidebarProps) {
             className="w-8 h-8 rounded-lg mr-2 flex-shrink-0"
             style={{ backgroundColor: 'var(--brand-primary)' }}
           ></div>
-          <h2 className="text-lg font-bold text-gray-800 truncate">Tikky</h2>
+          <h2 className="text-lg font-bold text-gray-800 truncate">Tiky</h2>
         </div>
         
         {/* User info - condensed */}

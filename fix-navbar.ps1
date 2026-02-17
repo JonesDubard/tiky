@@ -53,7 +53,7 @@ export default function Nav() {
             <span className="text-white font-black text-sm">T</span>
           </div>
           <Link href="/" className="text-xl font-black tracking-tight hover:opacity-80">
-            TIKKY
+            Tiky
           </Link>
         </div>
 
@@ -125,7 +125,7 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Tikky - Event Ticketing Platform",
+  title: "Tiky - Event Ticketing Platform",
   description: "Create, manage, and sell tickets for your events",
 }
 

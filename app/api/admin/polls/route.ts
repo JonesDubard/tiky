@@ -1,115 +1,100 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from 'lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from 'lib/auth'
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "lib/prisma";
+import { getServerSession } from "next-auth";
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    // Add authentication - polls need a creator
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession();
     
     if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Please log in.' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get current user
+    const body = await req.json();
+    const { title, description, pollType, status, isFeatured, endDate, options } = body;
+
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    })
+      where: { email: session.user.email },
+      select: { id: true, role: true }
+    });
 
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      )
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'ORGANIZER')) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const body = await request.json()
-    
-    console.log('📝 Creating poll with options:', body.options)
-    
-    // Validation
-    if (!body.title || !body.type) {
-      return NextResponse.json(
-        { error: 'Title and type are required' },
-        { status: 400 }
-      )
-    }
-
-    if (!body.options || body.options.length < 2) {
-      return NextResponse.json(
-        { error: 'At least 2 options are required' },
-        { status: 400 }
-      )
-    }
-
-    // Create poll WITH options
+    // Create poll with options
     const poll = await prisma.poll.create({
       data: {
-        title: body.title,
-        description: body.description || null,
-        type: body.type,
-        status: 'ACTIVE',
-        endDate: body.endDate ? new Date(body.endDate) : null,
-        // isFeatured: body.isFeatured || false, // ← REMOVED (field doesn't exist)
-        creatorId: user.id, // ← ADDED: required field
-        // Create options along with poll
+        title,
+        description,
+        pollType: pollType || 'FREE',
+        status: status || 'ACTIVE',
+        isFeatured: isFeatured || false,
+        endDate: endDate ? new Date(endDate) : null,
+        creatorId: user.id,
         options: {
-          create: body.options.map((opt: any) => ({
-            text: opt.text,
-            imageUrl: opt.imageUrl || null
-          }))
-        }
+          create: options.map((text: string) => ({ text })),
+        },
       },
       include: {
-        options: true // Return options in response
-      }
-    })
+        options: true,
+      },
+    });
 
-    console.log('✅ Poll created with', poll.options.length, 'options')
-    
-    return NextResponse.json({ 
-      success: true, 
-      poll,
-      message: 'Poll created successfully' 
-    }, { status: 201 })
-    
-  } catch (error: any) {
-    console.error('❌ Error:', error.message)
+    return NextResponse.json(poll);
+  } catch (error) {
+    console.error("[POLLS_POST]", error);
     return NextResponse.json(
-      { error: error.message || 'Failed to create poll' },
+      { error: "Failed to create poll" },
       { status: 500 }
-    )
+    );
   }
 }
 
-// GET endpoint for listing polls
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const session = await getServerSession();
+    
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true, role: true }
+    });
+
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'ORGANIZER')) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const polls = await prisma.poll.findMany({
-      orderBy: { createdAt: 'desc' },
+      where: user.role === 'ADMIN' ? {} : { creatorId: user.id },
       include: {
-        options: true,
+        _count: {
+          select: {
+            options: true,
+            votes: true,
+          },
+        },
         creator: {
           select: {
-            id: true,
             name: true,
-            email: true
-          }
+            email: true,
+          },
         },
-        _count: {
-          select: { votes: true }
-        }
-      }
-    })
-    return NextResponse.json({ polls })
-  } catch (error: any) {
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return NextResponse.json(polls);
+  } catch (error) {
+    console.error("[POLLS_GET]", error);
     return NextResponse.json(
-      { error: error.message },
+      { error: "Failed to fetch polls" },
       { status: 500 }
-    )
+    );
   }
 }

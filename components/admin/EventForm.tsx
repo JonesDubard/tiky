@@ -275,18 +275,18 @@ export default function EventForm({ initialData }: EventFormProps) {
                 </div>
                 
                 <div className="w-full md:w-32">
-                  <label className="block text-sm font-medium mb-1">Price ($) *</label>
-                  <input
-                    type="number"
-                    value={ticket.price}
-                    onChange={(e) => updateTicketType(index, 'price', e.target.value)}
-                    min="0"
-                    step="0.01"
-                    className="w-full p-2 border rounded"
-                    required
-                    disabled={loading}
-                  />
-                </div>
+           <label className="block text-sm font-medium mb-1">Price (USD) *</label>
+            <input
+              type="number"
+              value={ticket.price}
+              onChange={(e) => updateTicketType(index, 'price', e.target.value)}
+              min="0"
+              step="0.01"
+              className="w-full p-2 border rounded"
+              required
+              disabled={loading}
+  />
+</div>
                 
                 <div className="w-full md:w-32">
                   <label className="block text-sm font-medium mb-1">Quantity *</label>
@@ -319,6 +319,25 @@ export default function EventForm({ initialData }: EventFormProps) {
             Add at least one ticket type. Customers will see these options when booking.
           </p>
         </div>
+    
+    
+<div className="border-t pt-6">
+  <div className="flex items-center gap-3">
+    <input
+      type="checkbox"
+      name="published"
+      id="published"
+      defaultChecked={initialData?.published || false}
+      className="w-4 h-4 text-brand-primary rounded focus:ring-brand-primary"
+    />
+    <label htmlFor="published" className="text-sm font-medium">
+      Publish immediately (show on homepage)
+    </label>
+  </div>
+  <p className="text-sm text-gray-500 mt-1 ml-7">
+    Unpublished events are saved as drafts and not visible to the public.
+  </p>
+</div>
 
         {/* Submit Button */}
         <div className="pt-4">

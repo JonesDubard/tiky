@@ -453,7 +453,7 @@ export default async function EventPage({ params }: EventPageProps) {
                       <div className="flex justify-between items-start mb-2">
                         <h3 className="font-semibold text-gray-900">{ticket.name}</h3>
                         <span className="text-lg font-bold text-brand-primary">
-                          LRD {ticket.price.toLocaleString()}
+                          ${ticket.price.toLocaleString()} USD
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 mb-3">

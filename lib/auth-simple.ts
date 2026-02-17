@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma"
 const testUsers = [
   {
     id: "1",
-    email: "admin@tikky.com",
+    email: "admin@Tiky.com",
     password: "admin123",
     name: "Admin User",
     role: "ADMIN"
@@ -38,11 +38,11 @@ export const authOptions: NextAuthOptions = {
         }
 
         // For now, use test user
-        if (credentials.email === "admin@tikky.com" && credentials.password === "admin123") {
+        if (credentials.email === "admin@Tiky.com" && credentials.password === "admin123") {
           console.log("✅ Using test user")
           return {
             id: "1",
-            email: "admin@tikky.com",
+            email: "admin@Tiky.com",
             name: "Admin User",
             role: "ADMIN"
           }

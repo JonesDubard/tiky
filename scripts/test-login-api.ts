@@ -12,7 +12,7 @@ async function testLogin() {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      email: "admin@tikky.com",
+      email: "admin@Tiky.com",
       password: "admin123",
       csrfToken: csrf.csrfToken,
       redirect: false,
