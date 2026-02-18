@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import ImageUpload from 'components/ui/image-upload'
 
@@ -39,10 +39,10 @@ export default function EventForm({ initialData }: EventFormProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [imageUrl, setImageUrl] = useState(initialData?.imageUrl || '')
+  const [imageFile, setImageFile] = useState<File | null>(null)
   
   const isEditMode = !!initialData
 
-  // Format date for datetime-local input
   const formatDateForInput = (date: Date) => {
     const d = new Date(date)
     const year = d.getFullYear()
@@ -53,7 +53,6 @@ export default function EventForm({ initialData }: EventFormProps) {
     return `${year}-${month}-${day}T${hours}:${minutes}`
   }
 
-  // Ticket types state
   const [ticketTypes, setTicketTypes] = useState<TicketTypeInput[]>(() => {
     if (initialData?.ticketTypes) {
       return initialData.ticketTypes.map(ticket => ({
@@ -66,31 +65,48 @@ export default function EventForm({ initialData }: EventFormProps) {
     return [{ name: 'General Admission', price: '15', quantity: '100' }]
   })
 
+  const handleImageChange = (url: string, file?: File) => {
+    setImageUrl(url)
+    if (file) {
+      setImageFile(file)
+    }
+  }
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setLoading(true)
     setError('')
 
-    const formData = new FormData(event.currentTarget)
+    // Create FormData from the form
+    const form = event.currentTarget
+    const formData = new FormData(form)
 
-    const data = {
-      ...(isEditMode && { id: initialData.id }), // Include ID only in edit mode
-      title: formData.get('title'),
-      description: formData.get('description'),
+    // Build event data object using form values
+    const eventData = {
+      ...(isEditMode && { id: initialData.id }),
+      title: formData.get('title') as string,
+      description: formData.get('description') as string,
       date: new Date(formData.get('date') as string).toISOString(),
-      location: formData.get('location'),
-      imageUrl: imageUrl || (formData.get('imageUrl') as string) || '',
-      published: isEditMode ? initialData.published : false, // Default to false for new events
+      location: formData.get('location') as string,
+      imageUrl: imageUrl, // current image URL (could be from state or new upload)
+      published: formData.get('published') === 'on',
       isFeatured: isEditMode ? initialData.isFeatured : false,
       ticketTypes: ticketTypes.map(ticket => ({
-        ...(ticket.id && { id: ticket.id }), // Include ID only for existing tickets
-        name: ticket.name,
-        price: parseFloat(ticket.price),
-        quantity: parseInt(ticket.quantity)
-      }))
+  ...(ticket.id && { id: ticket.id }),
+  name: ticket.name,
+  price: parseFloat(ticket.price),
+  quantity: parseInt(ticket.quantity)
+}))
     }
 
-    console.log('Submitting:', data)
+    // Create a new FormData for submission (to include file)
+    const submitFormData = new FormData()
+    submitFormData.append('eventData', JSON.stringify(eventData))
+
+    // Append image file if one was selected
+    if (imageFile) {
+      submitFormData.append('image', imageFile)
+    }
 
     try {
       const url = isEditMode 
@@ -101,37 +117,35 @@ export default function EventForm({ initialData }: EventFormProps) {
 
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+        body: submitFormData // multipart/form-data
       })
+
+      const responseData = await response.json()
 
       if (response.ok) {
         router.push('/admin/events')
         router.refresh()
       } else {
-        const errorData = await response.json()
-        setError(errorData.error || `Failed to ${isEditMode ? 'update' : 'create'} event`)
+        setError(responseData.error || `Failed to ${isEditMode ? 'update' : 'create'} event`)
       }
     } catch (err) {
+      console.error('Submission error:', err)
       setError('Network error. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
-  // Add new ticket type
   const addTicketType = () => {
     setTicketTypes([...ticketTypes, { name: '', price: '', quantity: '' }])
   }
 
-  // Update ticket type
   const updateTicketType = (index: number, field: keyof TicketTypeInput, value: string) => {
     const updated = [...ticketTypes]
     updated[index][field] = value
     setTicketTypes(updated)
   }
 
-  // Remove ticket type
   const removeTicketType = (index: number) => {
     if (ticketTypes.length > 1) {
       setTicketTypes(ticketTypes.filter((_, i) => i !== index))
@@ -150,8 +164,7 @@ export default function EventForm({ initialData }: EventFormProps) {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* ========== EVENT BASIC INFO ========== */}
+      <form onSubmit={handleSubmit} className="space-y-6" encType="multipart/form-data">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Event Title */}
           <div className="md:col-span-2">
@@ -218,7 +231,7 @@ export default function EventForm({ initialData }: EventFormProps) {
             </label>
             <ImageUpload
               value={imageUrl}
-              onChange={setImageUrl}
+              onChange={handleImageChange}
               disabled={loading}
             />
             
@@ -233,10 +246,10 @@ export default function EventForm({ initialData }: EventFormProps) {
                 defaultValue={!imageUrl ? initialData?.imageUrl || '' : ''}
                 placeholder="https://images.unsplash.com/photo-..."
                 className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                disabled={!!imageUrl || loading}
+                disabled={!!imageFile || loading}
               />
               <p className="text-sm text-gray-500 mt-1">
-                {imageUrl 
+                {imageFile 
                   ? "Using uploaded image. Clear upload to use URL instead." 
                   : "Leave empty for default placeholder"}
               </p>
@@ -244,7 +257,7 @@ export default function EventForm({ initialData }: EventFormProps) {
           </div>
         </div>
 
-        {/* ========== TICKET TYPES SECTION ========== */}
+        {/* Ticket Types */}
         <div className="border-t pt-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Ticket Types *</h3>
@@ -275,18 +288,18 @@ export default function EventForm({ initialData }: EventFormProps) {
                 </div>
                 
                 <div className="w-full md:w-32">
-           <label className="block text-sm font-medium mb-1">Price (USD) *</label>
-            <input
-              type="number"
-              value={ticket.price}
-              onChange={(e) => updateTicketType(index, 'price', e.target.value)}
-              min="0"
-              step="0.01"
-              className="w-full p-2 border rounded"
-              required
-              disabled={loading}
-  />
-</div>
+                  <label className="block text-sm font-medium mb-1">Price (USD) *</label>
+                  <input
+                    type="number"
+                    value={ticket.price}
+                    onChange={(e) => updateTicketType(index, 'price', e.target.value)}
+                    min="0"
+                    step="0.01"
+                    className="w-full p-2 border rounded"
+                    required
+                    disabled={loading}
+                  />
+                </div>
                 
                 <div className="w-full md:w-32">
                   <label className="block text-sm font-medium mb-1">Quantity *</label>
@@ -320,24 +333,23 @@ export default function EventForm({ initialData }: EventFormProps) {
           </p>
         </div>
     
-    
-<div className="border-t pt-6">
-  <div className="flex items-center gap-3">
-    <input
-      type="checkbox"
-      name="published"
-      id="published"
-      defaultChecked={initialData?.published || false}
-      className="w-4 h-4 text-brand-primary rounded focus:ring-brand-primary"
-    />
-    <label htmlFor="published" className="text-sm font-medium">
-      Publish immediately (show on homepage)
-    </label>
-  </div>
-  <p className="text-sm text-gray-500 mt-1 ml-7">
-    Unpublished events are saved as drafts and not visible to the public.
-  </p>
-</div>
+        <div className="border-t pt-6">
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              name="published"
+              id="published"
+              defaultChecked={initialData?.published || false}
+              className="w-4 h-4 text-brand-primary rounded focus:ring-brand-primary"
+            />
+            <label htmlFor="published" className="text-sm font-medium">
+              Publish immediately (show on homepage)
+            </label>
+          </div>
+          <p className="text-sm text-gray-500 mt-1 ml-7">
+            Unpublished events are saved as drafts and not visible to the public.
+          </p>
+        </div>
 
         {/* Submit Button */}
         <div className="pt-4">

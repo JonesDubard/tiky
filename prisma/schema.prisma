@@ -191,19 +191,22 @@ model Vote {
 
   pollId   String
   optionId String
-  userId   String
+  userId   String?
 
   poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
   option Option @relation(fields: [optionId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // For guest voting
+  // For guest voting 
   deviceId String? // For non-authenticated users
+
+  // Store additional data as JSON string
+  metadata String? // JSON string
 
   createdAt DateTime @default(now())
 
-  @@unique([pollId, userId]) // Registered users
-  @@unique([pollId, deviceId]) // Guest users (if deviceId provided)
+  @@unique([pollId, userId]) // Registered users only
   @@index([pollId])
   @@index([optionId])
+  @@index([deviceId]) // Add index for deviceId lookups
 }
