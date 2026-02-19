@@ -538,7 +538,10 @@ interface PollPageProps {
 async function getPoll(id: string): Promise<PollWithDetails | null> {
   try {
     const poll = await prisma.poll.findUnique({
-      where: { id },
+      where: { 
+        id: id,
+        deletedAt: null
+       },
       include: {
         creator: {
           select: {

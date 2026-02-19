@@ -145,19 +145,25 @@ export default async function AdminEventsPage() {
             {user.role === 'ADMIN' ? 'All events' : 'Your events'}
           </p>
         </div>
-        <Link
-          href="/admin/events/create"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-accent transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Create Event
-        </Link>
-        <Link
-          href="/admin/events/archive"
-          className="block px-4 py-2 text-sm hover:bg-gray-100 rounded"
-          >
-           🗑 Archived Events
-        </Link>
+        <div className="flex justify-end items-center gap-4 mb-6">
+   {/* Create event Button */}
+    <Link
+    href="/admin/events/create"
+    className="inline-flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-accent transition-colors"
+    >
+    <Plus className="w-4 h-4" />
+    Create Event
+    </Link>
+
+    {/* Archived Events Button */}
+    <Link
+  href="/admin/events/archive"
+  className="inline-flex items-center gap-2 px-4 py-2 bg-red-100 text-red-800 font-semibold rounded-lg hover:bg-red-200 transition-colors shadow-sm"
+>
+  🗑
+  Archived Events
+</Link>
+    </div>
       </div>
 
       {events.length === 0 ? (

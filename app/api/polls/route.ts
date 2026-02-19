@@ -10,7 +10,8 @@ export async function GET() {
         OR: [
           { endDate: { gte: new Date() } },
           { endDate: null }
-        ]
+        ],
+        deletedAt: null
       },
       include: {
         options: {

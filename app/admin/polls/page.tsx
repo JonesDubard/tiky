@@ -165,7 +165,10 @@ export default async function AdminPollsPage() {
   }
 
   const polls = await prisma.poll.findMany({
-    where: user.role === 'ADMIN' ? {} : { creatorId: user.id },
+  where: {
+    deletedAt: null,
+    ...(user.role !== 'ADMIN' && { createdById: user.id }),
+  },
     include: {
       _count: {
         select: {
@@ -194,13 +197,26 @@ export default async function AdminPollsPage() {
             {user.role === 'ADMIN' ? 'All polls' : 'Your polls'}
           </p>
         </div>
-        <Link
-          href="/admin/polls/create"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-accent transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Create Poll
-        </Link>
+        <div className="flex justify-end items-center gap-4 mb-6">
+   {/* Create Poll Button */}
+    <Link
+    href="/admin/polls/create"
+    className="inline-flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-accent transition-colors"
+    >
+    <Plus className="w-4 h-4" />
+    Create Poll
+    </Link>
+
+    {/* Archived Polls Button */}
+    <Link
+  href="/admin/polls/archive"
+  className="inline-flex items-center gap-2 px-4 py-2 bg-red-100 text-red-800 font-semibold rounded-lg hover:bg-red-200 transition-colors shadow-sm"
+>
+  🗑
+  Archived Polls
+</Link>
+    </div>
+
       </div>
 
       {polls.length === 0 ? (

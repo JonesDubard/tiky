@@ -278,8 +278,10 @@ async function getPolls(): Promise<PublicPoll[]> {
         OR: [
           { endDate: { gte: new Date() } },
           { endDate: null }
-        ]
+        ],
+        deletedAt: null
       },
+
       select: {
         id: true,
         title: true,

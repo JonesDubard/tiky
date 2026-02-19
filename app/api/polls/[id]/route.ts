@@ -115,7 +115,10 @@ export async function PUT(
 
     // Check if poll exists and user is creator
     const existingPoll = await prisma.poll.findUnique({
-      where: { id },
+      where: { 
+        id: id,
+        deletedAt: null 
+      },
       include: { options: true }
     });
 

@@ -156,6 +156,7 @@ model Poll {
   pollType    String    @default("FREE")
   status      String    @default("ACTIVE")
   endDate     DateTime?
+  deletedAt DateTime?
   isFeatured  Boolean   @default(false)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

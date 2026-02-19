@@ -178,16 +178,17 @@ import { getServerSession } from "next-auth";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const {id} = await params;
     const session = await getServerSession();
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const poll = await prisma.poll.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         options: true,
         creator: {
@@ -222,9 +223,10 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const {id} = await params;
     const session = await getServerSession();
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -235,7 +237,7 @@ export async function PUT(
 
     // Check poll exists and permissions
     const poll = await prisma.poll.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { creatorId: true }
     });
 
@@ -255,7 +257,7 @@ export async function PUT(
     // Update poll with options
     const updatedPoll = await prisma.$transaction(async (tx) => {
       const updated = await tx.poll.update({
-        where: { id: params.id },
+        where: { id },
         data: {
           title,
           description,
@@ -268,7 +270,7 @@ export async function PUT(
 
       // Delete existing options
       await tx.option.deleteMany({
-        where: { pollId: params.id }
+        where: { id }
       });
 
       // Create new options
@@ -276,7 +278,7 @@ export async function PUT(
         await tx.option.createMany({
           data: options.map((text: string) => ({
             text,
-            pollId: params.id
+            pollId: id
           }))
         });
       }
@@ -296,16 +298,17 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const {id} = await params;
     const session = await getServerSession();
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const poll = await prisma.poll.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { creatorId: true }
     });
 
@@ -322,11 +325,12 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    await prisma.poll.delete({
-      where: { id: params.id }
+    await prisma.poll.update({
+      where: { id },
+      data: { deletedAt: new Date() }
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: "Poll soft-deleted" });
   } catch (error) {
     console.error("[POLL_DELETE]", error);
     return NextResponse.json(

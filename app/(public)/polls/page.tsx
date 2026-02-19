@@ -13,6 +13,7 @@ async function getPolls() {
     const polls = await prisma.poll.findMany({
       where: {
         status: 'ACTIVE',
+              deletedAt: null,
       },
       include: {
         options: {
