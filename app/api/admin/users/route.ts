@@ -98,22 +98,19 @@ export async function GET() {
 
     // Transform the data with proper typing
     const formattedUsers = users.map((user) => ({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      status: user.status,
-      // Since image doesn't exist in schema, use null or generate avatar URL
-      image: null, // Or use a default avatar service like: `https://ui-avatars.com/api/?name=${user.name || user.email}`
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      _count: {
-        events: user._count.events,
-        orders: user._count.orders,
-        payments: user._count.payments,
-        tickets: user.orders.reduce((total: number, order) => total + order.tickets.length, 0),
-      },
-    }));
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  status: user.status,
+  image: user.image || null, // if you have an image field in schema, else keep null
+  createdAt: user.createdAt,
+  updatedAt: user.updatedAt,
+  eventsCount: user._count.events,
+  ticketsCount: user.orders.reduce((total, order) => total + order.tickets.length, 0),
+  // optionally include _count if needed elsewhere
+  _count: user._count,
+}));
 
     return NextResponse.json(formattedUsers);
   } catch (error) {

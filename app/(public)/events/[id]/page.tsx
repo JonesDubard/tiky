@@ -319,9 +319,10 @@ async function getEvent(id: string) {
   if (!id) return null;
   
   try {
-    const event = await prisma.event.findUnique({
+    const event = await prisma.event.findFirst({
       where: { 
-        id: id // Make sure id is passed correctly
+        id: id, // Make sure id is passed correctly
+        deletedAt: null
       },
       include: {
         createdBy: {

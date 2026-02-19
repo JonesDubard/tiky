@@ -12,7 +12,8 @@ async function getEvents() {
         published: true,
         date: {
           gte: new Date() // Only future events
-        }
+        },
+        deletedAt: null
       },
       include: {
         ticketTypes: {  // FIXED: Changed from 'tickets' to 'ticketTypes'

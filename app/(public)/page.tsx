@@ -238,7 +238,8 @@ async function getEvents(): Promise<PublicEvent[]> {
         published: true,
         date: {
           gte: new Date()
-        }
+        },
+        deletedAt: null
       },
       select: {
         id: true,

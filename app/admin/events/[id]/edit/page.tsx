@@ -7,9 +7,9 @@ import EventForm from "components/admin/EventForm";
 export default async function EditEventPage({
   params,
 }: {
-  params: Promise<{ id: string }>; // 👈 Change to Promise
+  params: Promise<{ id: string }>; 
 }) {
-  const { id } = await params; // 👈 Await it
+  const { id } = await params;
   
   // Rest of your code using 'id'
   const session = await getServerSession();
@@ -20,7 +20,7 @@ export default async function EditEventPage({
   
   // Fetch event data
   const event = await prisma.event.findUnique({
-    where: { id: params.id },
+  where: { id },
     include: {
       ticketTypes: {
         select: {

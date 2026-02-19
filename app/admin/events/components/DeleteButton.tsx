@@ -12,24 +12,37 @@ interface DeleteButtonProps {
 export default function DeleteButton({ id, type, title }: DeleteButtonProps) {
   const router = useRouter();
 
-  const handleDelete = async () => {
-    if (!confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) return;
+  // const handleDelete = async () => {
+  //   if (!confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) return;
     
-    try {
-      const res = await fetch(`/api/admin/${type}s/${id}`, {
-        method: 'DELETE',
-      });
+  //   try {
+  //     const res = await fetch(`/api/admin/${type}s/${id}`, {
+  //       method: 'DELETE',
+  //     });
       
-      if (res.ok) {
-        router.refresh();
-      } else {
-        alert('Failed to delete');
-      }
-    } catch (error) {
-      alert('Error deleting');
+  //     if (res.ok) {
+  //       router.refresh();
+  //     } else {
+  //       alert('Failed to delete');
+  //     }
+  //   } catch (error) {
+  //     alert('Error deleting');
+  //   }
+  // };
+const handleDelete = async () => {
+  if (!confirm(`Are you sure you want to delete "${title}"?`)) return;
+  try {
+    const res = await fetch(`/api/admin/${type}s/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok) {
+      router.refresh();
+    } else {
+      alert(data.error || 'Failed to delete');
     }
-  };
-
+  } catch (error) {
+    alert('Network error');
+  }
+};
   return (
     <button
       onClick={handleDelete}

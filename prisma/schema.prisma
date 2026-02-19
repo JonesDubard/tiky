@@ -32,6 +32,7 @@ model Event {
   description String?
   date        DateTime
   location    String
+  deletedAt DateTime?
   imageUrl    String?
   published   Boolean  @default(false)
   isFeatured  Boolean  @default(false)

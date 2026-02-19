@@ -18,7 +18,11 @@ export default async function AdminDashboard() {
     availableTickets,
     totalRevenue
   ] = await Promise.all([
-    prisma.event.count(),
+    prisma.event.count({
+  where: {
+    deletedAt: null
+  }
+}),
     prisma.poll.count(),
     prisma.poll.count({ where: { status: 'ACTIVE' } }),
     prisma.ticketInstance.count({ where: { status: 'PAID' } }),

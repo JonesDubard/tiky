@@ -18,6 +18,9 @@ export async function GET(request: NextRequest) {
     }
     
     const events = await prisma.event.findMany({
+      where: {
+          deletedAt: null
+      },
       include: {
         createdBy: {
           select: {

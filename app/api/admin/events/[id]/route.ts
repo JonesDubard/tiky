@@ -4,9 +4,10 @@ import { getServerSession } from "next-auth";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const {id} = await params;
     const session = await getServerSession();
     
     if (!session?.user) {
@@ -14,7 +15,7 @@ export async function GET(
     }
 
     const event = await prisma.event.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         ticketTypes: true,
         createdBy: {
@@ -43,24 +44,36 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const {id} = await params;
     const session = await getServerSession();
-    
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
-    const { title, description, date, location, imageUrl, published, isFeatured, ticketTypes } = body;
+    let eventData: any;
+    let imageFile: File | null = null;
 
-    // Check permissions
+    const contentType = req.headers.get("content-type") || "";
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await req.formData();
+      const eventDataStr = formData.get("eventData") as string;
+      if (!eventDataStr) {
+        return NextResponse.json({ error: "Missing eventData" }, { status: 400 });
+      }
+      eventData = JSON.parse(eventDataStr);
+      imageFile = formData.get("image") as File | null;
+    } else {
+      eventData = await req.json();
+    }
+
+    // Check permissions (same as before)
     const event = await prisma.event.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { createdById: true }
     });
-
     if (!event) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
@@ -69,46 +82,47 @@ export async function PUT(
       where: { email: session.user.email },
       select: { id: true, role: true }
     });
-
     if (!user || (user.role !== 'ADMIN' && event.createdById !== user.id)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // If an image file was uploaded, you need to process it (e.g., upload to cloud storage)
+    // For now, assume you have a utility function `uploadImage` that returns a URL.
+    // If you don't have one, you can keep the existing imageUrl from eventData.
+    let imageUrl = eventData.imageUrl;
+    if (imageFile) {
+      // Implement your image upload logic here, e.g.:
+      // imageUrl = await uploadImage(imageFile);
+      // For now, we'll keep the existing URL – you'll need to add actual upload.
+    }
+
     // Update event with transaction
     const updatedEvent = await prisma.$transaction(async (tx) => {
-      // Update event basic info
       const updated = await tx.event.update({
-        where: { id: params.id },
+        where: { id },
         data: {
-          title,
-          description,
-          date: new Date(date),
-          location,
+          title: eventData.title,
+          description: eventData.description,
+          date: new Date(eventData.date),
+          location: eventData.location,
           imageUrl,
-          published: published ?? false,
-          isFeatured: isFeatured ?? false,
+          published: eventData.published ?? false,
+          isFeatured: eventData.isFeatured ?? false,
         },
       });
 
-      // Handle ticket types if provided
-      if (ticketTypes && Array.isArray(ticketTypes)) {
-        // Get existing ticket types
+      // Handle ticket types (same as before)
+      if (eventData.ticketTypes && Array.isArray(eventData.ticketTypes)) {
         const existingTickets = await tx.ticketType.findMany({
-          where: { eventId: params.id },
+          where: { id },
         });
-
-        // Delete removed ticket types
-        const incomingIds = ticketTypes.filter((t: any) => t.id).map((t: any) => t.id);
+        const incomingIds = eventData.ticketTypes.filter((t: any) => t.id).map((t: any) => t.id);
         const toDelete = existingTickets.filter((t) => !incomingIds.includes(t.id));
-        
         for (const ticket of toDelete) {
           await tx.ticketType.delete({ where: { id: ticket.id } });
         }
-
-        // Update or create ticket types
-        for (const ticket of ticketTypes) {
+        for (const ticket of eventData.ticketTypes) {
           if (ticket.id) {
-            // Update existing
             await tx.ticketType.update({
               where: { id: ticket.id },
               data: {
@@ -118,19 +132,17 @@ export async function PUT(
               },
             });
           } else {
-            // Create new
             await tx.ticketType.create({
               data: {
                 name: ticket.name,
                 price: parseFloat(ticket.price),
                 quantity: parseInt(ticket.quantity),
-                eventId: params.id,
+                eventId: id,
               },
             });
           }
         }
       }
-
       return updated;
     });
 
@@ -146,18 +158,18 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getServerSession();
-    
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check permissions
+    // Check permissions (same as before)
     const event = await prisma.event.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { createdById: true }
     });
 
@@ -174,12 +186,13 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Delete event (cascades to ticketTypes, tickets, etc.)
-    await prisma.event.delete({
-      where: { id: params.id },
+    // ✅ Soft delete: set deletedAt instead of removing the record
+    await prisma.event.update({
+      where: { id },
+      data: { deletedAt: new Date() }
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: "Event soft-deleted" });
   } catch (error) {
     console.error("[EVENT_DELETE]", error);
     return NextResponse.json(

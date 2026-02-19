@@ -27,7 +27,8 @@ export async function GET(
           select: { name: true, email: true }
         },
         tickets: true
-      }
+      },
+      deletedAt: null
     })
 
     if (!event) {

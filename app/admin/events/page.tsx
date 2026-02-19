@@ -109,7 +109,10 @@ export default async function AdminEventsPage() {
 
   // Fetch events with ticket counts
   const events = await prisma.event.findMany({
-    where: user.role === 'ADMIN' ? {} : { createdById: user.id },
+    where: {
+    deletedAt: null,
+    ...(user.role !== 'ADMIN' && { createdById: user.id }),
+  },
     include: {
       ticketTypes: {
         select: {
@@ -148,6 +151,12 @@ export default async function AdminEventsPage() {
         >
           <Plus className="w-4 h-4" />
           Create Event
+        </Link>
+        <Link
+          href="/admin/events/archive"
+          className="block px-4 py-2 text-sm hover:bg-gray-100 rounded"
+          >
+           🗑 Archived Events
         </Link>
       </div>
 

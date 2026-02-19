@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from 'lib/prisma';
 import { getServerSession } from 'next-auth';
+import { authOptions } from "../../auth/[...nextauth]/route";
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -9,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 export async function POST(req: NextRequest) {
   try {
     // 1. Check authentication
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     
     if (!session?.user?.email) {
       return NextResponse.json(
