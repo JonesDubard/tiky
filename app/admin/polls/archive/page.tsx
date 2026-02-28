@@ -1,8 +1,8 @@
 import { prisma } from "lib/prisma";
 import { getServerSession } from "next-auth";
-import ArchivedEventsClient from "./ArchivedPollsClient";
+import ArchivedPollsClient from "./ArchivedPollsClient";
 
-export default async function ArchivedEventsPage() {
+export default async function ArchivedPollsPage() {
   const session = await getServerSession();
 
   if (!session?.user?.email) return <div>Unauthorized</div>;
@@ -14,7 +14,7 @@ export default async function ArchivedEventsPage() {
 
   if (!user) return <div>Unauthorized</div>;
 
-  const archivedEvents = await prisma.event.findMany({
+  const archivedPolls = await prisma.poll.findMany({
     where: {
       deletedAt: { not: null },
       ...(user.role !== "ADMIN" && { createdById: user.id }),
@@ -26,8 +26,8 @@ export default async function ArchivedEventsPage() {
   // Pass data to client component
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Archived Events</h1>
-      <ArchivedEventsClient initialPolls={archivedEvents} />
+      <h1 className="text-2xl font-bold mb-4">Archived Polls</h1>
+      <ArchivedPollsClient initialPolls={archivedPolls} />
     </div>
   );
 }
