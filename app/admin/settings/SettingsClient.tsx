@@ -1,314 +1,341 @@
-"use client";
+"use client"
 
-import { useState, useEffect } from "react";
+import { useState, useEffect } from "react"
 import {
-  Save,
-  Globe,
-  Mail,
-  Smartphone,
-  Shield,
-  Bell,
-  Palette,
-  CreditCard,
-  Clock,
-  RefreshCw,
-  AlertCircle,
-  CheckCircle,
-} from "lucide-react";
+  Save, Globe, Bell, Shield, Ticket,
+  RefreshCw, CheckCircle, XCircle,
+  ToggleLeft, ToggleRight, AlertCircle
+} from "lucide-react"
 
 interface Settings {
-  siteName: string;
-  supportEmail: string;
-  momoEnvironment: "sandbox" | "live";
-  maintenanceMode: boolean;
-  currency: string;
-  timezone: string;
+  // Branding
+  siteName: string
+  supportEmail: string
+  timezone: string
+  // Event approval
+  requireEventApproval: boolean
+  // Ticket confirmation
+  ticketConfirmationMessage: string
+  // Notifications
+  notifyOnTicketSale: boolean
+  notifyOnNewUser: boolean
+  notifyEmail: string
+}
+
+const defaultSettings: Settings = {
+  siteName: "Tiky",
+  supportEmail: "",
+  timezone: "Africa/Monrovia",
+  requireEventApproval: false,
+  ticketConfirmationMessage: "Thank you for your purchase! Your ticket is attached. See you at the event! 🎉",
+  notifyOnTicketSale: true,
+  notifyOnNewUser: false,
+  notifyEmail: "",
+}
+
+const tabs = [
+  { id: "branding", label: "Branding", icon: Globe },
+  { id: "events", label: "Events", icon: Shield },
+  { id: "tickets", label: "Tickets", icon: Ticket },
+  { id: "notifications", label: "Notifications", icon: Bell },
+]
+
+function Toggle({
+  checked,
+  onChange,
+  label,
+  description,
+}: {
+  checked: boolean
+  onChange: (v: boolean) => void
+  label: string
+  description?: string
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 py-4 border-b border-gray-100 last:border-0">
+      <div>
+        <p className="text-sm font-medium text-gray-800">{label}</p>
+        {description && <p className="text-xs text-gray-500 mt-0.5">{description}</p>}
+      </div>
+      <button
+        onClick={() => onChange(!checked)}
+        className={`flex-shrink-0 w-11 h-6 rounded-full transition-colors relative ${
+          checked ? "bg-orange-500" : "bg-gray-200"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+            checked ? "translate-x-5" : "translate-x-0"
+          }`}
+        />
+      </button>
+    </div>
+  )
 }
 
 export default function SettingsClient() {
-  const [settings, setSettings] = useState<Settings | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [activeTab, setActiveTab] = useState("general");
+  const [settings, setSettings] = useState<Settings>(defaultSettings)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [activeTab, setActiveTab] = useState("branding")
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null)
 
   useEffect(() => {
-    fetchSettings();
-  }, []);
+    fetchSettings()
+  }, [])
+
+  const showToast = (message: string, type: "success" | "error") => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3000)
+  }
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch("/api/admin/settings");
-      const data = await response.json();
-      setSettings(data);
-    } catch (error) {
-      console.error("Error fetching settings:", error);
+      const res = await fetch("/api/admin/settings")
+      if (res.ok) {
+        const data = await res.json()
+        setSettings({ ...defaultSettings, ...data })
+      }
+    } catch {
+      // Use defaults if fetch fails
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleSave = async () => {
-    if (!settings) return;
-    
-    setSaving(true);
-    setSaveSuccess(false);
-    
+    setSaving(true)
     try {
-      const response = await fetch("/api/admin/settings", {
+      const res = await fetch("/api/admin/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings),
-      });
-
-      if (response.ok) {
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000);
+      })
+      if (res.ok) {
+        showToast("Settings saved successfully", "success")
+      } else {
+        throw new Error()
       }
-    } catch (error) {
-      console.error("Error saving settings:", error);
+    } catch {
+      showToast("Failed to save settings", "error")
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
+
+  const set = (key: keyof Settings, value: any) =>
+    setSettings(s => ({ ...s, [key]: value }))
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500" />
       </div>
-    );
+    )
   }
 
-  if (!settings) return null;
-
-  const tabs = [
-    { id: "general", name: "General", icon: Globe },
-    { id: "payment", name: "Payment", icon: CreditCard },
-    { id: "notifications", name: "Notifications", icon: Bell },
-    { id: "appearance", name: "Appearance", icon: Palette },
-  ];
-
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="flex -mb-px px-6">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm flex items-center ${
-                  activeTab === tab.id
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                <Icon className="w-4 h-4 mr-2" />
-                {tab.name}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
+    <div>
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-medium ${
+          toast.type === "success"
+            ? "bg-green-50 text-green-800 border border-green-200"
+            : "bg-red-50 text-red-800 border border-red-200"
+        }`}>
+          {toast.type === "success"
+            ? <CheckCircle className="w-4 h-4 text-green-600" />
+            : <XCircle className="w-4 h-4 text-red-600" />}
+          {toast.message}
+        </div>
+      )}
 
-      {/* Tab Panels */}
-      <div className="p-6">
-        {/* General Settings */}
-        {activeTab === "general" && (
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Site Name
-              </label>
-              <input
-                type="text"
-                value={settings.siteName}
-                onChange={(e) => setSettings({ ...settings, siteName: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter site name"
-              />
-            </div>
+      {/* <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+        <p className="text-gray-500 text-sm mt-1">Configure your Tiky platform</p>
+      </div> */}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Support Email
-              </label>
-              <input
-                type="email"
-                value={settings.supportEmail}
-                onChange={(e) => setSettings({ ...settings, supportEmail: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="support@example.com"
-              />
-            </div>
+      <div className="flex gap-6 flex-col lg:flex-row">
+        {/* Sidebar tabs */}
+        <div className="lg:w-48 flex-shrink-0">
+          <nav className="flex lg:flex-col gap-1">
+            {tabs.map(tab => {
+              const Icon = tab.icon
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium w-full text-left transition-colors ${
+                    activeTab === tab.id
+                      ? "bg-orange-50 text-orange-700"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  <Icon className="w-4 h-4 flex-shrink-0" />
+                  {tab.label}
+                </button>
+              )
+            })}
+          </nav>
+        </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Timezone
-              </label>
-              <select
-                value={settings.timezone}
-                onChange={(e) => setSettings({ ...settings, timezone: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="Africa/Monrovia">Africa/Monrovia (GMT+0)</option>
-                <option value="America/New_York">America/New York (EST)</option>
-                <option value="Europe/London">Europe/London (GMT)</option>
-                <option value="Asia/Dubai">Asia/Dubai (GST+4)</option>
-              </select>
-            </div>
+        {/* Content */}
+        <div className="flex-1 bg-white rounded-2xl border border-gray-200 p-6">
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Currency
-              </label>
-              <select
-                value={settings.currency}
-                onChange={(e) => setSettings({ ...settings, currency: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="LRD">LRD - Liberian Dollar</option>
-                <option value="USD">USD - US Dollar</option>
-                <option value="EUR">EUR - Euro</option>
-                <option value="GBP">GBP - British Pound</option>
-              </select>
-            </div>
+          {/* Branding */}
+          {activeTab === "branding" && (
+            <div className="space-y-5">
+              <h2 className="font-semibold text-gray-900 text-base">Site Branding</h2>
 
-            <div className="flex items-center justify-between p-4 bg-yellow-50 rounded-lg">
-              <div className="flex items-center">
-                <AlertCircle className="w-5 h-5 text-yellow-600 mr-3" />
-                <div>
-                  <p className="text-sm font-medium text-yellow-800">Maintenance Mode</p>
-                  <p className="text-xs text-yellow-600">Users will see a maintenance page</p>
-                </div>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Site Name</label>
                 <input
-                  type="checkbox"
-                  checked={settings.maintenanceMode}
-                  onChange={(e) => setSettings({ ...settings, maintenanceMode: e.target.checked })}
-                  className="sr-only peer"
+                  type="text"
+                  value={settings.siteName}
+                  onChange={e => set("siteName", e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="Tiky"
                 />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              </label>
-            </div>
-          </div>
-        )}
-
-        {/* Payment Settings */}
-        {activeTab === "payment" && (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Mobile Money Configuration</h3>
-              
-              <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center">
-                    <Smartphone className="w-5 h-5 text-gray-600 mr-2" />
-                    <span className="text-sm font-medium text-gray-700">Momo API Environment</span>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <label className="inline-flex items-center">
-                      <input
-                        type="radio"
-                        value="sandbox"
-                        checked={settings.momoEnvironment === "sandbox"}
-                        onChange={(e) => setSettings({ ...settings, momoEnvironment: e.target.value as "sandbox" | "live" })}
-                        className="form-radio h-4 w-4 text-blue-600"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">Sandbox</span>
-                    </label>
-                    <label className="inline-flex items-center">
-                      <input
-                        type="radio"
-                        value="live"
-                        checked={settings.momoEnvironment === "live"}
-                        onChange={(e) => setSettings({ ...settings, momoEnvironment: e.target.value as "sandbox" | "live" })}
-                        className="form-radio h-4 w-4 text-blue-600"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">Live</span>
-                    </label>
-                  </div>
-                </div>
-                
-                {settings.momoEnvironment === "sandbox" ? (
-                  <div className="bg-blue-50 rounded-lg p-3 flex items-start">
-                    <Shield className="w-4 h-4 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs text-blue-700">
-                        Sandbox mode: Use test credentials and mock payments. No real money will be transferred.
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-yellow-50 rounded-lg p-3 flex items-start">
-                    <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 mr-2 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs text-yellow-700 font-medium">Live Mode Active</p>
-                      <p className="text-xs text-yellow-600">
-                        Real transactions will be processed. Ensure your API credentials are correct.
-                      </p>
-                    </div>
-                  </div>
-                )}
+                <p className="text-xs text-gray-400 mt-1">Shown in the browser tab and emails</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    API Key
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="Enter API key"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    API Secret
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="Enter API secret"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Support Email</label>
+                <input
+                  type="email"
+                  value={settings.supportEmail}
+                  onChange={e => set("supportEmail", e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="support@tiky.com"
+                />
+                <p className="text-xs text-gray-400 mt-1">Shown to users when they need help</p>
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* Save Button */}
-        <div className="mt-6 flex items-center justify-end space-x-3">
-          {saveSuccess && (
-            <div className="flex items-center text-green-600">
-              <CheckCircle className="w-4 h-4 mr-1" />
-              <span className="text-sm">Settings saved successfully!</span>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Timezone</label>
+                <select
+                  value={settings.timezone}
+                  onChange={e => set("timezone", e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-orange-500"
+                >
+                  <option value="Africa/Monrovia">Africa/Monrovia (GMT+0)</option>
+                  <option value="America/New_York">America/New_York (EST)</option>
+                  <option value="Europe/London">Europe/London (GMT)</option>
+                  <option value="Asia/Dubai">Asia/Dubai (GMT+4)</option>
+                </select>
+              </div>
             </div>
           )}
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-          >
-            {saving ? (
-              <>
-                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4 mr-2" />
-                Save Changes
-              </>
-            )}
-          </button>
+
+          {/* Events */}
+          {activeTab === "events" && (
+            <div className="space-y-5">
+              <h2 className="font-semibold text-gray-900 text-base">Event Settings</h2>
+
+              <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex gap-3">
+                <AlertCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-orange-800">
+                  When event approval is enabled, only ADMIN can publish events. Organizers must submit for review first.
+                </p>
+              </div>
+
+              <Toggle
+                checked={settings.requireEventApproval}
+                onChange={v => set("requireEventApproval", v)}
+                label="Require Admin Approval for Events"
+                description="New events from Organizers will be set to PENDING until an Admin approves them"
+              />
+
+              <div className="pt-2">
+                <p className="text-sm text-gray-500">
+                  Current status:{" "}
+                  <span className={`font-semibold ${settings.requireEventApproval ? "text-orange-600" : "text-green-600"}`}>
+                    {settings.requireEventApproval ? "Approval required" : "Auto-publish enabled"}
+                  </span>
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Tickets */}
+          {activeTab === "tickets" && (
+            <div className="space-y-5">
+              <h2 className="font-semibold text-gray-900 text-base">Ticket Settings</h2>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Purchase Confirmation Message
+                </label>
+                <textarea
+                  value={settings.ticketConfirmationMessage}
+                  onChange={e => set("ticketConfirmationMessage", e.target.value)}
+                  rows={4}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
+                  placeholder="Thank you for your purchase..."
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  This message is shown on the success page and included in ticket emails
+                </p>
+              </div>
+
+              {/* Preview */}
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-2">Preview</p>
+                <p className="text-sm text-gray-700 italic">"{settings.ticketConfirmationMessage}"</p>
+              </div>
+            </div>
+          )}
+
+          {/* Notifications */}
+          {activeTab === "notifications" && (
+            <div className="space-y-5">
+              <h2 className="font-semibold text-gray-900 text-base">Notification Preferences</h2>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Admin Notification Email
+                </label>
+                <input
+                  type="email"
+                  value={settings.notifyEmail}
+                  onChange={e => set("notifyEmail", e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="admin@tiky.com"
+                />
+                <p className="text-xs text-gray-400 mt-1">Receive admin alerts at this address</p>
+              </div>
+
+              <div className="border border-gray-100 rounded-xl px-4">
+                <Toggle
+                  checked={settings.notifyOnTicketSale}
+                  onChange={v => set("notifyOnTicketSale", v)}
+                  label="Notify on Ticket Sale"
+                  description="Get an email whenever a ticket is purchased"
+                />
+                <Toggle
+                  checked={settings.notifyOnNewUser}
+                  onChange={v => set("notifyOnNewUser", v)}
+                  label="Notify on New User Registration"
+                  description="Get an email when a new user signs up"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Save button */}
+          <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-white rounded-xl font-medium text-sm hover:bg-orange-600 transition-all disabled:opacity-50"
+            >
+              {saving
+                ? <><RefreshCw className="w-4 h-4 animate-spin" /> Saving...</>
+                : <><Save className="w-4 h-4" /> Save Changes</>}
+            </button>
+          </div>
         </div>
       </div>
     </div>
-  );
+  )
 }

@@ -46,6 +46,7 @@ model Event {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  Order     Order[]
 
   @@index([createdById])
   @@index([date])
@@ -113,21 +114,26 @@ model Order {
   status     String @default("PENDING")
   totalPrice Float
 
+  
+  eventId String?
+  event   Event? @relation(fields: [eventId], references: [id])
+
   userId String?
   user   User?   @relation(fields: [userId], references: [id])
 
   payments Payment[]
+  tickets  TicketInstance[]
 
-  tickets TicketInstance[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
   TicketReservation TicketReservation[]
   ticketGenerated   Boolean             @default(false)
-  pdfUrl            String? // store the generated ticket PDF path
+  pdfUrl            String?
 
   @@index([userId])
   @@index([status])
+  @@index([eventId]) // ✅ helpful for filtering by event
 }
 
 model Payment {
