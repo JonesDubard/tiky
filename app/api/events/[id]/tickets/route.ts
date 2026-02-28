@@ -4,20 +4,29 @@ import { prisma } from "lib/prisma"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ✅ Next.js 15: params is a Promise
 ) {
   try {
-    const tickets = await prisma.ticket.findMany({
-      where: { eventId: params.id },
-      orderBy: { price: "asc" }
+    const { id } = await params // ✅ Must be awaited
+
+    const tickets = await prisma.ticketType.findMany({
+      where: { eventId: id },
+      orderBy: { price: "asc" },
+      include: {
+        event: {           // ✅ Include event so ticket.event.title works in CheckoutPage
+          select: {
+            title: true,
+          },
+        },
+      },
     })
-    
+
     return NextResponse.json(tickets)
   } catch (error) {
-    console.error("Error fetching tickets:", error)
-    return NextResponse.json(
-      { error: "Failed to fetch tickets" },
-      { status: 500 }
-    )
+    console.error("Full Prisma error:", error) // ✅ Was just logging generic message before
+  return NextResponse.json(
+    { error: "Failed to fetch tickets" },
+    { status: 500 }
+  )
   }
 }

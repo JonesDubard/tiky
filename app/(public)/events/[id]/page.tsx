@@ -308,6 +308,7 @@ import { Calendar, MapPin, Clock, Ticket, Users } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
+import TicketPurchaseCard from "components/Events/TicketPurchaseCard"
 
 interface EventPageProps {
   params: {
@@ -441,73 +442,12 @@ export default async function EventPage({ params }: EventPageProps) {
 
           {/* Sidebar - Right Column (Ticket Types) */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm p-6 sticky top-24">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Tickets</h2>
-              
-              {event.ticketTypes.length > 0 ? (
-                <div className="space-y-4 mb-6">
-                  {event.ticketTypes.map((ticket) => (
-                    <div
-                      key={ticket.id}
-                      className="border border-gray-200 rounded-lg p-4 hover:border-brand-primary transition-colors"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold text-gray-900">{ticket.name}</h3>
-                        <span className="text-lg font-bold text-brand-primary">
-                          ${ticket.price.toLocaleString()} USD
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-3">
-                        {ticket.quantity > 0 
-                          ? `${ticket.quantity} tickets available`
-                          : "Sold out"}
-                      </p>
-                      <Link
-                        href={`/checkout?eventId=${event.id}&ticketTypeId=${ticket.id}`}
-                        className={`block w-full py-2 text-center font-medium rounded-lg transition-colors ${
-                          ticket.quantity > 0
-                            ? "bg-brand-primary text-white hover:bg-brand-accent"
-                            : "bg-gray-300 text-gray-500 cursor-not-allowed pointer-events-none"
-                        }`}
-                      >
-                        {ticket.quantity > 0 ? "Select Tickets" : "Sold Out"}
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-600 mb-6">No tickets available for this event.</p>
-              )}
-
-              {/* Event Stats */}
-              <div className="border-t border-gray-200 pt-4">
-                <div className="flex justify-between text-sm text-gray-600 mb-2">
-                  <span>Total tickets:</span>
-                  <span className="font-semibold">{totalTickets}</span>
-                </div>
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>Ticket types:</span>
-                  <span className="font-semibold">{event.ticketTypes.length}</span>
-                </div>
-              </div>
-
-              {/* Payment Methods */}
-              <div className="border-t border-gray-200 mt-4 pt-4">
-                <p className="text-sm text-gray-600 mb-3">We accept:</p>
-                <div className="flex flex-wrap gap-2">
-                  <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
-                    MTN MoMo
-                  </span>
-                  <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
-                    Card
-                  </span>
-                  <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs rounded-full opacity-50">
-                    Orange Money (Soon)
-                  </span>
-                </div>
-              </div>
-            </div>
+          <TicketPurchaseCard
+           eventId={event.id}
+           tickets={event.ticketTypes}
+          />
           </div>
+
         </div>
       </div>
     </main>

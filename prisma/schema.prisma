@@ -19,23 +19,24 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  events   Event[]
-  polls    Poll[]
-  votes    Vote[]
-  orders   Order[]
-  payments Payment[]
+  events       Event[]
+  polls        Poll[]
+  votes        Vote[]
+  orders       Order[]
+  payments     Payment[]
+  reservations TicketReservation[]
 }
 
 model Event {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   title       String
   description String?
   date        DateTime
   location    String
-  deletedAt DateTime?
+  deletedAt   DateTime?
   imageUrl    String?
-  published   Boolean  @default(false)
-  isFeatured  Boolean  @default(false)
+  published   Boolean   @default(false)
+  isFeatured  Boolean   @default(false)
 
   createdById String
   createdBy   User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
@@ -62,14 +63,16 @@ model TicketType {
   description String?
 
   eventId String
-  event   Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  tickets TicketInstance[]
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  tickets      TicketInstance[]
+  reservations TicketReservation[]
+  pricingRules PricingRule[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([eventId])
-  @@index([salesStart, salesEnd])
 }
 
 model TicketInstance {
@@ -79,6 +82,8 @@ model TicketInstance {
   guestName   String?
   guestEmail  String?
   phoneNumber String?
+  qrImage     String?
+  pdfUrl      String?
 
   ticketTypeId String
   ticketType   TicketType @relation(fields: [ticketTypeId], references: [id], onDelete: Cascade)
@@ -91,61 +96,63 @@ model TicketInstance {
   // Store metadata as String (JSON) if needed
   metadata    String? // Store as JSON string
 
+  // Checked at 
+  scannedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([ticketTypeId])
   @@index([status])
   @@index([qrCode])
+  @@index([orderId])
 }
 
 model Order {
   id         String @id @default(cuid())
-  status     String @default("PENDING") // PENDING, CONFIRMED, CANCELLED, REFUNDED
+  status     String @default("PENDING")
   totalPrice Float
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id])
 
-  paymentId String  @unique
-  payment   Payment @relation(fields: [paymentId], references: [id])
+  payments Payment[]
 
   tickets TicketInstance[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  TicketReservation TicketReservation[]
+  ticketGenerated   Boolean             @default(false)
+  pdfUrl            String? // store the generated ticket PDF path
 
   @@index([userId])
   @@index([status])
 }
 
 model Payment {
-  id           String  @id @default(cuid())
-  providerRef  String  @unique
-  amount       Float
-  currency     String  @default("LRD")
-  status       String  @default("PENDING") // PENDING, COMPLETED, FAILED, REFUNDED
-  // ❌ REMOVED: callbackData Json? - Not supported in SQLite
-  // Store as String
-  callbackData String? // JSON string
+  id          String  @id @default(cuid())
+  providerRef String? @unique
+  externalId  String? @unique
+  amount      Float
+  currency    String
+  status      String  @default("PENDING")
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id])
 
-  eventId String?
-  event   Event?  @relation(fields: [eventId], references: [id])
+  orderId String?
+  order   Order?  @relation(fields: [orderId], references: [id])
 
-  paymentMethod String? // MTN, ORANGE, CARD, CASH
+  paymentMethod String?
   processedAt   DateTime?
-
-  order Order?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  Event     Event?   @relation(fields: [eventId], references: [id])
+  eventId   String?
 
-  @@index([providerRef])
   @@index([status])
-  @@index([userId])
 }
 
 // Update Poll model 
@@ -156,7 +163,7 @@ model Poll {
   pollType    String    @default("FREE")
   status      String    @default("ACTIVE")
   endDate     DateTime?
-  deletedAt DateTime?
+  deletedAt   DateTime?
   isFeatured  Boolean   @default(false)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -197,7 +204,7 @@ model Vote {
 
   poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
   option Option @relation(fields: [optionId], references: [id], onDelete: Cascade)
-  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // For guest voting 
   deviceId String? // For non-authenticated users
@@ -211,4 +218,38 @@ model Vote {
   @@index([pollId])
   @@index([optionId])
   @@index([deviceId]) // Add index for deviceId lookups
+}
+
+model TicketReservation {
+  id           String   @id @default(cuid())
+  ticketTypeId String
+  orderId      String
+  quantity     Int
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  ticketType TicketType @relation(fields: [ticketTypeId], references: [id], onDelete: Cascade)
+  order      Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  User       User?      @relation(fields: [userId], references: [id])
+  userId     String?
+
+  @@index([orderId])
+  @@index([ticketTypeId])
+  @@index([expiresAt])
+}
+
+model PricingRule {
+  id           String     @id @default(cuid())
+  ticketTypeId String
+  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id], onDelete: Cascade)
+
+  type        String
+  price       Float?
+  startDate   DateTime?
+  endDate     DateTime?
+  maxQuantity Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketTypeId])
 }

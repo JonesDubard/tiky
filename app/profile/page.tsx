@@ -26,12 +26,12 @@ export default async function ProfilePage() {
         email: true,
         createdAt: true,
         _count: {
-          select: {
-            tickets: true,
-            votes: true,
-            orders: true
-          }
-        }
+  select: {
+    reservations: true,
+    votes: true,
+    orders: true,
+  }
+}
       }
     })
   ])
@@ -57,8 +57,8 @@ export default async function ProfilePage() {
             <div className="grid grid-cols-3 gap-4">
               <div className="text-center p-4 bg-blue-50 rounded-xl">
                 <Ticket className="w-6 h-6 text-blue-600 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-slate-900">{user?._count.tickets || 0}</p>
-                <p className="text-sm text-slate-600">Tickets</p>
+                <p className="text-2xl font-bold text-slate-900">{user?._count.reservations || 0}</p>
+                <p className="text-sm text-slate-600">Reservations</p>
               </div>
               <div className="text-center p-4 bg-purple-50 rounded-xl">
                 <BarChart className="w-6 h-6 text-purple-600 mx-auto mb-2" />

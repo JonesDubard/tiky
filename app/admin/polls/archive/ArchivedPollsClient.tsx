@@ -17,9 +17,9 @@ export default function ArchivedPollsClient({ initialPolls }: Props) {
 
   const restorePoll = async (id: string) => {
     try {
-      const res = await fetch(`/admin/events/${id}/restore`, { method: "PATCH" });
+      const res = await fetch(`/admin/polls/${id}/restore`, { method: "PATCH" });
       if (!res.ok) throw new Error("Failed to restore");
-      // Remove restored event from state so it disappears from archive
+      // Remove restored polls from state so it disappears from archive
       setPolls(polls.filter((e) => e.id !== id));
     } catch (err) {
       console.error(err);
@@ -27,7 +27,7 @@ export default function ArchivedPollsClient({ initialPolls }: Props) {
     }
   };
 
-  if (polls.length === 0) return <p>No archived events found.</p>;
+  if (polls.length === 0) return <p>No archived polls found.</p>;
 
   return (
     <div>

@@ -1,86 +1,89 @@
 // app/api/tickets/[id]/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from 'lib/prisma';
+import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "lib/prisma"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const ticketId = params.id;
-    
-    console.log('Fetching ticket with ID:', ticketId);
-    
-    // Try to find the ticket by id or ticketId
-    const ticket = await prisma.ticket.findFirst({
-      where: {
-        OR: [
-          { id: ticketId },
-          { ticketId: ticketId }
-        ]
-      },
+    const { id } = await params
+
+    console.log("Fetching ticket with ID:", id)
+
+    const ticket = await prisma.ticketInstance.findUnique({
+      where: { id },
       include: {
-        event: true,
-        transaction: true,
-        user: {
-          select: {
-            name: true,
-            email: true
-          }
-        }
-      }
-    });
+        ticketType: {
+          include: {
+            event: {
+              select: {
+                id: true,
+                title: true,
+                description: true,
+                date: true,
+                location: true,
+                imageUrl: true,
+              },
+            },
+          },
+        },
+        order: {
+          include: {
+            payments: {
+              select: {
+                paymentMethod: true,
+                status: true,
+                amount: true,
+                currency: true,
+              },
+            },
+          },
+        },
+      },
+    })
 
     if (!ticket) {
-      console.log('Ticket not found for ID:', ticketId);
-      return NextResponse.json(
-        { error: 'Ticket not found' },
-        { status: 404 }
-      );
+      console.log("Ticket not found for ID:", id)
+      return NextResponse.json({ error: "Ticket not found" }, { status: 404 })
     }
 
-    console.log('Ticket found:', ticket.ticketId);
-    
-    // Format the response
+    console.log("Ticket found:", ticket.id)
+
     const ticketData = {
       id: ticket.id,
-      ticketId: ticket.ticketId,
-      qrCodeHash: ticket.qrCodeHash,
+      qrCode: ticket.qrCode,
+      qrImage: ticket.qrImage,
       status: ticket.status,
-      price: ticket.price,
-      quantity: ticket.quantity,
       guestName: ticket.guestName,
       guestEmail: ticket.guestEmail,
       createdAt: ticket.createdAt.toISOString(),
-      event: {
-        id: ticket.event.id,
-        title: ticket.event.title,
-        description: ticket.event.description,
-        date: ticket.event.date?.toISOString(),
-        location: ticket.event.location,
-        imageUrl: ticket.event.imageUrl
+      ticketType: {
+        id: ticket.ticketType.id,
+        name: ticket.ticketType.name,
+        price: ticket.ticketType.price,
+        description: ticket.ticketType.description,
       },
-      user: ticket.user ? {
-        name: ticket.user.name,
-        email: ticket.user.email
-      } : undefined,
-      transaction: ticket.transaction ? {
-        paymentMethod: ticket.transaction.paymentMethod,
-        provider: ticket.transaction.provider,
-        phoneNumber: ticket.transaction.phoneNumber
-      } : undefined
-    };
+      event: {
+        id: ticket.ticketType.event.id,
+        title: ticket.ticketType.event.title,
+        description: ticket.ticketType.event.description,
+        date: ticket.ticketType.event.date?.toISOString(),
+        location: ticket.ticketType.event.location,
+        imageUrl: ticket.ticketType.event.imageUrl,
+      },
+      payment: ticket.order?.payments?.[0] ?? null,
+    }
 
-    return NextResponse.json(ticketData);
-
+    return NextResponse.json(ticketData)
   } catch (error) {
-    console.error('Error fetching ticket:', error);
+    console.error("Error fetching ticket:", error)
     return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error'
+      {
+        error: "Internal server error",
+        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
-    );
+    )
   }
 }

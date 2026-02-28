@@ -1,153 +1,85 @@
-// app/lib/payment/processors/stripe.processor.ts
-import { BasePaymentProcessor } from './base.processor'
-import { PaymentRequest, PaymentResult } from '../types'
-import { prisma } from 'lib/prisma'  // Add this import
-import { TransactionStatus, TicketStatus, PaymentProvider } from '@prisma/client'
+import Stripe from "stripe"
+import { prisma } from "lib/prisma"
+import { PaymentRequest, PaymentResult } from "lib/payment/types"
+import { generateTicketsForOrder } from "lib/tickets/generate"
 
-export class StripeProcessor extends BasePaymentProcessor {
-  protected providerName = 'Stripe'
-  protected paymentMethod: PaymentProvider = PaymentProvider.CARD  // Use enum, not string
-  
-  private stripeSecretKey: string
-  private stripePublicKey: string
-  
-  constructor() {
-    super()  // IMPORTANT: Call parent constructor first
-    // TODO: Load from environment variables
-    this.stripeSecretKey = process.env.STRIPE_SECRET_KEY || 'placeholder_key'
-    this.stripePublicKey = process.env.STRIPE_PUBLIC_KEY || 'placeholder_key'
-    
-    // Comment out until you get real credentials
-    // if (!this.stripeSecretKey || !this.stripePublicKey) {
-    //   throw new Error('Stripe API credentials not configured')
-    // }
-  }
-  
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+
+export class StripeProcessor {
   async processPayment(request: PaymentRequest): Promise<PaymentResult> {
     try {
-      const amount = await this.getEventPrice(request.eventId)
-      
-      // Create transaction
-      const transactionId = await this.createTransaction(request, amount)
-      
-      // Create ticket (pending)
-      const ticketId = await this.generateTicket(request)
-      
-      // Link them
-      await this.linkTicketToTransaction(ticketId, transactionId)
-      
-      // TODO: Implement actual Stripe API call
-      // For now, simulate like mock payment
-      
-      console.log(`[Stripe] Would process payment for:`, {
-        amount,
-        transactionId,
-        ticketId,
-        email: request.email
+      const { eventId, quantities, email } = request
+
+      const ticketTypeIds = Object.keys(quantities)
+      if (ticketTypeIds.length === 0) {
+        return { success: false, error: "No tickets selected" }
+      }
+
+      const ticketTypes = await prisma.ticketType.findMany({
+        where: { id: { in: ticketTypeIds }, eventId },
       })
-      
-      // Simulate payment success
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      await this.updateTransactionStatus(
-        transactionId, 
-        TransactionStatus.COMPLETED, 
-        { 
-          provider: 'STRIPE',
-          simulated: true,
-          processedAt: new Date().toISOString() 
-        }
-      )
-      
-      await this.updateTicketStatus(ticketId, TicketStatus.PAID)
-      
+
+      if (ticketTypes.length === 0) {
+        return { success: false, error: "Ticket types not found" }
+      }
+
+      const totalAmount = ticketTypes.reduce((sum, ticketType) => {
+        const qty = quantities[ticketType.id] || 0
+        return sum + ticketType.price * qty
+      }, 0)
+
+      if (totalAmount <= 0) {
+        return { success: false, error: "Invalid total amount" }
+      }
+
+      const order = await prisma.order.create({
+        data: {
+          totalPrice: totalAmount,
+          status: "PENDING",
+          ...(email && {
+            user: {
+              connect: { email },
+            },
+          }),
+        },
+      })
+
+      const payment = await prisma.payment.create({
+        data: {
+          amount: totalAmount,
+          currency: "USD",
+          status: "PENDING",
+          paymentMethod: "card",
+          orderId: order.id,
+          eventId,
+        },
+      })
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(totalAmount * 100),
+        currency: "usd",
+        receipt_email: email ?? undefined,
+        metadata: {
+          orderId: order.id,
+          paymentId: payment.id,
+          eventId,
+          quantities: JSON.stringify(quantities), // ✅ stored for webhook use
+        },
+      })
+
+      // ✅ Generate tickets immediately (sandbox/dev)
+      // In production the Stripe webhook handles this instead
+      await generateTicketsForOrder(order.id, quantities)
+
       return {
         success: true,
-        transactionId,
-        ticketId,
-        redirectUrl: `/checkout/success/${ticketId}`,
-        providerData: {
-          stripePublicKey: this.stripePublicKey,
-          amount: amount * 100, // Stripe uses cents
-          message: 'Stripe payment simulated (placeholder)'
-        }
+        clientSecret: paymentIntent.client_secret!,
+        orderId: order.id,
+        paymentId: payment.id,
       }
-      
-    } catch (error) {
-      console.error('Stripe payment failed:', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Stripe payment failed'
-      }
-    }
-  }
-  
-  async verifyPayment(transactionId: string): Promise<PaymentResult> {
-    try {
-      // TODO: Implement Stripe payment verification
-      const transaction = await prisma.transaction.findUnique({
-        where: { id: transactionId }
-      })
-      
-      if (!transaction) {
-        return {
-          success: false,
-          error: 'Transaction not found'
-        }
-      }
-      
-      console.log(`[Stripe] Would verify payment for transaction: ${transactionId}`)
-      
-      return {
-        success: true,
-        transactionId,
-        providerData: { 
-          verified: true, 
-          status: transaction.status,
-          stripeTransactionId: transaction.providerRef 
-        }
-      }
-      
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Verification failed'
-      }
-    }
-  }
-  
-  async handleWebhook(data: any): Promise<boolean> {
-    try {
-      // TODO: Implement Stripe webhook handler
-      console.log('[Stripe] Webhook received:', data)
-      
-      // Extract Stripe event data
-      const { type, data: eventData } = data
-      
-      if (type === 'checkout.session.completed' || type === 'payment_intent.succeeded') {
-        // Extract transaction ID from metadata
-        const transactionId = eventData?.object?.metadata?.transactionId
-        
-        if (transactionId) {
-          await this.updateTransactionStatus(transactionId, TransactionStatus.COMPLETED, data)
-          
-          // Update ticket status
-          const transaction = await prisma.transaction.findUnique({
-            where: { id: transactionId },
-            include: { ticket: true }
-          })
-          
-          if (transaction?.ticket) {
-            await this.updateTicketStatus(transaction.ticket.id, TicketStatus.PAID)
-          }
-        }
-      }
-      
-      return true
-      
-    } catch (error) {
-      console.error('Stripe webhook error:', error)
-      return false
+    } catch (error: any) {
+      console.error("StripeProcessor error:", error)
+      return { success: false, error: error.message }
     }
   }
 }

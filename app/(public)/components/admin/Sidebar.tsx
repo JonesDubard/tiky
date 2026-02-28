@@ -16,6 +16,8 @@ import {
   LogOut,
   Menu,
   X,
+  ShoppingBag,
+  ScanLine,
 } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 
@@ -31,18 +33,20 @@ export default function Sidebar({ user }: SidebarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
-  
+
   const adminNavItems = [
     { name: 'Dashboard', href: '/admin', icon: Home },
     { name: 'Events', href: '/admin/events', icon: Calendar },
     { name: 'Polls', href: '/admin/polls', icon: Vote },
+    { name: 'Orders', href: '/admin/orders', icon: ShoppingBag },
     { name: 'Tickets', href: '/admin/tickets', icon: Ticket },
+    { name: 'Validate', href: '/admin/tickets/validate', icon: ScanLine },
     { name: 'Users', href: '/admin/users', icon: Users },
     { name: 'Payments', href: '/admin/payments', icon: CreditCard },
     { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
     { name: 'Settings', href: '/admin/settings', icon: Settings },
   ]
-  
+
   const handleSignOut = async () => {
     await signOut({ redirect: false })
     router.push('/login')
@@ -64,15 +68,15 @@ export default function Sidebar({ user }: SidebarProps) {
               <Menu className="w-6 h-6 text-gray-600" />
             )}
           </button>
-          
+
           <div className="flex items-center">
-            <div 
+            <div
               className="w-8 h-8 rounded-lg mr-2"
               style={{ backgroundColor: 'var(--brand-primary)' }}
             ></div>
             <h2 className="text-lg font-bold text-gray-800">Tiky Admin</h2>
           </div>
-          
+
           <div className="text-sm font-medium text-gray-700 truncate max-w-[100px]">
             {user.name?.split(' ')[0] || user.email?.split('@')[0]}
           </div>
@@ -81,13 +85,13 @@ export default function Sidebar({ user }: SidebarProps) {
 
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
-        <div 
+        <div
           className="md:hidden fixed inset-0 z-40 bg-black bg-opacity-50"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
-      {/* Sidebar - REDUCED WIDTH from 64 to 56 */}
+      {/* Sidebar */}
       <div className={`
         fixed z-40 w-56 h-screen bg-white border-r border-gray-200 overflow-y-auto
         transition-transform duration-300 ease-in-out
@@ -97,14 +101,14 @@ export default function Sidebar({ user }: SidebarProps) {
       `}>
         {/* Logo */}
         <div className="flex items-center px-4 py-5">
-          <div 
+          <div
             className="w-8 h-8 rounded-lg mr-2 flex-shrink-0"
             style={{ backgroundColor: 'var(--brand-primary)' }}
           ></div>
           <h2 className="text-lg font-bold text-gray-800 truncate">Tiky</h2>
         </div>
-        
-        {/* User info - condensed */}
+
+        {/* User info */}
         <div className="px-4 py-3 border-t border-gray-200">
           <p className="text-sm font-medium text-gray-700 truncate">
             {user.name || user.email}
@@ -113,19 +117,32 @@ export default function Sidebar({ user }: SidebarProps) {
             {user.role?.toLowerCase() || 'user'}
           </p>
         </div>
-        
-        {/* Navigation - compact */}
+
+        {/* Navigation */}
         <nav className="px-2 py-2 space-y-1">
           {adminNavItems.map((item) => {
             const Icon = item.icon
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
-            
+
+            // Special case: "Validate" should only be active on exact match
+            // to avoid conflicting with /admin/tickets
+            const isActive =
+              item.href === '/admin/tickets/validate'
+                ? pathname === item.href
+                : item.href === '/admin'
+                ? pathname === '/admin'
+                : pathname.startsWith(item.href + '/') || pathname === item.href
+
+            // Indent Validate under Tickets visually
+            const isSubItem = item.href === '/admin/tickets/validate'
+
             return (
               <Link
                 key={item.name}
                 href={item.href}
                 onClick={() => setMobileMenuOpen(false)}
                 className={`group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  isSubItem ? 'ml-4' : ''
+                } ${
                   isActive
                     ? 'bg-brand-subtle text-brand-primary'
                     : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
@@ -141,7 +158,7 @@ export default function Sidebar({ user }: SidebarProps) {
             )
           })}
         </nav>
-        
+
         {/* Sign out */}
         <div className="border-t border-gray-200 p-3 mt-auto">
           <button
