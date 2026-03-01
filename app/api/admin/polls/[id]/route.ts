@@ -1,223 +1,55 @@
-// import { NextRequest, NextResponse } from "next/server";
-// import { prisma } from "lib/prisma";
-// import { getServerSession } from "next-auth";
-
-// export async function GET(
-//   req: NextRequest,
-//   { params }: { params: { id: string } }
-// ) {
-//   try {
-//     const session = await getServerSession();
-    
-//     if (!session?.user) {
-//       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-//     }
-
-//     const poll = await prisma.poll.findUnique({
-//       where: { id: params.id },
-//       include: {
-//         options: {
-//           orderBy: {
-//             createdAt: 'asc',
-//           },
-//         },
-//         creator: {
-//           select: {
-//             id: true,
-//             name: true,
-//             email: true,
-//           },
-//         },
-//         _count: {
-//           select: {
-//             options: true,
-//             votes: true,
-//           },
-//         },
-//       },
-//     });
-
-//     if (!poll) {
-//       return NextResponse.json({ error: "Poll not found" }, { status: 404 });
-//     }
-
-//     return NextResponse.json(poll);
-//   } catch (error) {
-//     console.error("[POLL_GET]", error);
-//     return NextResponse.json(
-//       { error: "Failed to fetch poll" },
-//       { status: 500 }
-//     );
-//   }
-// }
-
-// export async function PUT(
-//   req: NextRequest,
-//   { params }: { params: { id: string } }
-// ) {
-//   try {
-//     const session = await getServerSession();
-    
-//     if (!session?.user?.email) {
-//       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-//     }
-
-//     const body = await req.json();
-//     const { title, description, pollType, status, isFeatured, endDate, options } = body;
-
-//     // Check permissions
-//     const poll = await prisma.poll.findUnique({
-//       where: { id: params.id },
-//       select: { creatorId: true }
-//     });
-
-//     if (!poll) {
-//       return NextResponse.json({ error: "Poll not found" }, { status: 404 });
-//     }
-
-//     const user = await prisma.user.findUnique({
-//       where: { email: session.user.email },
-//       select: { id: true, role: true }
-//     });
-
-//     if (!user || (user.role !== 'ADMIN' && poll.creatorId !== user.id)) {
-//       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-//     }
-
-//     // Update poll with transaction
-//     const updatedPoll = await prisma.$transaction(async (tx) => {
-//       // Update poll basic info
-//       const updated = await tx.poll.update({
-//         where: { id: params.id },
-//         data: {
-//           title,
-//           description,
-//           pollType: pollType || 'FREE',
-//           status: status || 'ACTIVE',
-//           isFeatured: isFeatured || false,
-//           endDate: endDate ? new Date(endDate) : null,
-//         },
-//       });
-
-//       // Handle options if provided
-//       if (options && Array.isArray(options)) {
-//         // Delete existing options
-//         await tx.option.deleteMany({
-//           where: { pollId: params.id },
-//         });
-
-//         // Create new options
-//         await tx.option.createMany({
-//           data: options.map((text: string) => ({
-//             text,
-//             pollId: params.id,
-//           })),
-//         });
-//       }
-
-//       return updated;
-//     });
-
-//     return NextResponse.json(updatedPoll);
-//   } catch (error) {
-//     console.error("[POLL_PUT]", error);
-//     return NextResponse.json(
-//       { error: "Failed to update poll" },
-//       { status: 500 }
-//     );
-//   }
-// }
-
-// export async function DELETE(
-//   req: NextRequest,
-//   { params }: { params: { id: string } }
-// ) {
-//   try {
-//     const session = await getServerSession();
-    
-//     if (!session?.user?.email) {
-//       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-//     }
-
-//     // Check permissions
-//     const poll = await prisma.poll.findUnique({
-//       where: { id: params.id },
-//       select: { creatorId: true }
-//     });
-
-//     if (!poll) {
-//       return NextResponse.json({ error: "Poll not found" }, { status: 404 });
-//     }
-
-//     const user = await prisma.user.findUnique({
-//       where: { email: session.user.email },
-//       select: { id: true, role: true }
-//     });
-
-//     if (!user || (user.role !== 'ADMIN' && poll.creatorId !== user.id)) {
-//       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-//     }
-
-//     await prisma.poll.delete({
-//       where: { id: params.id },
-//     });
-
-//     return NextResponse.json({ success: true });
-//   } catch (error) {
-//     console.error("[POLL_DELETE]", error);
-//     return NextResponse.json(
-//       { error: "Failed to delete poll" },
-//       { status: 500 }
-//     );
-//   }
-// }
-
+// app/api/admin/polls/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "lib/prisma";
 import { getServerSession } from "next-auth";
+import { authOptions } from "lib/auth";
+
+async function getAuthorizedUser(email: string) {
+  return prisma.user.findUnique({
+    where: { email },
+    select: { id: true, role: true },
+  });
+}
+
+function canManagePoll(
+  user: { id: string; role: string },
+  poll: { createdById: string | null }
+) {
+  return user.role === "ADMIN" || poll.createdById === user.id;
+}
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const {id} = await params;
-    const session = await getServerSession();
-    if (!session?.user) {
+    const { id } = await params;
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const poll = await prisma.poll.findUnique({
-      where: { id },
-      include: {
-        options: true,
-        creator: {
-          select: { id: true, name: true, email: true }
-        }
-      }
-    });
+    const [poll, user] = await Promise.all([
+      prisma.poll.findUnique({
+        where: { id, deletedAt: null },
+        include: {
+          options: { orderBy: { createdAt: "asc" } },
+          creator: { select: { id: true, name: true, email: true } },
+        },
+      }),
+      getAuthorizedUser(session.user.email),
+    ]);
 
-    if (!poll) {
-      return NextResponse.json({ error: "Poll not found" }, { status: 404 });
-    }
-
-    // Check permissions
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true, role: true }
-    });
-
-    if (!user || (user.role !== 'ADMIN' && poll.creatorId !== user.id)) {
+    if (!poll) return NextResponse.json({ error: "Poll not found" }, { status: 404 });
+    if (!user || !canManagePoll(user, poll)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    return NextResponse.json(poll);
+    return NextResponse.json({ poll });
   } catch (error) {
     console.error("[POLL_GET]", error);
-    return NextResponse.json(
-      { error: "Failed to fetch poll" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch poll" }, { status: 500 });
   }
 }
 
@@ -226,73 +58,77 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const {id} = await params;
-    const session = await getServerSession();
+    const { id } = await params;
+    const session = await getServerSession(authOptions);
+
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
-    const { title, description, pollType, status, isFeatured, endDate, options } = body;
+    const [existingPoll, user] = await Promise.all([
+      prisma.poll.findUnique({
+        where: { id, deletedAt: null },
+        select: { createdById: true },
+      }),
+      getAuthorizedUser(session.user.email),
+    ]);
 
-    // Check poll exists and permissions
-    const poll = await prisma.poll.findUnique({
-      where: { id },
-      select: { creatorId: true }
-    });
-
-    if (!poll) {
-      return NextResponse.json({ error: "Poll not found" }, { status: 404 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true, role: true }
-    });
-
-    if (!user || (user.role !== 'ADMIN' && poll.creatorId !== user.id)) {
+    if (!existingPoll) return NextResponse.json({ error: "Poll not found" }, { status: 404 });
+    if (!user || !canManagePoll(user, existingPoll)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Update poll with options
+    const body = await req.json();
+    const { title, description, pollType, status, isFeatured, endDate, eventId, options } = body;
+
     const updatedPoll = await prisma.$transaction(async (tx) => {
       const updated = await tx.poll.update({
         where: { id },
         data: {
-          title,
-          description,
+          title: title?.trim(),
+          description: description?.trim() || null,
           pollType,
           status,
           isFeatured: isFeatured ?? false,
           endDate: endDate ? new Date(endDate) : null,
+          eventId: eventId || null,
         },
       });
 
-      // Delete existing options
-      await tx.option.deleteMany({
-        where: { id }
-      });
+      if (options && Array.isArray(options)) {
+        const validOptions = options.filter((o: { text?: string } | string) =>
+          typeof o === "string" ? o.trim() : o?.text?.trim()
+        );
 
-      // Create new options
-      if (options && options.length > 0) {
-        await tx.option.createMany({
-          data: options.map((text: string) => ({
-            text,
-            pollId: id
-          }))
+        const incomingIds = validOptions
+          .filter((o: { id?: string }) => typeof o !== "string" && o.id)
+          .map((o: { id: string }) => o.id);
+
+        // Remove options not in the incoming list
+        await tx.pollOption.deleteMany({
+          where: { pollId: id, id: { notIn: incomingIds } },
         });
+
+        // Upsert each option
+        for (const o of validOptions) {
+          const text = (typeof o === "string" ? o : o.text!).trim();
+          const oid = typeof o !== "string" ? o.id : undefined;
+
+          if (oid) {
+            await tx.pollOption.update({ where: { id: oid }, data: { text } });
+          } else {
+            await tx.pollOption.create({ data: { pollId: id, text } });
+          }
+        }
       }
 
       return updated;
     });
 
-    return NextResponse.json(updatedPoll);
+    return NextResponse.json({ poll: updatedPoll, id: updatedPoll.id });
   } catch (error) {
     console.error("[POLL_PUT]", error);
-    return NextResponse.json(
-      { error: "Failed to update poll" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to update poll" }, { status: 500 });
   }
 }
 
@@ -301,41 +137,34 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const {id} = await params;
-    const session = await getServerSession();
+    const { id } = await params;
+    const session = await getServerSession(authOptions);
+
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const poll = await prisma.poll.findUnique({
-      where: { id },
-      select: { creatorId: true }
-    });
+    const [poll, user] = await Promise.all([
+      prisma.poll.findUnique({
+        where: { id, deletedAt: null },
+        select: { createdById: true },
+      }),
+      getAuthorizedUser(session.user.email),
+    ]);
 
-    if (!poll) {
-      return NextResponse.json({ error: "Poll not found" }, { status: 404 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true, role: true }
-    });
-
-    if (!user || (user.role !== 'ADMIN' && poll.creatorId !== user.id)) {
+    if (!poll) return NextResponse.json({ error: "Poll not found" }, { status: 404 });
+    if (!user || !canManagePoll(user, poll)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     await prisma.poll.update({
       where: { id },
-      data: { deletedAt: new Date() }
+      data: { deletedAt: new Date() },
     });
 
-    return NextResponse.json({ success: true, message: "Poll soft-deleted" });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[POLL_DELETE]", error);
-    return NextResponse.json(
-      { error: "Failed to delete poll" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to delete poll" }, { status: 500 });
   }
 }

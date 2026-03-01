@@ -16,7 +16,7 @@ export default function DeleteButton({ id, type, title }: DeleteButtonProps) {
     if (!confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) return;
     
     try {
-      const res = await fetch(`/api/admin/${type}s/${id}`, {
+      const res = await fetch(`/api/polls/${id}`, {
         method: 'DELETE',
       });
       

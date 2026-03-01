@@ -725,7 +725,7 @@ export default async function PollPage({ params }: PollPageProps) {
             )}
             <div className="flex items-center">
               <Users className="w-4 h-4 mr-2 text-brand-primary" />
-              <span>Created by {poll.creator.name || poll.creator.email || "Anonymous"}</span>
+              <span>Created by {poll.creator?.name || poll.creator?.email || "Anonymous"}</span>
             </div>
           </div>
 
@@ -744,15 +744,15 @@ export default async function PollPage({ params }: PollPageProps) {
 
         {/* Voting Component */}
         <PollVoting 
-          pollId={poll.id}
-          options={poll.options.map(opt => ({
-            id: opt.id,
-            text: opt.text,
-            votes: opt._count.votes
-          }))}
-          totalVotes={poll._count.votes}
-          isActive={canVote}
-          pollType={poll.pollType}
+        pollId={poll.id}
+        options={poll.options.map(opt => ({
+        id: opt.id,
+        text: opt.text,
+        votes: opt._count.votes
+        }))}
+        totalVotes={poll._count.votes}
+        isActive={canVote}
+        pollType={poll.pollType}
         />
 
         {/* Related Polls */}

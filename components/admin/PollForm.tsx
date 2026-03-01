@@ -1,263 +1,364 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+// components/admin/PollForm.tsx
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, Trash2, Loader2, CalendarDays, Link2 } from "lucide-react";
+
+interface Event {
+  id: string;
+  title: string;
+}
+
+interface PollOption {
+  id?: string;
+  text: string;
+}
 
 interface PollFormProps {
   initialData?: {
-    id: string
-    title: string
-    description: string | null
-    pollType: string
-    status: string
-    endDate: Date | null
-    isFeatured: boolean
-    options: Array<{
-      id: string
-      text: string
-    }>
-  }
+    id?: string;
+    title: string;
+    description?: string;
+    pollType: string;
+    status: string;
+    endDate?: string | null;
+    eventId?: string | null;
+    isFeatured?: boolean;
+    options: PollOption[];
+  };
+  mode?: "create" | "edit";
 }
 
-export default function PollForm({ initialData }: PollFormProps) {
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  
-  const isEditMode = !!initialData
+export default function PollForm({ initialData, mode = "create" }: PollFormProps) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
-  // Options state
-  const [options, setOptions] = useState<string[]>(
-    initialData?.options.map(opt => opt.text) || ['', '']
-  )
+  const [form, setForm] = useState({
+    title: initialData?.title ?? "",
+    description: initialData?.description ?? "",
+    pollType: initialData?.pollType ?? "FREE",
+    status: initialData?.status ?? "ACTIVE",
+    endDate: initialData?.endDate
+      ? new Date(initialData.endDate).toISOString().slice(0, 16)
+      : "",
+    eventId: initialData?.eventId ?? "",
+    isFeatured: initialData?.isFeatured ?? false,
+  });
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setLoading(true)
-    setError('')
+  const [options, setOptions] = useState<PollOption[]>(
+    initialData?.options?.length
+      ? initialData.options
+      : [{ text: "" }, { text: "" }]
+  );
 
-    const formData = new FormData(event.currentTarget)
+  const showToast = (msg: string, type: "success" | "error") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  };
 
-    // Filter out empty options
-    const validOptions = options.filter(opt => opt.trim() !== '')
-
-    if (validOptions.length < 2) {
-      setError('Please add at least 2 options')
-      setLoading(false)
-      return
-    }
-
-    const data = {
-      ...(isEditMode && { id: initialData.id }),
-      title: formData.get('title'),
-      description: formData.get('description'),
-      pollType: formData.get('pollType') || 'FREE',
-      status: formData.get('status') || 'ACTIVE',
-      isFeatured: formData.get('isFeatured') === 'on',
-      endDate: formData.get('endDate') || null,
-      options: validOptions,
-    }
-
-    try {
-      const url = isEditMode 
-        ? `/api/admin/polls/${initialData.id}` 
-        : '/api/admin/polls'
-      
-      const method = isEditMode ? 'PUT' : 'POST'
-
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-
-      if (response.ok) {
-        router.push('/admin/polls')
-        router.refresh()
-      } else {
-        const errorData = await response.json()
-        setError(errorData.error || `Failed to ${isEditMode ? 'update' : 'create'} poll`)
+  // Fetch events for linking TOKEN_GATED / PAID polls
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const res = await fetch("/api/events?limit=100");
+        if (res.ok) {
+          const data = await res.json();
+          setEvents(data.events ?? data ?? []);
+        }
+      } catch {
+        // silently fail — event linking is optional
       }
-    } catch (err) {
-      setError('Network error. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
+    };
+    fetchEvents();
+  }, []);
 
   const addOption = () => {
-    setOptions([...options, ''])
-  }
-
-  const updateOption = (index: number, value: string) => {
-    const updated = [...options]
-    updated[index] = value
-    setOptions(updated)
-  }
+    if (options.length >= 10) {
+      showToast("Maximum 10 options allowed", "error");
+      return;
+    }
+    setOptions([...options, { text: "" }]);
+  };
 
   const removeOption = (index: number) => {
-    if (options.length > 2) {
-      setOptions(options.filter((_, i) => i !== index))
+    if (options.length <= 2) {
+      showToast("At least 2 options are required", "error");
+      return;
     }
-  }
+    setOptions(options.filter((_, i) => i !== index));
+  };
+
+  const updateOption = (index: number, text: string) => {
+    const updated = [...options];
+    updated[index] = { ...updated[index], text };
+    setOptions(updated);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!form.title.trim()) {
+      showToast("Poll title is required", "error");
+      return;
+    }
+
+    const validOptions = options.filter((o) => o.text.trim());
+    if (validOptions.length < 2) {
+      showToast("At least 2 non-empty options are required", "error");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = {
+        ...form,
+        endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
+        eventId: form.pollType === "PAID" && form.eventId ? form.eventId : null,
+        options: validOptions,
+      };
+
+      const url =
+        mode === "edit" && initialData?.id
+          ? `/api/polls/${initialData.id}`
+          : "/api/polls";
+
+      const res = await fetch(url, {
+        method: mode === "edit" ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        showToast(data.error || "Failed to save poll", "error");
+        return;
+      }
+
+      showToast(
+        mode === "edit" ? "Poll updated successfully!" : "Poll created successfully!",
+        "success"
+      );
+
+      setTimeout(() => {
+        router.push(`/admin/polls/${data.id ?? data.poll?.id ?? ""}`);
+        router.refresh();
+      }, 800);
+    } catch {
+      showToast("Something went wrong. Please try again.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="bg-white rounded-xl shadow p-6">
-      <h2 className="text-2xl font-bold mb-6">
-        {isEditMode ? 'Edit Poll' : 'Create New Poll'}
-      </h2>
-      
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg">
-          {error}
+    <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
+      {/* Toast */}
+      {toast && (
+        <div
+          className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-xl shadow-lg text-white text-sm font-medium ${
+            toast.type === "success" ? "bg-green-500" : "bg-red-500"
+          }`}
+        >
+          {toast.msg}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Basic Info */}
-        <div className="grid grid-cols-1 gap-6">
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Poll Title *
-            </label>
-            <input
-              name="title"
-              type="text"
-              required
-              defaultValue={initialData?.title || ''}
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-brand-primary"
-              placeholder="e.g., What topic should we cover next?"
-            />
-          </div>
+      {/* Title */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          Poll Question <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          value={form.title}
+          onChange={(e) => setForm({ ...form, title: e.target.value })}
+          placeholder="e.g. Who should win the 2025 Liberia Youth Award?"
+          className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+          required
+        />
+      </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Description
-            </label>
-            <textarea
-              name="description"
-              rows={3}
-              defaultValue={initialData?.description || ''}
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-brand-primary"
-              placeholder="Describe your poll..."
-            />
-          </div>
+      {/* Description */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          Description{" "}
+          <span className="text-gray-400 font-normal">(optional)</span>
+        </label>
+        <textarea
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+          placeholder="Add context or instructions for voters..."
+          rows={3}
+          className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
+        />
+      </div>
 
-          {/* Poll Type and Status */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Poll Type
-              </label>
-              <select
-                name="pollType"
-                defaultValue={initialData?.pollType || 'FREE'}
-                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-brand-primary"
-              >
-                <option value="FREE">Free Poll</option>
-                <option value="PAID">Premium Poll (Login Required)</option>
-              </select>
+      {/* Poll Options */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          Answer Options <span className="text-red-500">*</span>
+        </label>
+        <div className="space-y-2">
+          {options.map((option, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <span className="w-6 h-6 flex items-center justify-center rounded-full bg-orange-100 text-orange-600 text-xs font-bold shrink-0">
+                {index + 1}
+              </span>
+              <input
+                type="text"
+                value={option.text}
+                onChange={(e) => updateOption(index, e.target.value)}
+                placeholder={`Option ${index + 1}`}
+                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+              />
+              {options.length > 2 && (
+                <button
+                  type="button"
+                  onClick={() => removeOption(index)}
+                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
             </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Status
-              </label>
-              <select
-                name="status"
-                defaultValue={initialData?.status || 'ACTIVE'}
-                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-brand-primary"
-              >
-                <option value="ACTIVE">Active</option>
-                <option value="DRAFT">Draft</option>
-                <option value="CLOSED">Closed</option>
-              </select>
-            </div>
-          </div>
-
-          {/* End Date */}
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              End Date (Optional)
-            </label>
-            <input
-              name="endDate"
-              type="datetime-local"
-              defaultValue={initialData?.endDate ? new Date(initialData.endDate).toISOString().slice(0, 16) : ''}
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-brand-primary"
-            />
-          </div>
-
-          {/* Featured Toggle */}
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              name="isFeatured"
-              id="isFeatured"
-              defaultChecked={initialData?.isFeatured}
-              className="w-4 h-4 text-brand-primary rounded focus:ring-brand-primary"
-            />
-            <label htmlFor="isFeatured" className="text-sm font-medium">
-              Feature this poll on homepage
-            </label>
-          </div>
+          ))}
         </div>
-
-        {/* Options Section */}
-        <div className="border-t pt-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Poll Options *</h3>
-            <button
-              type="button"
-              onClick={addOption}
-              className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
-            >
-              + Add Option
-            </button>
-          </div>
-          
-          <div className="space-y-3">
-            {options.map((option, index) => (
-              <div key={index} className="flex gap-2 items-center">
-                <input
-                  type="text"
-                  value={option}
-                  onChange={(e) => updateOption(index, e.target.value)}
-                  placeholder={`Option ${index + 1}`}
-                  className="flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-brand-primary"
-                  required
-                />
-                {options.length > 2 && (
-                  <button
-                    type="button"
-                    onClick={() => removeOption(index)}
-                    className="p-3 text-red-600 hover:bg-red-50 rounded-lg"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-          
-          <p className="text-sm text-gray-500 mt-2">
-            Add at least 2 options for users to choose from.
-          </p>
-        </div>
-
-        {/* Submit Button */}
-        <div className="pt-4">
+        {options.length < 10 && (
           <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-brand-primary text-white py-3 rounded-lg font-medium hover:bg-brand-accent disabled:opacity-50"
+            type="button"
+            onClick={addOption}
+            className="mt-3 flex items-center gap-2 text-sm text-orange-600 hover:text-orange-700 font-medium"
           >
-            {loading 
-              ? (isEditMode ? 'Updating Poll...' : 'Creating Poll...') 
-              : (isEditMode ? 'Update Poll' : 'Create Poll')}
+            <Plus className="w-4 h-4" />
+            Add Option
           </button>
+        )}
+      </div>
+
+      {/* Poll Type + Event Link */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+            Poll Type
+          </label>
+          <select
+            value={form.pollType}
+            onChange={(e) => setForm({ ...form, pollType: e.target.value })}
+            className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+          >
+            <option value="FREE">Public (anyone can vote)</option>
+            <option value="PAID">Ticket Holders Only</option>
+          </select>
         </div>
-      </form>
-    </div>
-  )
+
+        {form.pollType === "PAID" && (
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              <span className="flex items-center gap-1">
+                <Link2 className="w-3.5 h-3.5" />
+                Link to Event
+              </span>
+            </label>
+            <select
+              value={form.eventId}
+              onChange={(e) => setForm({ ...form, eventId: e.target.value })}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+            >
+              <option value="">— No specific event —</option>
+              {events.map((event) => (
+                <option key={event.id} value={event.id}>
+                  {event.title}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-400">
+              Only users with a PAID ticket for this event can vote.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Status + Close Date */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+            Status
+          </label>
+          <select
+            value={form.status}
+            onChange={(e) => setForm({ ...form, status: e.target.value })}
+            className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+          >
+            <option value="ACTIVE">Active</option>
+            <option value="CLOSED">Closed</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+            <span className="flex items-center gap-1">
+              <CalendarDays className="w-3.5 h-3.5" />
+              Close Date{" "}
+              <span className="text-gray-400 font-normal">(optional)</span>
+            </span>
+          </label>
+          <input
+            type="datetime-local"
+            value={form.endDate}
+            onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+            min={new Date().toISOString().slice(0, 16)}
+            className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+          />
+        </div>
+      </div>
+
+      {/* Featured toggle */}
+      <div className="flex items-center gap-3 p-4 bg-orange-50 border border-orange-100 rounded-xl">
+        <input
+          id="isFeatured"
+          type="checkbox"
+          checked={form.isFeatured}
+          onChange={(e) => setForm({ ...form, isFeatured: e.target.checked })}
+          className="w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-400"
+        />
+        <label htmlFor="isFeatured" className="text-sm font-medium text-gray-700">
+          Feature this poll{" "}
+          <span className="text-gray-400 font-normal">
+            — highlighted on the public polls page
+          </span>
+        </label>
+      </div>
+
+      {/* Submit */}
+      <div className="flex items-center gap-3 pt-2">
+        <button
+          type="submit"
+          disabled={loading}
+          className="inline-flex items-center gap-2 px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Saving…
+            </>
+          ) : mode === "edit" ? (
+            "Save Changes"
+          ) : (
+            "Create Poll"
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="px-6 py-2.5 text-gray-600 hover:text-gray-800 font-medium text-sm"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
 }

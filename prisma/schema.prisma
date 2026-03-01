@@ -21,6 +21,7 @@ model User {
 
   events       Event[]
   polls        Poll[]
+  createdPolls Poll[]              @relation("PollCreator")
   votes        Vote[]
   orders       Order[]
   payments     Payment[]
@@ -114,9 +115,8 @@ model Order {
   status     String @default("PENDING")
   totalPrice Float
 
-  
   eventId String?
-  event   Event? @relation(fields: [eventId], references: [id])
+  event   Event?  @relation(fields: [eventId], references: [id])
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id])
@@ -166,37 +166,31 @@ model Poll {
   id          String    @id @default(cuid())
   title       String
   description String?
-  pollType    String    @default("FREE")
-  status      String    @default("ACTIVE")
-  endDate     DateTime?
-  deletedAt   DateTime?
+  status      String    @default("ACTIVE") // ACTIVE, CLOSED
+  pollType    String    @default("FREE") // FREE, PAID (TOKEN_GATED)
+  endDate     DateTime? // close date
   isFeatured  Boolean   @default(false)
+  eventId     String? // link to event for PAID/TOKEN_GATED
+  createdById String? // creator FK
+  deletedAt   DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  creatorId String
-  creator   User   @relation(fields: [creatorId], references: [id])
-
-  eventId String?
-  event   Event?  @relation(fields: [eventId], references: [id])
-
-  options Option[]
+  options PollOption[]
   votes   Vote[]
-
-  // Add a partial unique index or validation comment
-  // Valid values: "FREE", "PAID" - validated in application
+  event   Event?       @relation(fields: [eventId], references: [id])
+  creator User?        @relation("PollCreator", fields: [createdById], references: [id])
+  User    User?        @relation(fields: [userId], references: [id])
+  userId  String?
 }
 
-model Option {
-  id       String  @id @default(cuid())
-  text     String
-  imageUrl String?
-
-  pollId String
-  poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
-
-  votes Vote[]
-
+model PollOption {
+  id        String   @id @default(cuid())
+  text      String
+  imageUrl  String?
+  pollId    String
+  poll      Poll     @relation(fields: [pollId], references: [id])
+  votes     Vote[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -208,9 +202,9 @@ model Vote {
   optionId String
   userId   String?
 
-  poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
-  option Option @relation(fields: [optionId], references: [id], onDelete: Cascade)
-  user   User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  poll       Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option     PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user       User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // For guest voting 
   deviceId String? // For non-authenticated users
