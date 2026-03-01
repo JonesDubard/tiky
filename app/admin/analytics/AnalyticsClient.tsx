@@ -187,10 +187,10 @@ export default function AnalyticsClient() {
     <div className="space-y-6">
       {/* Page header */}
       <div className="flex items-center justify-between">
-        <div>
+        {/* <div>
           <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
           <p className="text-gray-500 text-sm mt-0.5">Overview of your platform performance</p>
-        </div>
+        </div> */}
         <button
           onClick={fetchAnalytics}
           className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50"

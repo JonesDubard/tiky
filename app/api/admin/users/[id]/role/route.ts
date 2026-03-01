@@ -1,54 +1,47 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "../../../../auth/[...nextauth]/route";
-import { prisma } from "lib/prisma";
+// app/api/admin/users/[id]/role/route.ts
+import { NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
+import { authOptions } from "app/api/auth/[...nextauth]/route"
+import { prisma } from "lib/prisma"
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    
+    const session = await getServerSession(authOptions)
+
     if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return new NextResponse("Unauthorized", { status: 401 })
     }
 
-    // Verify admin status
     if (session.user.role !== "ADMIN") {
-      return new NextResponse("Forbidden", { status: 403 });
+      return new NextResponse("Forbidden", { status: 403 })
     }
 
-    const { role } = await req.json();
+    const { id } = await params
+    const { role } = await req.json()
 
-    // Validate role
     if (!["USER", "ORGANIZER", "ADMIN"].includes(role)) {
-      return new NextResponse("Invalid role", { status: 400 });
+      return new NextResponse("Invalid role", { status: 400 })
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: { role },
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
-        status: true,
+        image: true,
         createdAt: true,
-        updatedAt: true,
-      }
-    });
+      },
+    })
 
-    // Add image field for frontend consistency
-    const responseUser = {
-      ...updatedUser,
-      image: null,
-    };
-
-    return NextResponse.json(responseUser);
-  } catch (error) {
-    console.error("Error updating user role:", error);
-    return new NextResponse("Internal Server Error", { status: 500 });
+    return NextResponse.json(updatedUser)
+  } catch (error: any) {
+    console.error("Error updating user role:", error)
+    return new NextResponse("Internal Server Error", { status: 500 })
   }
 }

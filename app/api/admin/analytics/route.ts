@@ -8,7 +8,7 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user || (session.user.role !== "ADMIN" && session.user.role !== "ORGANIZER")) {
-      return new NextResponse("Unauthorized", { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const now = new Date()
@@ -16,7 +16,6 @@ export async function GET() {
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
 
-    // Run all queries in parallel
     const [
       totalRevenue,
       monthlyRevenue,
@@ -35,7 +34,6 @@ export async function GET() {
       topEventsRaw,
       salesOverTimeRaw,
     ] = await Promise.all([
-      // Revenue
       prisma.payment.aggregate({
         where: { status: "COMPLETED" },
         _sum: { amount: true },
@@ -49,25 +47,20 @@ export async function GET() {
         _sum: { amount: true },
       }),
 
-      // Tickets
       prisma.ticketInstance.count({ where: { status: "PAID" } }),
       prisma.ticketInstance.count({ where: { status: "PAID", createdAt: { gte: startOfMonth } } }),
       prisma.ticketInstance.count({ where: { status: "PAID", createdAt: { gte: startOfLastMonth, lte: endOfLastMonth } } }),
 
-      // Users
       prisma.user.count(),
       prisma.user.count({ where: { createdAt: { gte: startOfMonth } } }),
       prisma.user.count({ where: { createdAt: { gte: startOfLastMonth, lte: endOfLastMonth } } }),
 
-      // Events
       prisma.event.count({ where: { deletedAt: null } }),
       prisma.event.count({ where: { deletedAt: null, date: { gte: now } } }),
 
-      // Polls
       prisma.poll.count({ where: { deletedAt: null } }),
       prisma.poll.count({ where: { deletedAt: null, status: "ACTIVE" } }),
 
-      // Recent sales
       prisma.payment.findMany({
         where: { status: "COMPLETED" },
         orderBy: { createdAt: "desc" },
@@ -77,11 +70,10 @@ export async function GET() {
           amount: true,
           createdAt: true,
           user: { select: { name: true, email: true } },
-          event: { select: { title: true } },
+          Event: { select: { title: true } },
         },
       }),
 
-      // Top events by ticket sales
       prisma.ticketType.findMany({
         where: { event: { deletedAt: null } },
         include: {
@@ -90,7 +82,6 @@ export async function GET() {
         },
       }),
 
-      // Sales over last 30 days
       prisma.ticketInstance.findMany({
         where: {
           status: "PAID",
@@ -106,15 +97,12 @@ export async function GET() {
     const monthRev = monthlyRevenue._sum.amount ?? 0
     const lastRev = lastMonthRevenue._sum.amount ?? 1
     const revenueGrowth = lastRev > 0 ? Math.round(((monthRev - lastRev) / lastRev) * 100) : 0
-
     const tickGrowth = lastMonthTickets > 0
-      ? Math.round(((monthlyTickets - lastMonthTickets) / lastMonthTickets) * 100)
-      : 0
+      ? Math.round(((monthlyTickets - lastMonthTickets) / lastMonthTickets) * 100) : 0
     const userGrowth = newUsersLastMonth > 0
-      ? Math.round(((newUsersThisMonth - newUsersLastMonth) / newUsersLastMonth) * 100)
-      : 0
+      ? Math.round(((newUsersThisMonth - newUsersLastMonth) / newUsersLastMonth) * 100) : 0
 
-    // Top events — aggregate by event
+    // Top events
     const eventMap: Record<string, { id: string; title: string; sales: number; revenue: number }> = {}
     for (const tt of topEventsRaw) {
       const key = tt.event.id
@@ -128,7 +116,7 @@ export async function GET() {
       .sort((a, b) => b.sales - a.sales)
       .slice(0, 5)
 
-    // Sales over time — group by day
+    // Sales over time grouped by day
     const dayMap: Record<string, { count: number; revenue: number }> = {}
     for (const t of salesOverTimeRaw) {
       const day = t.createdAt.toISOString().split("T")[0]
@@ -136,7 +124,6 @@ export async function GET() {
       dayMap[day].count++
       dayMap[day].revenue += t.ticketType.price
     }
-    // Fill in any missing days in range so chart is continuous
     const salesOverTime = Object.entries(dayMap)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, v]) => ({
@@ -163,15 +150,18 @@ export async function GET() {
         activePolls,
       },
       recentSales: recentSales.map(s => ({
-        ...s,
+        id: s.id,
+        amount: s.amount,
+        createdAt: s.createdAt,
         user: s.user ?? { name: null, email: "Guest" },
-        event: s.event ?? { title: "Unknown" },
+        event: s.Event ?? { title: "Unknown" },
       })),
       topEvents,
       salesOverTime,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Analytics error:", error)
-    return new NextResponse("Internal Server Error", { status: 500 })
+    // ✅ Always return JSON so the client can parse it
+    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 })
   }
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import {
   Search, Download, Filter, RefreshCw,
   Ticket, Calendar, Mail, CheckCircle,
@@ -175,6 +175,10 @@ export default function TicketsClient() {
 
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Tickets</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{tickets.length} total tickets</p>
+        </div>
         <Link
           href="/admin/tickets/validate"
           className="flex items-center gap-2 px-3 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-all"
@@ -272,9 +276,8 @@ export default function TicketsClient() {
                 const isExpanded = expandedTicket === ticket.id
 
                 return (
-
-                  <>
-                    <tr key={ticket.id} className={`hover:bg-gray-50 transition-colors ${isExpanded ? "bg-orange-50" : ""}`}>
+                  <React.Fragment key={ticket.id}>
+                    <tr className={`hover:bg-gray-50 transition-colors ${isExpanded ? "bg-orange-50" : ""}`}>
                       {/* Ticket ID */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
@@ -407,7 +410,7 @@ export default function TicketsClient() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 )
               })}
             </tbody>
