@@ -1,9 +1,10 @@
-﻿// lib/auth.ts - UPDATE THE IMPORT PATH
+﻿// lib/auth.ts
 import { NextAuthOptions } from "next-auth"
 import { PrismaAdapter } from "@next-auth/prisma-adapter"
 import CredentialsProvider from "next-auth/providers/credentials"
-import { prisma } from "./prisma" 
+import { prisma } from "./prisma"
 import bcrypt from "bcryptjs"
+import { Role } from "@prisma/client"
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
@@ -11,8 +12,7 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
   },
   pages: {
-    signIn: "/login",    
-    // signUp: "/signup",  
+    signIn: "/login",
     error: "/auth/error",
   },
   providers: [
@@ -48,7 +48,7 @@ export const authOptions: NextAuthOptions = {
           id: user.id,
           email: user.email,
           name: user.name,
-          role: user.role,
+          role: user.role as Role,  // FIX 1: cast to Role enum
           image: user.image,
         }
       }
@@ -64,7 +64,7 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session?.user) {
-        session.user.role = token.role as "USER" | "ORGANIZER" | "ADMIN"
+        session.user.role = token.role as Role
         session.user.id = token.id as string
       }
       return session
