@@ -1,6 +1,16 @@
-// types/events.ts - UPDATE
+// types/events.ts
+export interface TicketType {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+// Keep Ticket as alias for backwards compatibility
 export interface Ticket {
-  type: string;  // Non-nullable
+  id?: string;
+  type?: string;
+  name?: string;
   price: number;
   quantity: number;
 }
@@ -8,13 +18,13 @@ export interface Ticket {
 export interface PublicEvent {
   id: string;
   title: string;
-  description?: string;
+  description?: string | null;
   date: string;
-  location?: string;
-  imageUrl?: string;
+  location?: string | null;
+  imageUrl?: string | null;
   published: boolean;
   isFeatured?: boolean;
   price?: number | null;
-  tickets: Ticket[];  // Uses the non-nullable Ticket type
-  createdAt: Date;
+  ticketTypes: TicketType[];
+  createdAt?: Date;
 }
