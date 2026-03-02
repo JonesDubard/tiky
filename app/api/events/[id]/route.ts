@@ -5,20 +5,26 @@ import { authOptions } from "lib/auth"
 import { prisma } from "lib/prisma"
 
 // GET - Get single event (public or admin)
+// GET - Get single event (public or admin)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
-    
-    // Public can view published events, admins can view all
-    const whereCondition = session?.user?.role === "ADMIN" 
-      ? { id: (await params).id }
-      : { 
-          id: (await params).id,
-          published: true 
-        }
+    const { id } = await params  // 👈 await params once
+
+    // Build where condition:
+    // - Always filter out soft-deleted events (deletedAt: null)
+    // - Only published events for non-admins
+    const whereCondition: any = {
+      id,
+      deletedAt: null,  // 👈 include deletedAt here
+    }
+
+    if (session?.user?.role !== "ADMIN") {
+      whereCondition.published = true
+    }
 
     const event = await prisma.event.findUnique({
       where: whereCondition,
@@ -26,9 +32,8 @@ export async function GET(
         createdBy: {
           select: { name: true, email: true }
         },
-        tickets: true
-      },
-      deletedAt: null
+        ticketTypes: true  // 👈 corrected relation name
+      }
     })
 
     if (!event) {
