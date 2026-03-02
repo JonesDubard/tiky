@@ -5,17 +5,16 @@ import { prisma } from "lib/prisma"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { searchParams } = new URL(request.url)
-    const eventId = params.id
+    const { id } = await context.params
 
-    console.log("Fetching latest payment for event:", eventId)
+    console.log("Fetching latest payment for event:", id)
 
     const payment = await prisma.payment.findFirst({
       where: {
-        eventId: eventId,
+        eventId: id,
       },
       orderBy: {
         createdAt: "desc",
@@ -29,7 +28,7 @@ export async function GET(
       )
     }
 
-    const response = {
+    return NextResponse.json({
       payment: {
         id: payment.id,
         providerRef: payment.providerRef,
@@ -41,9 +40,7 @@ export async function GET(
         processedAt: payment.processedAt,
         createdAt: payment.createdAt,
       },
-    }
-
-    return NextResponse.json(response)
+    })
   } catch (error) {
     console.error("Error fetching latest payment:", error)
 
