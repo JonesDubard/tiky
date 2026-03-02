@@ -47,7 +47,7 @@ export async function GET() {
           status: true,
           createdAt: true,
           user: { select: { name: true, email: true } },
-          Event: { select: { title: true } },
+          event: { select: { title: true } },
         },
       }),
       prisma.poll.findMany({

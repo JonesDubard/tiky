@@ -70,7 +70,7 @@ export async function GET() {
           amount: true,
           createdAt: true,
           user: { select: { name: true, email: true } },
-          Event: { select: { title: true } },
+          event: { select: { title: true } },
         },
       }),
 
@@ -154,7 +154,7 @@ export async function GET() {
         amount: s.amount,
         createdAt: s.createdAt,
         user: s.user ?? { name: null, email: "Guest" },
-        event: s.Event ?? { title: "Unknown" },
+        event: s.event ?? { title: "Unknown" },
       })),
       topEvents,
       salesOverTime,
