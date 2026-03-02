@@ -1,67 +1,59 @@
 // app/api/events/[id]/latest-transaction/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from 'lib/prisma';
+
+import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "lib/prisma"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { searchParams } = new URL(request.url);
-    const phone = searchParams.get('phone');
-    
-    console.log('Fetching latest transaction for event:', (await params).id, 'phone:', phone);
-    
-    // Get the latest transaction for this event
-    const transaction = await prisma.transaction.findFirst({
+    const { searchParams } = new URL(request.url)
+    const eventId = params.id
+
+    console.log("Fetching latest payment for event:", eventId)
+
+    const payment = await prisma.payment.findFirst({
       where: {
-        eventId: (await params).id,
-        ...(phone ? { phoneNumber: phone } : {})
+        eventId: eventId,
       },
       orderBy: {
-        createdAt: 'desc'
+        createdAt: "desc",
       },
-      include: {
-        ticket: true, // This should work based on your schema
-        event: true
-      }
-    });
+    })
 
-    if (!transaction) {
-      console.log('No transaction found for event:', (await params).id);
+    if (!payment) {
       return NextResponse.json(
-        { message: 'No transaction found', transaction: null },
+        { message: "No payment found", payment: null },
         { status: 200 }
-      );
+      )
     }
 
-    console.log('Transaction found:', transaction.id, 'status:', transaction.status);
-    
-    // Format the response
     const response = {
-      transaction: {
-        id: transaction.id,
-        transactionRef: transaction.transactionRef,
-        status: transaction.status,
-        phoneNumber: transaction.phoneNumber,
-        paymentMethod: transaction.paymentMethod,
-        amount: transaction.amount,
-        createdAt: transaction.createdAt,
-        // Handle ticket relation (could be single ticket or array)
-        tickets: transaction.ticket ? [transaction.ticket] : []
-      }
-    };
+      payment: {
+        id: payment.id,
+        providerRef: payment.providerRef,
+        externalId: payment.externalId,
+        status: payment.status,
+        amount: payment.amount,
+        currency: payment.currency,
+        paymentMethod: payment.paymentMethod,
+        processedAt: payment.processedAt,
+        createdAt: payment.createdAt,
+      },
+    }
 
-    return NextResponse.json(response);
-
+    return NextResponse.json(response)
   } catch (error) {
-    console.error('Error fetching latest transaction:', error);
+    console.error("Error fetching latest payment:", error)
+
     return NextResponse.json(
-      { 
-        error: 'Failed to fetch transaction',
-        details: error instanceof Error ? error.message : 'Unknown error'
+      {
+        error: "Failed to fetch payment",
+        details:
+          error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
-    );
+    )
   }
 }
