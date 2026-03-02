@@ -4,10 +4,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "lib/auth";
 import { prisma } from "lib/prisma";
 
-// GET /api/polls/[id]
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
@@ -36,10 +35,9 @@ export async function GET(
   }
 }
 
-// PUT /api/polls/[id] — update (admin/organizer only)
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
@@ -60,7 +58,7 @@ export async function PUT(
 
     const existing = await prisma.poll.findUnique({
       where: { id, deletedAt: null },
-      select: { id: true, createdById: true },
+      select: { createdById: true },
     });
 
     if (!existing) {
@@ -74,7 +72,6 @@ export async function PUT(
     const body = await req.json();
     const { title, description, pollType, status, endDate, eventId, isFeatured, options } = body;
 
-    // Update poll metadata
     const poll = await prisma.poll.update({
       where: { id },
       data: {
@@ -83,37 +80,31 @@ export async function PUT(
         pollType,
         status,
         endDate: endDate ? new Date(endDate) : null,
-        eventId: eventId || null,
+        eventId: pollType === "TOKEN_GATED" ? (eventId || null) : null,
         isFeatured: isFeatured ?? false,
       },
     });
 
-    // Handle options: upsert existing, create new, delete removed
     if (options && Array.isArray(options)) {
-      const validOptions = options.filter((o: { text: string }) => o.text?.trim());
+      type OptionInput = { id?: string; text: string; imageUrl?: string | null };
+      const validOptions = (options as OptionInput[]).filter((o) => o.text?.trim());
+      const incomingIds = validOptions.filter((o) => o.id).map((o) => o.id as string);
 
-      const incomingIds = validOptions
-        .filter((o: { id?: string }) => o.id)
-        .map((o: { id: string }) => o.id);
-
-      // Delete options that were removed
       await prisma.pollOption.deleteMany({
-        where: {
-          pollId: id,
-          id: { notIn: incomingIds },
-        },
+        where: { pollId: id, id: { notIn: incomingIds } },
       });
 
-      // Upsert each option
-      for (const option of validOptions) {
-        if (option.id) {
+      for (const o of validOptions) {
+        const text = o.text.trim();
+        const imageUrl = o.imageUrl ?? null;
+        if (o.id) {
           await prisma.pollOption.update({
-            where: { id: option.id },
-            data: { text: option.text.trim() },
+            where: { id: o.id },
+            data: { text, imageUrl },
           });
         } else {
           await prisma.pollOption.create({
-            data: { pollId: id, text: option.text.trim() },
+            data: { pollId: id, text, imageUrl },
           });
         }
       }
@@ -126,10 +117,9 @@ export async function PUT(
   }
 }
 
-// DELETE /api/polls/[id] — soft delete
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;

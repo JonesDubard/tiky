@@ -167,7 +167,7 @@ model Poll {
   title       String
   description String?
   status      String    @default("ACTIVE") // ACTIVE, CLOSED
-  pollType    String    @default("FREE") // FREE, PAID (TOKEN_GATED)
+  pollType    String    @default("PUBLIC")  // PUBLIC, TOKEN_GATED
   endDate     DateTime? // close date
   isFeatured  Boolean   @default(false)
   eventId     String? // link to event for PAID/TOKEN_GATED

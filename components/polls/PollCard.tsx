@@ -2,12 +2,13 @@
 
 // components/polls/PollCard.tsx
 import Link from "next/link";
-import { BarChart2, Users, Clock, Lock, ArrowRight } from "lucide-react";
+import { BarChart2, Users, Clock, Ticket, Globe, ArrowRight } from "lucide-react";
 import { formatDistanceToNow, isPast } from "date-fns";
 
 interface PollOption {
   id: string;
   text: string;
+  imageUrl?: string | null;
   _count: { votes: number };
 }
 
@@ -16,7 +17,7 @@ interface Poll {
   title: string;
   description?: string | null;
   status: string;
-  pollType: string;
+  pollType: string; // "PUBLIC" | "TOKEN_GATED"
   endDate?: Date | null;
   isFeatured?: boolean;
   totalVotes: number;
@@ -31,41 +32,39 @@ interface PollCardProps {
 export default function PollCard({ poll, clickable = true }: PollCardProps) {
   const isActive =
     poll.status === "ACTIVE" && (!poll.endDate || !isPast(new Date(poll.endDate)));
-  const isPaid = poll.pollType === "PAID";
+  const isTokenGated = poll.pollType === "TOKEN_GATED";
   const totalVotes = poll.totalVotes;
 
   // Top option for preview bar
   const topOption =
     poll.options.length > 0
-      ? [...poll.options].sort(
-          (a, b) => b._count.votes - a._count.votes
-        )[0]
+      ? [...poll.options].sort((a, b) => b._count.votes - a._count.votes)[0]
       : null;
-
   const topPct =
     topOption && totalVotes > 0
       ? Math.round((topOption._count.votes / totalVotes) * 100)
       : 0;
 
+  // Candidate photos (up to 3)
+  const optionsWithPhotos = poll.options.filter((o) => o.imageUrl).slice(0, 3);
+  const hasPhotos = optionsWithPhotos.length > 0;
+
   const card = (
-    <div
-      className={`group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden ${
-        clickable ? "cursor-pointer" : ""
-      } ${poll.isFeatured ? "ring-2 ring-orange-400 ring-offset-1" : ""}`}
-    >
-      {/* Top accent bar */}
-      <div
-        className={`h-1 w-full ${
-          isActive
-            ? isPaid
-              ? "bg-gradient-to-r from-yellow-400 to-orange-500"
-              : "bg-gradient-to-r from-orange-400 to-orange-600"
-            : "bg-gray-200"
-        }`}
-      />
+    <div className={`group bg-white rounded-2xl border shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden ${
+      clickable ? "cursor-pointer" : ""
+    } ${poll.isFeatured ? "border-orange-300 ring-1 ring-orange-200" : "border-gray-100"}`}>
+
+      {/* Top accent */}
+      <div className={`h-1 w-full ${
+        isActive
+          ? isTokenGated
+            ? "bg-gradient-to-r from-amber-400 to-orange-500"
+            : "bg-gradient-to-r from-blue-400 to-orange-500"
+          : "bg-gray-200"
+      }`} />
 
       <div className="p-5">
-        {/* Badges row */}
+        {/* Badges */}
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           {isActive ? (
             <span className="flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-700">
@@ -78,13 +77,14 @@ export default function PollCard({ poll, clickable = true }: PollCardProps) {
             </span>
           )}
 
-          {isPaid ? (
-            <span className="flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-700">
-              <Lock className="w-3 h-3" />
-              Ticket Holders
+          {isTokenGated ? (
+            <span className="flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-700">
+              <Ticket className="w-3 h-3" />
+              Ticket Holders Only
             </span>
           ) : (
-            <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-700">
+            <span className="flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-700">
+              <Globe className="w-3 h-3" />
               Public
             </span>
           )}
@@ -96,21 +96,38 @@ export default function PollCard({ poll, clickable = true }: PollCardProps) {
           )}
         </div>
 
-        {/* Title + description */}
-        <h3
-          className={`text-base font-bold mb-1 line-clamp-2 transition-colors ${
-            clickable ? "group-hover:text-orange-600" : ""
-          } text-gray-900`}
-        >
+        {/* Title */}
+        <h3 className={`text-base font-bold mb-1 line-clamp-2 transition-colors ${
+          clickable ? "group-hover:text-orange-600" : ""
+        } text-gray-900`}>
           {poll.title}
         </h3>
         {poll.description && (
-          <p className="text-sm text-gray-500 line-clamp-2 mb-4">
-            {poll.description}
-          </p>
+          <p className="text-sm text-gray-500 line-clamp-2 mb-3">{poll.description}</p>
         )}
 
-        {/* Leading option preview bar */}
+        {/* Candidate photo strip */}
+        {hasPhotos && (
+          <div className="flex items-center gap-2 mb-3">
+            <div className="flex -space-x-2">
+              {optionsWithPhotos.map((o) => (
+                <img
+                  key={o.id}
+                  src={o.imageUrl!}
+                  alt={o.text}
+                  className="w-8 h-8 rounded-full object-cover border-2 border-white"
+                />
+              ))}
+            </div>
+            {poll.options.length > 3 && (
+              <span className="text-xs text-gray-400">
+                +{poll.options.length - 3} more
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Leading option bar */}
         {topOption && totalVotes > 0 && (
           <div className="mb-4">
             <div className="flex justify-between text-xs text-gray-500 mb-1">
@@ -126,7 +143,7 @@ export default function PollCard({ poll, clickable = true }: PollCardProps) {
           </div>
         )}
 
-        {/* Footer row */}
+        {/* Footer */}
         <div className="flex items-center justify-between text-xs text-gray-500">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1">
@@ -138,15 +155,11 @@ export default function PollCard({ poll, clickable = true }: PollCardProps) {
               {poll.options.length} options
             </span>
           </div>
-
           <div className="flex items-center gap-2">
             {poll.endDate && isActive && (
               <span className="flex items-center gap-1 text-orange-600">
                 <Clock className="w-3 h-3" />
-                Ends{" "}
-                {formatDistanceToNow(new Date(poll.endDate), {
-                  addSuffix: true,
-                })}
+                {formatDistanceToNow(new Date(poll.endDate), { addSuffix: true })}
               </span>
             )}
             {clickable && (
@@ -161,6 +174,5 @@ export default function PollCard({ poll, clickable = true }: PollCardProps) {
   );
 
   if (!clickable) return card;
-
   return <Link href={`/polls/${poll.id}`}>{card}</Link>;
 }

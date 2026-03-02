@@ -2,13 +2,14 @@
 
 // components/polls/PollVoting.tsx
 import { useState, useEffect } from "react";
-import { CheckCircle, Lock, LogIn, Loader2, BarChart2 } from "lucide-react";
+import { CheckCircle, Lock, LogIn, Loader2, BarChart2, User } from "lucide-react";
 import { useSession } from "next-auth/react";
 
 interface PollOption {
   id: string;
   text: string;
   votes: number;
+  imageUrl?: string | null;
 }
 
 interface PollVotingProps {
@@ -16,7 +17,7 @@ interface PollVotingProps {
   options: PollOption[];
   totalVotes: number;
   isActive: boolean;
-  pollType: string;
+  pollType: string; // "PUBLIC" | "TOKEN_GATED"
   userVotedOptionId?: string | null;
 }
 
@@ -25,6 +26,7 @@ interface ResultOption {
   text: string;
   votes: number;
   percentage: number;
+  imageUrl?: string | null;
 }
 
 export default function PollVoting({
@@ -45,48 +47,36 @@ export default function PollVoting({
 
   const hasVoted = !!userVotedOptionId;
   const showResults = hasVoted || !isActive;
+  const isTokenGated = pollType === "TOKEN_GATED";
 
-  // Show toast then auto-dismiss
   const showToast = (msg: string, type: "success" | "error") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
   };
 
-  // On mount: check if user already voted by hitting results API
   useEffect(() => {
     if (authStatus === "loading") return;
-
-    const checkVote = async () => {
+    const load = async () => {
       try {
         const res = await fetch(`/api/polls/${pollId}/results`);
         if (!res.ok) return;
         const data = await res.json();
-        if (data.userVotedOptionId) {
-          setUserVotedOptionId(data.userVotedOptionId);
-          setResults(data.results);
-          setTotalVotes(data.totalVotes);
-        } else {
-          // Still load live result percentages for display
-          setResults(data.results);
-          setTotalVotes(data.totalVotes);
-        }
-      } catch {
-        // silently ignore
-      }
+        const merged = (data.results ?? []).map((r: ResultOption) => ({
+          ...r,
+          imageUrl: options.find((o) => o.id === r.id)?.imageUrl ?? r.imageUrl ?? null,
+        }));
+        setResults(merged);
+        setTotalVotes(data.totalVotes);
+        if (data.userVotedOptionId) setUserVotedOptionId(data.userVotedOptionId);
+      } catch { /* silent */ }
     };
-
-    checkVote();
+    load();
   }, [pollId, authStatus]);
 
   const handleVote = async () => {
-    if (!selected) {
-      showToast("Please select an option first", "error");
-      return;
-    }
-
-    if (authStatus !== "authenticated" && pollType === "PAID") {
-      showToast("Please log in to vote on this poll", "error");
-      return;
+    if (!selected) return showToast("Please select a candidate first", "error");
+    if (authStatus !== "authenticated" && isTokenGated) {
+      return showToast("Please log in to vote on this poll", "error");
     }
 
     setLoading(true);
@@ -96,18 +86,17 @@ export default function PollVoting({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ optionId: selected }),
       });
-
       const data = await res.json();
+      if (!res.ok) return showToast(data.error || "Failed to cast vote", "error");
 
-      if (!res.ok) {
-        showToast(data.error || "Failed to cast vote", "error");
-        return;
-      }
-
-      setResults(data.results);
+      const merged = (data.results ?? []).map((r: ResultOption) => ({
+        ...r,
+        imageUrl: options.find((o) => o.id === r.id)?.imageUrl ?? r.imageUrl ?? null,
+      }));
+      setResults(merged);
       setTotalVotes(data.totalVotes);
       setUserVotedOptionId(selected);
-      showToast("Your vote has been recorded!", "success");
+      showToast("Your vote has been recorded! 🎉", "success");
     } catch {
       showToast("Something went wrong. Please try again.", "error");
     } finally {
@@ -115,17 +104,16 @@ export default function PollVoting({
     }
   };
 
-  const optionsWithPercentage: ResultOption[] = results
+  const baseOptions: ResultOption[] = results
     ? results
     : options.map((o) => ({
         ...o,
         percentage: totalVotes > 0 ? Math.round((o.votes / totalVotes) * 100) : 0,
       }));
 
-  // Sort by votes descending when showing results
   const displayOptions = showResults
-    ? [...optionsWithPercentage].sort((a, b) => b.votes - a.votes)
-    : optionsWithPercentage;
+    ? [...baseOptions].sort((a, b) => b.votes - a.votes)
+    : baseOptions;
 
   const winnerVotes = showResults
     ? Math.max(...displayOptions.map((o) => o.votes))
@@ -135,11 +123,9 @@ export default function PollVoting({
     <div className="relative">
       {/* Toast */}
       {toast && (
-        <div
-          className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-xl shadow-lg text-white text-sm font-medium transition-all ${
-            toast.type === "success" ? "bg-green-500" : "bg-red-500"
-          }`}
-        >
+        <div className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-xl shadow-lg text-white text-sm font-medium transition-all ${
+          toast.type === "success" ? "bg-green-500" : "bg-red-500"
+        }`}>
           {toast.msg}
         </div>
       )}
@@ -150,43 +136,37 @@ export default function PollVoting({
           <div className="flex items-center gap-2">
             <BarChart2 className="w-5 h-5 text-orange-500" />
             <h2 className="text-lg font-semibold text-gray-900">
-              {showResults ? "Results" : "Cast Your Vote"}
+              {showResults ? "Live Results" : "Cast Your Vote"}
             </h2>
           </div>
           <span className="text-sm text-gray-500">
-            {totalVotes} vote{totalVotes !== 1 ? "s" : ""}
+            {totalVotes.toLocaleString()} vote{totalVotes !== 1 ? "s" : ""}
           </span>
         </div>
 
-        {/* Not logged in warning for FREE polls */}
-        {authStatus === "unauthenticated" && isActive && pollType === "FREE" && (
+        {/* Auth banners */}
+        {authStatus === "unauthenticated" && isActive && !isTokenGated && (
           <div className="mb-4 flex items-center gap-3 p-3 bg-orange-50 border border-orange-200 rounded-xl text-sm text-orange-700">
             <LogIn className="w-4 h-4 shrink-0" />
             <span>
-              You can vote as a guest, but{" "}
-              <a href="/login" className="underline font-medium">
-                logging in
-              </a>{" "}
-              prevents duplicate votes.
+              Voting as guest.{" "}
+              <a href="/login" className="underline font-medium">Log in</a>{" "}
+              to prevent duplicate votes.
             </span>
           </div>
         )}
-
-        {/* Login required for PAID polls */}
-        {authStatus === "unauthenticated" && isActive && pollType === "PAID" && (
-          <div className="mb-4 flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-xl text-sm text-yellow-800">
+        {authStatus === "unauthenticated" && isActive && isTokenGated && (
+          <div className="mb-4 flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
             <Lock className="w-4 h-4 shrink-0" />
             <span>
-              <a href="/login" className="underline font-medium">
-                Log in
-              </a>{" "}
+              <a href="/login" className="underline font-medium">Log in</a>{" "}
               with your ticket account to vote on this poll.
             </span>
           </div>
         )}
 
-        {/* Options */}
-        <div className="space-y-3">
+        {/* Candidate list */}
+        <div className="space-y-2.5">
           {displayOptions.map((option) => {
             const isWinner = showResults && option.votes === winnerVotes && winnerVotes > 0;
             const isMyVote = option.id === userVotedOptionId;
@@ -199,77 +179,96 @@ export default function PollVoting({
                 disabled={showResults || !isActive || loading}
                 className={`w-full text-left rounded-xl border-2 transition-all overflow-hidden ${
                   showResults
-                    ? "cursor-default"
+                    ? isWinner
+                      ? "border-orange-300 bg-gradient-to-r from-orange-50 to-white"
+                      : "border-gray-100 bg-white"
                     : isChosen
-                    ? "border-orange-500 bg-orange-50"
+                    ? "border-orange-500 bg-orange-50 shadow-sm"
                     : "border-gray-200 hover:border-orange-300 hover:bg-gray-50 cursor-pointer"
-                } ${isWinner && showResults ? "border-orange-400" : showResults ? "border-gray-100" : ""}`}
+                }`}
               >
-                {showResults ? (
-                  /* Results bar view */
-                  <div className="relative p-4">
-                    {/* Background progress bar */}
-                    <div
-                      className={`absolute inset-0 rounded-xl transition-all duration-700 ${
-                        isWinner ? "bg-orange-100" : "bg-gray-50"
-                      }`}
-                      style={{ width: `${option.percentage}%` }}
-                    />
-                    <div className="relative flex items-center justify-between">
-                      <div className="flex items-center gap-2 min-w-0">
-                        {isMyVote && (
-                          <CheckCircle className="w-4 h-4 text-orange-500 shrink-0" />
-                        )}
-                        {isWinner && !isMyVote && (
-                          <span className="text-orange-500 shrink-0">🏆</span>
-                        )}
-                        <span
-                          className={`text-sm font-medium truncate ${
-                            isWinner ? "text-orange-900" : "text-gray-700"
-                          }`}
-                        >
-                          {option.text}
-                        </span>
+                <div className="flex items-center gap-3 p-3">
+                  {/* Photo / avatar */}
+                  <div className="shrink-0 relative">
+                    {option.imageUrl ? (
+                      <div className="w-14 h-14 rounded-xl overflow-hidden border border-gray-100">
+                        <img
+                          src={option.imageUrl}
+                          alt={option.text}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
-                      <div className="flex items-center gap-3 shrink-0 ml-3">
-                        <span className="text-xs text-gray-500">
-                          {option.votes} vote{option.votes !== 1 ? "s" : ""}
-                        </span>
-                        <span
-                          className={`text-sm font-bold w-10 text-right ${
-                            isWinner ? "text-orange-600" : "text-gray-600"
-                          }`}
-                        >
-                          {option.percentage}%
-                        </span>
+                    ) : (
+                      <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${
+                        isChosen || isMyVote ? "bg-orange-100" : isWinner ? "bg-orange-50" : "bg-gray-100"
+                      }`}>
+                        <User className={`w-6 h-6 ${
+                          isChosen || isMyVote || isWinner ? "text-orange-400" : "text-gray-400"
+                        }`} />
                       </div>
-                    </div>
+                    )}
+                    {/* My vote badge */}
+                    {isMyVote && (
+                      <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center shadow">
+                        <CheckCircle className="w-3.5 h-3.5 text-white" />
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  /* Voting selection view */
-                  <div className="p-4 flex items-center gap-3">
-                    <div
-                      className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${
-                        isChosen
-                          ? "border-orange-500 bg-orange-500"
-                          : "border-gray-300"
-                      }`}
-                    >
-                      {isChosen && (
-                        <div className="w-2 h-2 rounded-full bg-white" />
+
+                  {/* Name + bar or radio */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className={`text-sm font-semibold truncate ${
+                        isWinner ? "text-orange-900" : "text-gray-800"
+                      }`}>
+                        {isWinner && <span className="mr-1">🏆</span>}
+                        {option.text}
+                      </span>
+                      {showResults && (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs text-gray-400">
+                            {option.votes.toLocaleString()}
+                          </span>
+                          <span className={`text-sm font-bold w-10 text-right ${
+                            isWinner ? "text-orange-600" : "text-gray-500"
+                          }`}>
+                            {option.percentage}%
+                          </span>
+                        </div>
                       )}
                     </div>
-                    <span className="text-sm font-medium text-gray-800">
-                      {option.text}
-                    </span>
+
+                    {showResults ? (
+                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-700 ${
+                            isWinner
+                              ? "bg-gradient-to-r from-orange-400 to-orange-500"
+                              : "bg-gray-300"
+                          }`}
+                          style={{ width: `${option.percentage}%` }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
+                          isChosen ? "border-orange-500 bg-orange-500" : "border-gray-300"
+                        }`}>
+                          {isChosen && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                        <span className="text-xs text-gray-400">
+                          {isChosen ? "Selected" : "Tap to select"}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </button>
             );
           })}
         </div>
 
-        {/* Vote button */}
+        {/* Submit */}
         {!showResults && isActive && (
           <div className="mt-6">
             <button
@@ -286,21 +285,17 @@ export default function PollVoting({
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Submitting…
                 </span>
-              ) : (
-                "Submit Vote"
-              )}
+              ) : "Submit Vote"}
             </button>
           </div>
         )}
 
-        {/* Poll closed notice */}
         {!isActive && (
           <div className="mt-4 text-center text-sm text-gray-500 bg-gray-50 rounded-xl py-3">
             This poll is closed — results are final.
           </div>
         )}
 
-        {/* Already voted notice */}
         {isActive && hasVoted && (
           <div className="mt-4 flex items-center justify-center gap-2 text-sm text-green-600">
             <CheckCircle className="w-4 h-4" />

@@ -6,7 +6,7 @@ import { prisma } from "lib/prisma";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id: pollId } = await params;
@@ -15,9 +15,7 @@ export async function GET(
       where: { id: pollId, deletedAt: null },
       include: {
         options: {
-          include: {
-            _count: { select: { votes: true } },
-          },
+          include: { _count: { select: { votes: true } } },
           orderBy: { createdAt: "asc" },
         },
         _count: { select: { votes: true } },
@@ -33,6 +31,7 @@ export async function GET(
     const results = poll.options.map((option) => ({
       id: option.id,
       text: option.text,
+      imageUrl: option.imageUrl ?? null,
       votes: option._count.votes,
       percentage:
         totalVotes > 0
@@ -40,7 +39,6 @@ export async function GET(
           : 0,
     }));
 
-    // Check if the current user has voted
     const session = await getServerSession(authOptions);
     let userVotedOptionId: string | null = null;
 
@@ -49,7 +47,6 @@ export async function GET(
         where: { email: session.user.email },
         select: { id: true },
       });
-
       if (user) {
         const existingVote = await prisma.vote.findFirst({
           where: { pollId, userId: user.id },
@@ -69,9 +66,6 @@ export async function GET(
     });
   } catch (error) {
     console.error("Results fetch error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch results" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch results" }, { status: 500 });
   }
 }
