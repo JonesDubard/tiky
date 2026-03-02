@@ -4,18 +4,18 @@ import { prisma } from 'lib/prisma';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { searchParams } = new URL(request.url);
     const phone = searchParams.get('phone');
     
-    console.log('Fetching latest transaction for event:', params.id, 'phone:', phone);
+    console.log('Fetching latest transaction for event:', (await params).id, 'phone:', phone);
     
     // Get the latest transaction for this event
     const transaction = await prisma.transaction.findFirst({
       where: {
-        eventId: params.id,
+        eventId: (await params).id,
         ...(phone ? { phoneNumber: phone } : {})
       },
       orderBy: {
@@ -28,7 +28,7 @@ export async function GET(
     });
 
     if (!transaction) {
-      console.log('No transaction found for event:', params.id);
+      console.log('No transaction found for event:', (await params).id);
       return NextResponse.json(
         { message: 'No transaction found', transaction: null },
         { status: 200 }

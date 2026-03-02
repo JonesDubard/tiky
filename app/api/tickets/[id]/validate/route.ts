@@ -3,10 +3,10 @@ import { NextResponse } from "next/server"
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const ticket = await prisma.ticketInstance.findUnique({
-    where: { id: params.id },
+    where: { id: (await params).id },
   })
 
   if (!ticket) {

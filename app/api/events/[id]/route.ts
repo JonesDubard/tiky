@@ -7,16 +7,16 @@ import { prisma } from "lib/prisma"
 // GET - Get single event (public or admin)
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
     
     // Public can view published events, admins can view all
     const whereCondition = session?.user?.role === "ADMIN" 
-      ? { id: params.id }
+      ? { id: (await params).id }
       : { 
-          id: params.id,
+          id: (await params).id,
           published: true 
         }
 
@@ -51,7 +51,7 @@ export async function GET(
 // PUT - Update event (admin only)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -68,7 +68,7 @@ export async function PUT(
 
     // Check if event exists
     const existingEvent = await prisma.event.findUnique({
-      where: { id: params.id }
+      where: { id: (await params).id }
     })
 
     if (!existingEvent) {
@@ -80,7 +80,7 @@ export async function PUT(
 
     // Update event
     const event = await prisma.event.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         title: title || existingEvent.title,
         description: description || existingEvent.description,
@@ -114,7 +114,7 @@ export async function PUT(
 // DELETE - Delete event (admin only) - ADD THIS
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -128,7 +128,7 @@ export async function DELETE(
 
     // Check if event exists
     const existingEvent = await prisma.event.findUnique({
-      where: { id: params.id }
+      where: { id: (await params).id }
     })
 
     if (!existingEvent) {
@@ -140,7 +140,7 @@ export async function DELETE(
 
     // Delete event (cascade will delete related tickets)
     await prisma.event.delete({
-      where: { id: params.id }
+      where: { id: (await params).id }
     })
 
     return NextResponse.json({
