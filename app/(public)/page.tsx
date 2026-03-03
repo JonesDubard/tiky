@@ -198,9 +198,9 @@
 import { prisma } from "lib/prisma";
 import HeroSection from "app/(public)/components/home/HeroSection";
 import EventCard from "app/(public)/components/home/EventCard";
-import LivePolls from "app/(public)/components/home/LivePolls";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+export const dynamic = 'force-dynamic';
 
 // Types
 interface PublicEvent {
