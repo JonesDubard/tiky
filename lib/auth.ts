@@ -1,11 +1,9 @@
 ﻿import { NextAuthOptions } from "next-auth"
-import { PrismaAdapter } from "@next-auth/prisma-adapter"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "./prisma"
 import bcrypt from "bcryptjs"
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
   session: {
     strategy: "jwt",
   },
@@ -42,12 +40,11 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        // Cast role to the union type defined in next-auth.d.ts
         return {
           id: user.id,
           email: user.email,
           name: user.name,
-          role: user.role as "USER" | "ORGANIZER" | "ADMIN", // ✅ correct cast
+          role: user.role as "USER" | "ORGANIZER" | "ADMIN",
           image: user.image,
         }
       }
@@ -63,7 +60,7 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session?.user) {
-        session.user.role = token.role as "USER" | "ORGANIZER" | "ADMIN" // ✅ correct cast
+        session.user.role = token.role as "USER" | "ORGANIZER" | "ADMIN"
         session.user.id = token.id as string
       }
       return session
