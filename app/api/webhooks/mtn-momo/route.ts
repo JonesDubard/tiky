@@ -34,11 +34,13 @@ export async function PUT(req: NextRequest) {
       })
 
       if (payment.orderId) {
-        // ✅ Generate tickets after successful MTN payment
+        await prisma.order.update({
+          where: { id: payment.orderId },
+          data: { status: "COMPLETED" },
+        })
         await generateTicketsForOrder(payment.orderId)
       }
-
-    } else if (status === "FAILED") {
+    } else if (status === "FAILED" || status === "REJECTED") {
       await prisma.payment.update({
         where: { id: payment.id },
         data: { status: "FAILED" },
@@ -53,8 +55,9 @@ export async function PUT(req: NextRequest) {
     }
 
     return NextResponse.json({ received: true })
-  } catch (err: any) {
-    console.error("MTN webhook error:", err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error"
+    console.error("MTN webhook error:", message)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
