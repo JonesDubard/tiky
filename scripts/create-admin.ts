@@ -1,5 +1,5 @@
 ﻿// scripts/create-admin.ts
-import { prisma } from "@/lib/prisma"
+import { prisma } from "../lib/prisma"
 import bcrypt from "bcryptjs"
 
 async function createAdminUser() {

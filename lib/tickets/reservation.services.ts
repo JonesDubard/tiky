@@ -5,6 +5,7 @@ const RESERVATION_MINUTES = 10
 export async function createReservation(
   userId: string,
   ticketTypeId: string,
+  orderId: string,      // ✅ added required parameter
   quantity: number
 ) {
   return await prisma.$transaction(async (tx) => {
@@ -39,6 +40,8 @@ export async function createReservation(
         data: {
           userId,
           ticketTypeId,
+          orderId,                 // ✅ required field added
+          quantity: 1,             // ✅ required field added (each reservation holds one ticket)
           expiresAt: new Date(
             Date.now() + RESERVATION_MINUTES * 60 * 1000
           ),
