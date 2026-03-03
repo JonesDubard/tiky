@@ -413,7 +413,7 @@ export default function PollForm({ initialData, mode = "create" }: PollFormProps
 
       <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-100 rounded-xl text-xs text-blue-700">
         <Upload className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-        <span>Images saved to /public/uploads/polls. JPEG, PNG, WebP accepted. Max 5MB each.</span>
+        <span>JPEG, PNG, WebP accepted. Max 5MB each.</span>
       </div>
 
       {/* Submit */}

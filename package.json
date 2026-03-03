@@ -19,6 +19,7 @@
         "@prisma/client": "^5.22.0",
         "@stripe/react-stripe-js": "^5.6.0",
         "@stripe/stripe-js": "^8.8.0",
+        "@vercel/blob": "^2.3.0",
         "@yudiel/react-qr-scanner": "^2.5.1",
         "axios": "^1.13.5",
         "bcryptjs": "^2.4.3",
