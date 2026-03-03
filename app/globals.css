@@ -1,4 +1,4 @@
-﻿/* app/globals.css */
+/* app/globals.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,27 +7,42 @@
   :root {
     --background: #ffffff;
     --foreground: #171717;
-    --brand-primary: #1E96C8;   /* Ocean Blue from your config */
-    --brand-accent: #F54502;    /* Vibrant Orange from your config */
-    --brand-subtle: #A8CFEA;    /* Soft Sky Blue from your config */
+    --brand-primary: #1E96C8;
+    --brand-accent: #F54502;
+    --brand-subtle: #A8CFEA;
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --background: #0a0a0a;
-      --foreground: #ededed;
-    }
-  }
-
+  /* Remove dark mode auto-switch — keeps white background always */
   html {
     @apply scroll-smooth;
   }
 
   body {
-    background-color: var(--background);
-    color: var(--foreground);
+    background-color: #ffffff;
+    color: #171717;
     font-family: ui-sans-serif, system-ui, -apple-system,
       BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+
+  /* Fix white-on-white inputs globally */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="search"],
+  input[type="date"],
+  input[type="time"],
+  textarea,
+  select {
+    background-color: #ffffff;
+    color: #111827;
+    border: 1px solid #d1d5db;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #9ca3af;
   }
 
   /* Custom scrollbar */
@@ -103,52 +118,35 @@
   .text-gradient {
     @apply bg-gradient-to-r from-brand-primary to-brand-accent bg-clip-text text-transparent;
   }
+
+  /* Form input — high contrast, accessible */
+  .form-input {
+    @apply w-full px-3 py-2.5 bg-white text-gray-900 border border-gray-300 rounded-xl text-sm 
+           placeholder-gray-400 focus:ring-2 focus:ring-brand-primary focus:border-transparent 
+           outline-none transition-all;
+  }
+
+  /* Settings content area — constrained width, white bg */
+  .settings-content {
+    @apply bg-white rounded-2xl border border-gray-200 p-4 md:p-6 w-full overflow-hidden;
+  }
 }
 
 @layer utilities {
-  /* Your existing brand utility classes */
-  .bg-brand-primary {
-    background-color: var(--brand-primary);
-  }
-  .bg-brand-accent {
-    background-color: var(--brand-accent);
-  }
-  .bg-brand-subtle {
-    background-color: var(--brand-subtle);
-  }
-  .text-brand-primary {
-    color: var(--brand-primary);
-  }
-  .text-brand-accent {
-    color: var(--brand-accent);
-  }
-  .text-brand-subtle {
-    color: var(--brand-subtle);
-  }
-  .border-brand-primary {
-    border-color: var(--brand-primary);
-  }
-  .border-brand-accent {
-    border-color: var(--brand-accent);
-  }
-  .border-brand-subtle {
-    border-color: var(--brand-subtle);
-  }
+  .bg-brand-primary { background-color: var(--brand-primary); }
+  .bg-brand-accent { background-color: var(--brand-accent); }
+  .bg-brand-subtle { background-color: var(--brand-subtle); }
+  .text-brand-primary { color: var(--brand-primary); }
+  .text-brand-accent { color: var(--brand-accent); }
+  .text-brand-subtle { color: var(--brand-subtle); }
+  .border-brand-primary { border-color: var(--brand-primary); }
+  .border-brand-accent { border-color: var(--brand-accent); }
+  .border-brand-subtle { border-color: var(--brand-subtle); }
 
-  /* Animation utilities */
-  .text-balance {
-    text-wrap: balance;
-  }
-  
-  .animation-delay-2000 {
-    animation-delay: 2s;
-  }
-  
-  .animation-delay-4000 {
-    animation-delay: 4s;
-  }
+  .text-balance { text-wrap: balance; }
+  .animation-delay-2000 { animation-delay: 2s; }
+  .animation-delay-4000 { animation-delay: 4s; }
 
-  /* Gradient backgrounds */
   .bg-gradient-brand {
     @apply bg-gradient-to-r from-brand-primary to-brand-accent;
   }
@@ -157,7 +155,6 @@
     @apply bg-gradient-to-br from-brand-subtle via-white to-white;
   }
 
-  /* Hover effects */
   .hover-lift {
     @apply transition-transform duration-300 hover:-translate-y-1;
   }

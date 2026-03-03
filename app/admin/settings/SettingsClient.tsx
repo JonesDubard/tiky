@@ -3,20 +3,15 @@
 import { useState, useEffect } from "react"
 import {
   Save, Globe, Bell, Shield, Ticket,
-  RefreshCw, CheckCircle, XCircle,
-  ToggleLeft, ToggleRight, AlertCircle
+  RefreshCw, CheckCircle, XCircle, AlertCircle
 } from "lucide-react"
 
 interface Settings {
-  // Branding
   siteName: string
   supportEmail: string
   timezone: string
-  // Event approval
   requireEventApproval: boolean
-  // Ticket confirmation
   ticketConfirmationMessage: string
-  // Notifications
   notifyOnTicketSale: boolean
   notifyOnNewUser: boolean
   notifyEmail: string
@@ -80,9 +75,7 @@ export default function SettingsClient() {
   const [activeTab, setActiveTab] = useState("branding")
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null)
 
-  useEffect(() => {
-    fetchSettings()
-  }, [])
+  useEffect(() => { fetchSettings() }, [])
 
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ message, type })
@@ -97,7 +90,7 @@ export default function SettingsClient() {
         setSettings({ ...defaultSettings, ...data })
       }
     } catch {
-      // Use defaults if fetch fails
+      // Use defaults
     } finally {
       setLoading(false)
     }
@@ -135,37 +128,32 @@ export default function SettingsClient() {
   }
 
   return (
-    <div>
+    <div className="max-w-4xl w-full mx-auto bg-white rounded-2xl overflow-hidden">
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-medium ${
+        <div className={`fixed top-4 right-4 left-4 sm:left-auto z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-medium ${
           toast.type === "success"
             ? "bg-green-50 text-green-800 border border-green-200"
             : "bg-red-50 text-red-800 border border-red-200"
         }`}>
           {toast.type === "success"
-            ? <CheckCircle className="w-4 h-4 text-green-600" />
-            : <XCircle className="w-4 h-4 text-red-600" />}
+            ? <CheckCircle className="w-4 h-4 text-green-600 shrink-0" />
+            : <XCircle className="w-4 h-4 text-red-600 shrink-0" />}
           {toast.message}
         </div>
       )}
 
-      {/* <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        <p className="text-gray-500 text-sm mt-1">Configure your Tiky platform</p>
-      </div> */}
-
-      <div className="flex gap-6 flex-col lg:flex-row">
-        {/* Sidebar tabs */}
+      <div className="flex gap-6 flex-col lg:flex-row p-4 sm:p-6">
+        {/* Tabs — horizontal scroll on mobile, vertical sidebar on desktop */}
         <div className="lg:w-48 flex-shrink-0">
-          <nav className="flex lg:flex-col gap-1">
+          <nav className="flex lg:flex-col gap-1 overflow-x-auto pb-1 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0">
             {tabs.map(tab => {
               const Icon = tab.icon
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium w-full text-left transition-colors ${
+                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap lg:w-full text-left transition-colors ${
                     activeTab === tab.id
                       ? "bg-orange-50 text-orange-700"
                       : "text-gray-600 hover:bg-gray-100"
@@ -179,44 +167,41 @@ export default function SettingsClient() {
           </nav>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 bg-white rounded-2xl border border-gray-200 p-6">
+        {/* Content panel */}
+        <div className="flex-1 bg-white rounded-2xl border border-gray-200 p-4 sm:p-6">
 
           {/* Branding */}
           {activeTab === "branding" && (
             <div className="space-y-5">
               <h2 className="font-semibold text-gray-900 text-base">Site Branding</h2>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Site Name</label>
                 <input
                   type="text"
                   value={settings.siteName}
                   onChange={e => set("siteName", e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm bg-white text-gray-900 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   placeholder="Tiky"
                 />
                 <p className="text-xs text-gray-400 mt-1">Shown in the browser tab and emails</p>
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Support Email</label>
                 <input
                   type="email"
                   value={settings.supportEmail}
                   onChange={e => set("supportEmail", e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm bg-white text-gray-900 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   placeholder="support@tiky.com"
                 />
                 <p className="text-xs text-gray-400 mt-1">Shown to users when they need help</p>
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Timezone</label>
                 <select
                   value={settings.timezone}
                   onChange={e => set("timezone", e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-orange-500"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm bg-white text-gray-900 focus:ring-2 focus:ring-orange-500"
                 >
                   <option value="Africa/Monrovia">Africa/Monrovia (GMT+0)</option>
                   <option value="America/New_York">America/New_York (EST)</option>
@@ -231,21 +216,18 @@ export default function SettingsClient() {
           {activeTab === "events" && (
             <div className="space-y-5">
               <h2 className="font-semibold text-gray-900 text-base">Event Settings</h2>
-
               <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex gap-3">
                 <AlertCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-orange-800">
                   When event approval is enabled, only ADMIN can publish events. Organizers must submit for review first.
                 </p>
               </div>
-
               <Toggle
                 checked={settings.requireEventApproval}
                 onChange={v => set("requireEventApproval", v)}
                 label="Require Admin Approval for Events"
                 description="New events from Organizers will be set to PENDING until an Admin approves them"
               />
-
               <div className="pt-2">
                 <p className="text-sm text-gray-500">
                   Current status:{" "}
@@ -261,7 +243,6 @@ export default function SettingsClient() {
           {activeTab === "tickets" && (
             <div className="space-y-5">
               <h2 className="font-semibold text-gray-900 text-base">Ticket Settings</h2>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Purchase Confirmation Message
@@ -270,15 +251,13 @@ export default function SettingsClient() {
                   value={settings.ticketConfirmationMessage}
                   onChange={e => set("ticketConfirmationMessage", e.target.value)}
                   rows={4}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm bg-white text-gray-900 focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
                   placeholder="Thank you for your purchase..."
                 />
                 <p className="text-xs text-gray-400 mt-1">
                   This message is shown on the success page and included in ticket emails
                 </p>
               </div>
-
-              {/* Preview */}
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
                 <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-2">Preview</p>
                 <p className="text-sm text-gray-700 italic">"{settings.ticketConfirmationMessage}"</p>
@@ -290,7 +269,6 @@ export default function SettingsClient() {
           {activeTab === "notifications" && (
             <div className="space-y-5">
               <h2 className="font-semibold text-gray-900 text-base">Notification Preferences</h2>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Admin Notification Email
@@ -299,12 +277,11 @@ export default function SettingsClient() {
                   type="email"
                   value={settings.notifyEmail}
                   onChange={e => set("notifyEmail", e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm bg-white text-gray-900 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   placeholder="admin@tiky.com"
                 />
                 <p className="text-xs text-gray-400 mt-1">Receive admin alerts at this address</p>
               </div>
-
               <div className="border border-gray-100 rounded-xl px-4">
                 <Toggle
                   checked={settings.notifyOnTicketSale}
@@ -322,7 +299,7 @@ export default function SettingsClient() {
             </div>
           )}
 
-          {/* Save button */}
+          {/* Save */}
           <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
             <button
               onClick={handleSave}

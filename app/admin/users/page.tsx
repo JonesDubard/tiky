@@ -36,7 +36,7 @@ export default async function AdminUsersPage() {
   const regular = users.filter((u) => u.role === "USER").length;
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Users</h1>
@@ -46,7 +46,7 @@ export default async function AdminUsersPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[
           { label: "Admins", value: admins, icon: Crown, color: "text-orange-600", bg: "bg-orange-50" },
           { label: "Organizers", value: organizers, icon: Calendar, color: "text-blue-600", bg: "bg-blue-50" },
@@ -64,70 +64,111 @@ export default async function AdminUsersPage() {
         ))}
       </div>
 
-      {/* Users table */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-100">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">User</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Role</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Orders</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Joined</th>
-              <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {users.map((user) => (
-              <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-semibold text-sm shrink-0">
-                      {(user.name || user.email || "?")[0].toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {user.name || "—"}
-                        {user.id === currentUser.id && (
-                          <span className="ml-2 text-xs text-gray-400">(you)</span>
-                        )}
-                      </div>
-                      <div className="text-xs text-gray-400">{user.email}</div>
-                    </div>
+      {/* Mobile: card list */}
+      <div className="flex flex-col gap-3 sm:hidden">
+        {users.map((user) => (
+          <div key={user.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-semibold text-sm shrink-0">
+                  {(user.name || user.email || "?")[0].toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-gray-900 truncate">
+                    {user.name || "—"}
+                    {user.id === currentUser.id && (
+                      <span className="ml-1 text-xs text-gray-400">(you)</span>
+                    )}
                   </div>
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-                    user.role === "ADMIN"
-                      ? "bg-orange-100 text-orange-700"
-                      : user.role === "ORGANIZER"
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-gray-100 text-gray-600"
-                  }`}>
-                    {user.role === "ADMIN" && <Crown className="w-3 h-3" />}
-                    {user.role}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-600">
-                  {user._count.orders}
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-400">
-                  {new Date(user.createdAt).toLocaleDateString()}
-                </td>
-                <td className="px-6 py-4 text-right">
-                  {/* Don't allow changing own role or other admins */}
-                  {user.id !== currentUser.id && user.role !== "ADMIN" ? (
-                    <RoleToggleButton
-                      userId={user.id}
-                      currentRole={user.role}
-                    />
-                  ) : (
-                    <span className="text-xs text-gray-300">—</span>
-                  )}
-                </td>
+                  <div className="text-xs text-gray-400 truncate">{user.email}</div>
+                </div>
+              </div>
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${
+                user.role === "ADMIN"
+                  ? "bg-orange-100 text-orange-700"
+                  : user.role === "ORGANIZER"
+                  ? "bg-blue-100 text-blue-700"
+                  : "bg-gray-100 text-gray-600"
+              }`}>
+                {user.role === "ADMIN" && <Crown className="w-3 h-3" />}
+                {user.role}
+              </span>
+            </div>
+            <div className="mt-3 flex items-center justify-between">
+              <div className="flex gap-4 text-xs text-gray-400">
+                <span>{user._count.orders} orders</span>
+                <span>Joined {new Date(user.createdAt).toLocaleDateString()}</span>
+              </div>
+              {user.id !== currentUser.id && user.role !== "ADMIN" ? (
+                <RoleToggleButton userId={user.id} currentRole={user.role} />
+              ) : (
+                <span className="text-xs text-gray-300">—</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop: table */}
+      <div className="hidden sm:block bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-100">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">User</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Role</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Orders</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Joined</th>
+                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {users.map((user) => (
+                <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-semibold text-sm shrink-0">
+                        {(user.name || user.email || "?")[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {user.name || "—"}
+                          {user.id === currentUser.id && (
+                            <span className="ml-2 text-xs text-gray-400">(you)</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-400">{user.email}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      user.role === "ADMIN"
+                        ? "bg-orange-100 text-orange-700"
+                        : user.role === "ORGANIZER"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-gray-100 text-gray-600"
+                    }`}>
+                      {user.role === "ADMIN" && <Crown className="w-3 h-3" />}
+                      {user.role}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">{user._count.orders}</td>
+                  <td className="px-6 py-4 text-sm text-gray-400">
+                    {new Date(user.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    {user.id !== currentUser.id && user.role !== "ADMIN" ? (
+                      <RoleToggleButton userId={user.id} currentRole={user.role} />
+                    ) : (
+                      <span className="text-xs text-gray-300">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
