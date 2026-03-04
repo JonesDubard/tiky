@@ -7,7 +7,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   Home, Calendar, Vote, Users, Ticket, CreditCard,
   BarChart3, Settings, LogOut, Menu, X, ShoppingBag,
-  ScanLine, Crown,
+  ScanLine, Crown, BookOpen,
 } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 
@@ -26,6 +26,7 @@ const ADMIN_NAV = [
   { name: 'Orders', href: '/admin/orders', icon: ShoppingBag },
   { name: 'Tickets', href: '/admin/tickets', icon: Ticket },
   { name: 'Validate', href: '/admin/tickets/validate', icon: ScanLine, sub: true },
+  { name: 'Blog', href: '/admin/blog', icon: BookOpen },
   { name: 'Users', href: '/admin/users', icon: Users },
   { name: 'Payments', href: '/admin/payments', icon: CreditCard },
   { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
@@ -39,6 +40,7 @@ const ORGANIZER_NAV = [
   { name: 'Orders', href: '/admin/orders', icon: ShoppingBag },
   { name: 'Tickets', href: '/admin/tickets', icon: Ticket },
   { name: 'Validate', href: '/admin/tickets/validate', icon: ScanLine, sub: true },
+  { name: 'Blog', href: '/admin/blog', icon: BookOpen },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ]
 
@@ -99,10 +101,11 @@ export default function Sidebar({ user }: SidebarProps) {
             className="p-2 rounded-lg hover:bg-gray-100"
             aria-label="Toggle menu"
           >
-            {mobileMenuOpen ? <X className="w-6 h-6 text-gray-600" /> : <Menu className="w-6 h-6 text-gray-600" />}
+            {mobileMenuOpen
+              ? <X className="w-6 h-6 text-gray-600" />
+              : <Menu className="w-6 h-6 text-gray-600" />}
           </button>
 
-          {/* Mobile logo — clickable */}
           <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 rounded-lg mr-2" style={{ backgroundColor: 'var(--brand-primary)' }} />
             <h2 className="text-lg font-bold text-gray-800">Tiky</h2>
@@ -129,7 +132,7 @@ export default function Sidebar({ user }: SidebarProps) {
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
         md:translate-x-0 top-0 left-0
       `}>
-        {/* Logo — clickable, goes to public home */}
+        {/* Logo */}
         <Link
           href="/"
           className="flex items-center px-4 py-5 hover:bg-gray-50 transition-colors group"
@@ -141,7 +144,7 @@ export default function Sidebar({ user }: SidebarProps) {
           <h2 className="text-lg font-bold text-gray-800 truncate">Tiky</h2>
         </Link>
 
-        {/* User info with role badge */}
+        {/* User info */}
         <div className="px-4 py-3 border-t border-b border-gray-200">
           <p className="text-sm font-medium text-gray-700 truncate">
             {user.name || user.email}

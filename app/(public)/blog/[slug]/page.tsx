@@ -6,12 +6,13 @@ import Link from 'next/link'
 import { Calendar, User, ArrowLeft } from 'lucide-react'
 
 interface Props {
-  params: { slug: string }
+  params: Promise<{ slug: string }>
 }
 
 export async function generateMetadata({ params }: Props) {
+  const { slug } = await params
   const post = await prisma.post.findUnique({
-    where: { slug: params.slug },
+    where: { slug },
     select: { title: true, content: true },
   })
   if (!post) return {}
@@ -22,8 +23,9 @@ export async function generateMetadata({ params }: Props) {
 }
 
 export default async function BlogPostPage({ params }: Props) {
+  const { slug } = await params
   const post = await prisma.post.findUnique({
-    where: { slug: params.slug },
+    where: { slug },
     select: {
       title: true, slug: true, content: true, coverImage: true,
       published: true, deletedAt: true, createdAt: true,
