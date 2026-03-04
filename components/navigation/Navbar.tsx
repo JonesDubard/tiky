@@ -4,9 +4,15 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bell, LayoutDashboard, Ticket, User, Menu, X, ChevronRight } from 'lucide-react';
+import { Bell, LayoutDashboard, Ticket, User, Menu, X, ChevronRight, LucideIcon } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';
+
+interface NavLink {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+}
 
 export default function Navbar() {
   const { data: session } = useSession();
@@ -25,13 +31,12 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Lock body scroll when drawer open
   useEffect(() => {
     document.body.style.overflow = mobileMenuOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [mobileMenuOpen]);
 
-  const navLinks = isAdmin
+  const navLinks: NavLink[] = isAdmin
     ? [
         { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
         { name: 'Events', href: '/admin/events', icon: Ticket },
@@ -46,7 +51,6 @@ export default function Navbar() {
   const userEmail = session?.user?.email || '';
   const userDisplayName = session?.user?.name || userEmail.split('@')[0] || 'Account';
 
-  // Sliding pill indicator for desktop nav
   useEffect(() => {
     if (!navRef.current) return;
     const activeEl = navRef.current.querySelector('[data-active="true"]') as HTMLElement;
@@ -61,35 +65,31 @@ export default function Navbar() {
         ? 'bg-white/95 backdrop-blur-lg shadow-lg border-b border-slate-200/30'
         : 'bg-gradient-to-b from-white to-white/80'
     }`}>
-      {/* Logo */}
       <Link href="/" className="flex items-center gap-3 group flex-shrink-0">
         <div className="relative w-[110px] h-[36px] overflow-hidden rounded-xl bg-gradient-to-br from-white to-slate-50 shadow-sm border border-slate-100 p-2.5 transition-all duration-300 group-hover:shadow-md group-hover:scale-[1.03]">
           <Image src="/Logo.jpg" alt="Tiky Logo" fill priority className="object-contain drop-shadow-sm" sizes="110px" />
         </div>
       </Link>
 
-      {/* Nav Links with sliding pill */}
       <div className="flex-1 flex items-center justify-center mx-8">
         <div ref={navRef} className="relative flex items-center gap-1 bg-slate-100/70 rounded-2xl p-1.5 backdrop-blur-sm">
-          {/* Sliding background pill */}
           <span
             className="absolute top-1.5 h-[calc(100%-12px)] bg-white rounded-xl shadow-md transition-all duration-300 ease-out pointer-events-none"
             style={{ left: activeIndicator.left, width: activeIndicator.width }}
           />
           {navLinks.map((link) => {
             const isActive = pathname === link.href;
+            const Icon = link.icon;
             return (
               <Link
                 key={link.name}
                 href={link.href}
                 data-active={isActive}
                 className={`relative flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-200 ${
-                  isActive
-                    ? 'text-brand-primary'
-                    : 'text-slate-600 hover:text-brand-primary'
+                  isActive ? 'text-brand-primary' : 'text-slate-600 hover:text-brand-primary'
                 }`}
               >
-                <link.icon className={`w-4 h-4 transition-transform duration-200 ${isActive ? 'scale-110' : ''}`} />
+                <Icon className={`w-4 h-4 transition-transform duration-200 ${isActive ? 'scale-110' : ''}`} />
                 <span className="whitespace-nowrap">{link.name}</span>
               </Link>
             );
@@ -97,7 +97,6 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* User Actions */}
       <div className="flex items-center gap-3 flex-shrink-0">
         {session ? (
           <div className="flex items-center gap-3">
@@ -178,7 +177,6 @@ export default function Navbar() {
       <div className={`lg:hidden fixed top-0 left-0 z-50 w-[300px] h-full bg-white shadow-2xl flex flex-col transition-transform duration-300 ease-out ${
         mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
-        {/* Drawer Header */}
         <div className="p-5 border-b border-slate-100">
           <div className="flex items-center justify-between mb-5">
             <div className="relative w-[90px] h-[30px] overflow-hidden rounded-lg bg-white p-1.5 border border-slate-200">
@@ -213,7 +211,6 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Nav Links */}
         <div className="flex-1 overflow-y-auto p-4 space-y-1">
           {isAdmin && (
             <Link
@@ -231,6 +228,7 @@ export default function Navbar() {
 
           {navLinks.map((link, i) => {
             const isActive = pathname === link.href;
+            const Icon = link.icon;
             return (
               <Link
                 key={link.name}
@@ -246,19 +244,20 @@ export default function Navbar() {
                 <div className={`p-1.5 rounded-lg transition-colors ${
                   isActive ? 'bg-brand-primary/15 text-brand-primary' : 'bg-slate-100 text-slate-500'
                 }`}>
-                  <link.icon className="w-4 h-4" />
+                  <Icon className="w-4 h-4" />
                 </div>
                 <span className={`font-medium text-sm ${isActive ? 'text-brand-primary' : 'text-slate-700'}`}>
                   {link.name}
                 </span>
-                {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-brand-primary" />}
-                {!isActive && <ChevronRight className="w-4 h-4 text-slate-300 ml-auto" />}
+                {isActive
+                  ? <span className="ml-auto w-1.5 h-1.5 rounded-full bg-brand-primary" />
+                  : <ChevronRight className="w-4 h-4 text-slate-300 ml-auto" />
+                }
               </Link>
             );
           })}
         </div>
 
-        {/* Drawer Footer */}
         <div className="p-4 border-t border-slate-100">
           {session ? (
             <Link
@@ -289,13 +288,13 @@ export default function Navbar() {
       <div className="flex justify-around items-center h-16 px-2">
         {navLinks.map((link) => {
           const isActive = pathname === link.href;
+          const Icon = link.icon;
           return (
             <Link
               key={link.name}
               href={link.href}
               className="relative flex flex-col items-center justify-center gap-0.5 flex-1 py-2 rounded-xl transition-all duration-200 active:scale-90"
             >
-              {/* Active dot indicator */}
               {isActive && (
                 <span className="absolute top-1 w-1 h-1 rounded-full bg-brand-primary" />
               )}
@@ -304,7 +303,7 @@ export default function Navbar() {
                   ? 'bg-gradient-to-br from-brand-primary to-brand-accent shadow-md shadow-brand-primary/30 scale-110'
                   : 'text-slate-400'
               }`}>
-                <link.icon className={`w-5 h-5 transition-colors ${isActive ? 'text-white' : 'text-slate-500'}`} />
+                <Icon className={`w-5 h-5 transition-colors ${isActive ? 'text-white' : 'text-slate-500'}`} />
               </div>
               <span className={`text-[10px] font-semibold transition-colors ${
                 isActive ? 'text-brand-primary' : 'text-slate-400'
@@ -315,7 +314,6 @@ export default function Navbar() {
           );
         })}
       </div>
-      {/* Safe area for iOS home indicator */}
       <div className="h-safe-area-inset-bottom bg-white/95" />
     </nav>
   );
