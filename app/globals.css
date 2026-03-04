@@ -7,9 +7,9 @@
   :root {
     --background: #ffffff;
     --foreground: #171717;
-    --brand-primary: #1E96C8;
-    --brand-accent: #F54502;
-    --brand-subtle: #A8CFEA;
+    --brand-primary: #0f7ba0;   /* darker blue */
+  --brand-accent: #d93d00;     /* darker orange */
+  --brand-subtle: #A8CFEA;    /* lighter blue */
   }
 
   /* Remove dark mode auto-switch — keeps white background always */
@@ -62,11 +62,11 @@
 @layer components {
   /* Button styles */
   .btn-primary {
-    @apply bg-brand-accent text-white font-semibold py-3 px-6 rounded-xl hover:bg-[#e03d00] active:scale-[0.98] transition-all duration-200 shadow-lg hover:shadow-xl;
+  @apply bg-brand-accent text-white font-semibold py-3 px-6 rounded-xl hover:bg-[#b83200] active:scale-[0.98] transition-all duration-200 shadow-lg hover:shadow-xl;
   }
 
   .btn-secondary {
-    @apply bg-brand-primary text-white font-semibold py-3 px-6 rounded-xl hover:bg-[#1a86b4] active:scale-[0.98] transition-all duration-200;
+  @apply bg-brand-primary text-white font-semibold py-3 px-6 rounded-xl hover:bg-[#0c5f7a] active:scale-[0.98] transition-all duration-200;
   }
 
   /* Card styles */

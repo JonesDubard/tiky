@@ -3,7 +3,6 @@
 import { useEffect, useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 
-export const dynamic = 'force-dynamic'
 
 type TicketInstance = {
   id: string

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Calendar, User, ArrowRight } from 'lucide-react'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 60; // revalidate every 60 seconds
 
 async function getPosts() {
   return prisma.post.findMany({

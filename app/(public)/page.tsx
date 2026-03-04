@@ -6,7 +6,7 @@ import HeroSection from "app/(public)/components/home/HeroSection";
 import EventCard from "app/(public)/components/home/EventCard";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 interface PublicEvent {
   id: string;
