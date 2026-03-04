@@ -57,7 +57,7 @@ export default function CareersPage() {
         <div className="absolute -bottom-16 -right-16 w-64 h-64 bg-black/10 rounded-full blur-3xl pointer-events-none" />
         <div className="section-container relative text-center text-white">
           <span className="inline-block bg-white/15 backdrop-blur-sm border border-white/20 text-white/90 text-xs font-semibold uppercase tracking-widest px-4 py-1.5 rounded-full mb-5">
-            We're Hiring
+            Careers at Tiky
           </span>
           <h1 className="text-3xl sm:text-5xl font-bold mb-4 leading-tight">
             Build the Future of Events <br className="hidden sm:block" /> in Liberia

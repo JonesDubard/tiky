@@ -3,9 +3,16 @@ import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "./prisma"
 import bcrypt from "bcryptjs"
 
+// Email format validation
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim().toLowerCase())
+}
+
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+    updateAge: 24 * 60 * 60,   // refresh token every 24h
   },
   pages: {
     signIn: "/login",
@@ -16,29 +23,30 @@ export const authOptions: NextAuthOptions = {
       name: "credentials",
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null
-        }
+        // Basic presence check
+        if (!credentials?.email || !credentials?.password) return null
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email }
-        })
+        // Email format check — reject obviously invalid emails early
+        if (!isValidEmail(credentials.email)) return null
 
-        if (!user || !user.password) {
-          return null
-        }
+        const email = credentials.email.trim().toLowerCase()
+
+        const user = await prisma.user.findUnique({ where: { email } })
+
+        // Always run bcrypt compare even when user not found to prevent
+        // timing attacks that reveal whether an account exists
+        const dummyHash = "$2b$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012345"
+        const passwordToCheck = user?.password ?? dummyHash
 
         const passwordMatch = await bcrypt.compare(
           credentials.password,
-          user.password
+          passwordToCheck
         )
 
-        if (!passwordMatch) {
-          return null
-        }
+        if (!user || !user.password || !passwordMatch) return null
 
         return {
           id: user.id,
@@ -47,8 +55,8 @@ export const authOptions: NextAuthOptions = {
           role: user.role as "USER" | "ORGANIZER" | "ADMIN",
           image: user.image,
         }
-      }
-    })
+      },
+    }),
   ],
   callbacks: {
     async jwt({ token, user }) {
@@ -64,6 +72,6 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string
       }
       return session
-    }
-  }
+    },
+  },
 }

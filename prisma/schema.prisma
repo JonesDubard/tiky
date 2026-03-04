@@ -269,3 +269,12 @@ model Post {
   updatedAt  DateTime  @updatedAt
   deletedAt  DateTime?
 }
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  email     String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
