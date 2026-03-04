@@ -26,6 +26,7 @@ model User {
   orders       Order[]
   payments     Payment[]
   reservations TicketReservation[]
+  Post         Post[]
 }
 
 model Event {
@@ -167,7 +168,7 @@ model Poll {
   title       String
   description String?
   status      String    @default("ACTIVE") // ACTIVE, CLOSED
-  pollType    String    @default("PUBLIC")  // PUBLIC, TOKEN_GATED
+  pollType    String    @default("PUBLIC") // PUBLIC, TOKEN_GATED
   endDate     DateTime? // close date
   isFeatured  Boolean   @default(false)
   eventId     String? // link to event for PAID/TOKEN_GATED
@@ -202,9 +203,9 @@ model Vote {
   optionId String
   userId   String?
 
-  poll       Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
-  option     PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
-  user       User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user   User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // For guest voting 
   deviceId String? // For non-authenticated users
@@ -252,4 +253,19 @@ model PricingRule {
   createdAt DateTime @default(now())
 
   @@index([ticketTypeId])
+}
+
+// Blog
+model Post {
+  id         String    @id @default(cuid())
+  title      String
+  slug       String    @unique
+  content    String    @db.Text
+  coverImage String?
+  published  Boolean   @default(false)
+  authorId   String
+  author     User      @relation(fields: [authorId], references: [id])
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
 }
