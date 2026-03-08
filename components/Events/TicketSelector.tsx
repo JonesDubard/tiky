@@ -63,7 +63,7 @@ export default function TicketSelector({ eventId, tickets }: TicketSelectorProps
             <div className="flex justify-between items-center mb-3">
               <span className="font-bold text-slate-900">{ticket.type}</span>
               <span className="text-xl font-bold text-[#C2185B]">
-                {ticket.price.toFixed(2)} LRD
+                {ticket.price.toFixed(2)} USD
               </span>
             </div>
             <p className="text-sm text-slate-600">{ticket.quantity} remaining</p>
@@ -91,7 +91,7 @@ export default function TicketSelector({ eventId, tickets }: TicketSelectorProps
           <div className="flex justify-between pt-3 border-t border-slate-200">
             <span className="font-bold">Total:</span>
             <span className="font-bold text-xl text-[#C2185B]">
-              {(selectedTicket.price * quantity).toFixed(2)} LRD
+              {(selectedTicket.price * quantity).toFixed(2)} USD
             </span>
           </div>
         </div>

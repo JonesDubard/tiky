@@ -10,7 +10,7 @@ let settings = {
   supportEmail: process.env.SUPPORT_EMAIL || "support@tiky.com",
   momoEnvironment: process.env.MOMO_ENVIRONMENT || "sandbox",
   maintenanceMode: process.env.MAINTENANCE_MODE === "true",
-  currency: process.env.CURRENCY || "LRD",
+  currency: process.env.CURRENCY || "USD",
   timezone: process.env.TIMEZONE || "Africa/Monrovia",
 };
 

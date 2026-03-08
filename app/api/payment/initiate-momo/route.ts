@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     const payment = await prisma.payment.create({
       data: {
         amount: totalAmount,
-        currency: "LRD",
+        currency: "USD",
         status: "PENDING",
         paymentMethod: "mtn_momo",
         orderId: order.id,

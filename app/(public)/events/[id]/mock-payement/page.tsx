@@ -64,15 +64,15 @@ function PaymentContent() {
           <div className="bg-slate-50 rounded-xl p-4 mb-6">
             <div className="flex justify-between mb-2">
               <span>Subtotal:</span>
-              <span>{subtotal.toFixed(2)} LRD</span>
+              <span>{subtotal.toFixed(2)} USD</span>
             </div>
             <div className="flex justify-between mb-2">
               <span>Fee (5%):</span>
-              <span>{serviceFee.toFixed(2)} LRD</span>
+              <span>{serviceFee.toFixed(2)} USD</span>
             </div>
             <div className="flex justify-between pt-2 border-t font-bold">
               <span>Total:</span>
-              <span className="text-[#C2185B] text-xl">{total.toFixed(2)} LRD</span>
+              <span className="text-[#C2185B] text-xl">{total.toFixed(2)} USD</span>
             </div>
           </div>
 
@@ -102,7 +102,7 @@ function PaymentContent() {
               {isProcessing ? (
                 <>Processing...</>
               ) : (
-                <>Pay {total.toFixed(2)} LRD <Zap className="w-5 h-5" /></>
+                <>Pay {total.toFixed(2)} USD <Zap className="w-5 h-5" /></>
               )}
             </button>
           </form>

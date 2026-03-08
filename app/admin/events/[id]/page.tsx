@@ -259,7 +259,7 @@ export default async function AdminEventViewPage({
                   <div className="flex justify-between items-start mb-1">
                     <span className="font-medium">{type.name}</span>
                     <span className="text-sm text-brand-primary font-medium">
-                      LRD {type.price.toLocaleString()}
+                      USD {type.price.toLocaleString()}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm text-gray-600">
