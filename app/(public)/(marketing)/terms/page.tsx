@@ -1,57 +1,50 @@
 // app/(public)/(marketing)/terms/page.tsx
 import Link from 'next/link'
 
-const LAST_UPDATED = 'January 1, 2025'
+const LAST_UPDATED = 'March 28, 2026'
 
 const sections = [
   {
     title: '1. Acceptance of Terms',
-    content: `By accessing or using Tiky, you agree to be bound by these Terms of Service and our Privacy Policy. If you do not agree to these terms, please do not use our platform.
-
-[Client to review and confirm acceptance conditions]`,
+    content: `By accessing or using Tiky, you agree to comply with these Terms of Service. 
+If you do not agree with these terms, you should not use the platform.`,
   },
   {
-    title: '2. Use of the Platform',
-    content: `You may use Tiky solely for lawful purposes and in accordance with these Terms. You agree not to:
+    title: '2. Platform Description and Use',
+    content: `Tiky provides a platform where:
 
-• Use the platform in any way that violates applicable laws or regulations
-• Attempt to gain unauthorized access to any part of the platform
-• Submit false or misleading information
-• Use automated tools to scrape or extract data from the platform
-• Resell or transfer your account to another person
-
-[Client to add any additional use restrictions]`,
+• Event organizers can create and promote events
+• Users can discover events and purchase tickets
+• Tiky acts as a technology platform and intermediary between event organizers and attendees.`,
   },
   {
-    title: '3. Account Registration',
-    content: `To purchase tickets or create events, you must register for an account. You are responsible for:
+    title: '3. User Accounts ',
+    content: `Users must:
 
-• Maintaining the confidentiality of your login credentials
-• All activity that occurs under your account
-• Ensuring that your account information is accurate and up to date
+• Provide accurate information
+• Maintain the confidentiality of their login credentials
+• Be responsible for all activity under their account
 
 Tiky reserves the right to suspend or terminate accounts that violate these Terms.`,
   },
   {
     title: '4. Ticket Purchases',
-    content: `All ticket sales are final unless the event is cancelled or significantly changed by the organizer. By purchasing a ticket, you agree to:
+    content: `When purchasing tickets: 
 
-• Pay the full amount listed at checkout, including any applicable fees
-• Comply with the event organizer's rules and policies
-• Not resell tickets for profit without explicit permission from the organizer
-
-[Client to confirm refund and cancellation policies]`,
+• You agree to pay the listed price and applicable service fees
+• Tickets may be digital or QR-code based
+• Tickets may not be duplicated or resold unless permitted`,
   },
   {
     title: '5. Event Organizers',
-    content: `Organizers who list events on Tiky agree to:
+    content: `Event organizers are responsible for:
 
-• Provide accurate event information
-• Honor all tickets sold through the platform
-• Comply with all applicable laws and regulations
-• Notify Tiky and ticket holders promptly of any event changes or cancellations
+• Accurate event descriptions
+• Honoring valid tickets
+• Managing event logistics
+• Handling refunds where applicable 
 
-Tiky is not responsible for the actions or omissions of event organizers.
+Tiky is not responsible for event cancellations, venue issues, or organizer misconduct.
 
 `,
   },
@@ -67,13 +60,18 @@ Tiky is not responsible for the actions or omissions of event organizers.
   },
   {
     title: '8. Limitation of Liability',
-    content: `To the fullest extent permitted by law, Tiky shall not be liable for any indirect, incidental, or consequential damages arising from your use of the platform or attendance at any event.
+    content: ` Tiky is not liable for: 
+    
+  • Event cancellations
+  • Changes to event schedules
+  • Venue conditions
+  • Organizer disputes
 
-`,
+  Responsibility for events remains with the event organizer.`,
   },
   {
     title: '9. Termination',
-    content: `We reserve the right to suspend or terminate your access to Tiky at any time, with or without notice, for conduct that we believe violates these Terms or is harmful to other users, third parties, or the interests of Tiky.`,
+    content: `We may suspend or terminate accounts that violate these terms or harm the platform.`,
   },
   {
     title: '10. Changes to Terms',
@@ -81,18 +79,14 @@ Tiky is not responsible for the actions or omissions of event organizers.
   },
   {
     title: '11. Governing Law',
-    content: `These Terms are governed by the laws of the Republic of Liberia. Any disputes arising under these Terms shall be subject to the exclusive jurisdiction of the courts of Liberia.
-
-[Client to confirm governing jurisdiction with legal counsel]`,
+    content: `These terms are governed by the laws of Liberia.`,
   },
   {
     title: '12. Contact Us',
     content: `If you have questions about these Terms, please contact us at:
 
-Tiky 
-Brewerville, Liberia
-tikysupport@gmail.com
-+231 77 796 5641`,
+Tiky Support
+tikyliberia@gmail.com`,
   },
 ]
 

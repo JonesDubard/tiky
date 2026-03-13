@@ -6,12 +6,12 @@ const values = [
   {
     icon: Users,
     title: "Community",
-    desc: "Community description goes here.",
+    desc: "We support the growth of Liberia’s entertainment, culture, and business events ecosystem.",
   },
   {
     icon: Target,
     title: "Reliability",
-    desc: "Your events deserve a platform you can count on, every time.",
+    desc: "Event organizers and attendees can depend on Tiky for secure ticketing and accurate data.",
   },
   {
     icon: Globe,
@@ -21,18 +21,19 @@ const values = [
   {
     icon: Zap,
     title: "Innovation",
-    desc: "Innovation description goes here.",
+    desc: "We continuously develop digital solutions that simplify and modernize the event industry.",
   },
   {
     icon: Shield,
     title: "Trust",
-    desc: "Trust statement goes here.",
+    desc: "We promote accountability and trust in ticket sales and event management.",
   },
   {
     icon: Heart,
     title: "Passion",
-    desc: "Passion description goes here.",
+    desc: "We are passionate about helping event organizers succeed and attendees have great experiences.",
   },
+    
 ];
 
 const team = [
@@ -74,8 +75,19 @@ export default function AboutPage() {
             About <span className="text-white/80">Tiky</span>
           </h1>
           <p className="text-base sm:text-lg md:text-xl max-w-2xl mx-auto text-white/85 leading-relaxed">
-            Empowering Liberian events with seamless ticketing, real-time polls,
-            and tools that bring people together.
+            Tiky is a modern event planning and ticketing platform introduced in Liberia by Future 
+Technologies (Futeck), developed by DubardStudio to transform the way events are organised, 
+promoted, and experienced. 
+We recognise the growing need for structured event promotions, transparent ticket sales, and 
+reliable event data within Liberia’s entertainment and event industries. Tiky provides event 
+organisers with a professional digital solution to advertise events effectively, manage ticket sales 
+with accountability, and gain valuable insights through event analytics before and after every 
+event.  
+Our platform empowers organisers, promoters, and businesses to plan smarter events while 
+giving attendees an easy and trustworthy way to discover and purchase tickets for events across 
+the country. 
+At Tiky, we believe that great events deserve great systems, transparency, and measurable 
+success.
           </p>
         </div>
 
@@ -103,9 +115,9 @@ export default function AboutPage() {
               Our <span className="text-gradient">Mission</span>
             </h2>
             <p className="text-gray-600 leading-relaxed mb-5">
-              To provide a reliable, all-in-one platform that simplifies event
-              management, ticketing, and audience engagement for organizers
-              across Liberia.
+              To empower event organisers with innovative tools for event promotion, ticket management, 
+              and data-driven insights, while providing attendees with a seamless and trusted event discovery 
+              and ticket purchasing experience. 
             </p>
             <div className="flex flex-wrap gap-2">
               <span className="badge badge-primary flex items-center gap-1.5">
@@ -127,7 +139,8 @@ export default function AboutPage() {
             </div>
             <h3 className="text-2xl sm:text-3xl font-bold mb-3">Our Vision</h3>
             <p className="text-white/85 leading-relaxed">
-              Lorem ipsum dolor sit amet consectetur adipisicing elit. Numquam quidem eius nobis doloremque, sint temporibus dolorem possimus mollitia molestiae impedit.
+              To become Liberia’s leading digital platform for event discovery, ticketing, and event 
+               analytics, driving professionalism and transparency across the event industry.
             </p>
           </div>
 
@@ -142,7 +155,7 @@ export default function AboutPage() {
               What <span className="text-gradient">Drives Us</span>
             </h2>
             <p className="text-gray-500 text-sm sm:text-base">
-              The principles that guide every decision we make at Tiky.
+              We set higher standards for how events are organized, promoted, and analyzed.
             </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">

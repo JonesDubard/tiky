@@ -1,7 +1,7 @@
 // app/(public)/(marketing)/privacy/page.tsx
 import Link from 'next/link'
 
-const LAST_UPDATED = 'March 4, 2026'
+const LAST_UPDATED = 'March 13, 2026'
 
 const sections = [
   {
@@ -13,22 +13,19 @@ This may include:
 • Phone number
 • Payment information (processed securely via third-party providers)
 • Event preferences and ticket purchase history
-• Device and usage information when you access our platform
-
-[Client to provide full details on data collection practices]`,
+• Device and usage information when you access our platform`,
   },
   {
     title: '2. How We Use Your Information',
-    content: `We use the information we collect to:
+    content: `We use collected information to:
 
-• Process ticket purchases and send confirmations
-• Send event reminders and updates you have requested
-• Provide customer support
-• Improve and personalise your experience on Tiky
-• Comply with legal obligations
-• Send promotional communications (you may opt out at any time)
-
-[Client to provide full details on data usage]`,
+• Provide access to the Tiky platform 
+• Process ticket purchases 
+• Facilitate event promotion and ticket sales
+• Communicate important updates
+• Improve platform performance
+• Prevent fraud and abuse 
+• Generate event analytics `,
   },
   {
     title: '3. Sharing of Information',
@@ -37,21 +34,19 @@ This may include:
 • Event organizers, solely for the purpose of managing your attendance
 • Payment processors to complete transactions
 • Service providers who assist in operating our platform
-• Law enforcement or government agencies when required by law
-
-[Client to provide full details on data sharing]`,
+• Law enforcement or government agencies when required by law`,
   },
   {
     title: '4. Data Retention',
-    content: `We retain your personal information for as long as your account is active or as needed to provide our services. You may request deletion of your data at any time by contacting us.
-
-[Client to provide specific retention periods and deletion policies]`,
+    content: `We retain your personal information for as long as your account is active or as needed to provide our services. You may request deletion of your data at any time by contacting us.`,
   },
   {
     title: '5. Security',
-    content: `We take reasonable measures to protect your personal information from unauthorized access, loss, or misuse. All payment data is handled by PCI-compliant third-party processors.
-
-[Client to provide specific security certifications or practices]`,
+    content: `We implement appropriate security measures to protect user information, including: 
+    
+• Secure payment processing 
+• Data encryption where applicable 
+• Restricted internal access to sensitive data`,
   },
   {
     title: '6. Your Rights',
@@ -61,9 +56,8 @@ This may include:
 • Request correction of inaccurate data
 • Request deletion of your data
 • Opt out of marketing communications
-• Lodge a complaint with a data protection authority
 
-To exercise any of these rights, please contact us at tikysupport@gmail.com.`,
+To exercise any of these rights, please contact us at tikyliberia@gmail.com`,
   },
   {
     title: '7. Cookies',
@@ -77,10 +71,8 @@ To exercise any of these rights, please contact us at tikysupport@gmail.com.`,
     title: '9. Contact Us',
     content: `If you have any questions about this Privacy Policy, please contact us at:
 
-Tiky 
-Brewerville, Liberia
-tikysupport@gmail.com
-+231 77 796 5641`,
+Tiky Support
+Email: tikyliberia@gmail.com`,
   },
 ]
 
@@ -109,9 +101,10 @@ export default function PrivacyPolicyPage() {
           {/* Intro */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8 mb-6">
             <p className="text-gray-600 text-sm leading-relaxed">
-              At Tiky, we take your privacy seriously. This Privacy Policy explains how we collect,
-              use, and protect your personal information when you use our platform. Please read this
-              policy carefully. By using Tiky, you agree to the practices described below.
+              Welcome to Tiky, a digital event discovery, promotion, and ticketing platform operated by <b>Futeck.</b> 
+              This Privacy Policy explains how we collect, use, store, and protect your personal information 
+              when you use the Tiky platform, website, or mobile application. 
+              By using Tiky, you agree to the practices described in this policy. 
             </p>
             <div className="mt-4 flex flex-wrap gap-3 text-xs">
               <Link href="/terms" className="text-brand-primary hover:underline">Terms of Service →</Link>

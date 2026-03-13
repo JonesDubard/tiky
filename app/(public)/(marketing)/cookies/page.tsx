@@ -1,7 +1,7 @@
 // app/(public)/(marketing)/cookies/page.tsx
 import Link from 'next/link'
 
-const LAST_UPDATED = 'January 1, 2025'
+const LAST_UPDATED = 'March 28, 2026'
 
 const cookieTypes = [
   {
@@ -82,13 +82,51 @@ Please note that disabling certain cookies may affect the functionality of Tiky.
     content: `We may update this Cookie Policy from time to time. We will notify you of any significant changes by posting a notice on our platform. Your continued use of Tiky after changes are posted constitutes your acceptance of the updated policy.`,
   },
   {
+    title: 'Refund Policy',
+    content: ` General Policy
+    
+    
+1. General Policy
+
+Refund policies for events listed on Tiky are determined primarily by the event organizer.
+    
+     
+2. Eligible Refund Situations Refunds may be issued if: 
+
+● The event is cancelled 
+● The event is rescheduled and the attendee cannot attend 
+● The organizer authorizes a refund 
+
+3. Non-Refundable Situations Tickets are generally non-refundable if: 
+
+● The attendee chooses not to attend 
+● The ticket was purchased by mistake after confirmation 
+● The event occurs as scheduled 
+
+4. Refund Request Process To request a refund: 
+
+1. Submit a request through the Tiky platform or support email 
+2. Provide the ticket ID and purchase details 
+3. The request will be reviewed with the event organizer 
+
+Refund decisions may take 5 - 10 business days. 
+
+5. Processing Refunds Approved refunds will be issued through the original payment method where possible Processing times may vary depending on the payment provider. 
+
+6. Service Fees in some cases: 
+
+● Platform service fees may be non-refundable 
+● Payment processing fees may apply 
+
+7. Fraud Prevention Tiky reserves the right to deny refund requests that show signs of abuse or fraud. `,
+
+  },
+  {
     title: 'Contact Us',
     content: `If you have questions about our use of cookies, please contact us at:
 
-Tiky 
-Brewerville, Liberia
-tikysupport@gmail.com
-+231 77 796 5641`,
+Tiky Support
+tikyliberia@gmail.com`,
   },
 ]
 
@@ -102,7 +140,7 @@ export default function CookiePolicyPage() {
           <span className="inline-block bg-white/15 backdrop-blur-sm border border-white/20 text-white/90 text-xs font-semibold uppercase tracking-widest px-4 py-1.5 rounded-full mb-4">
             Legal
           </span>
-          <h1 className="text-3xl sm:text-4xl font-bold mb-2">Cookie Policy</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold mb-2">Cookie and Refund Policy</h1>
           <p className="text-white/75 text-sm">Last updated: {LAST_UPDATED}</p>
         </div>
         <div className="absolute bottom-0 left-0 right-0 leading-none">
