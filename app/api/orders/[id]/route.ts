@@ -13,7 +13,12 @@ export async function GET(
       where: { id },
       include: {
         tickets: {
-          include: {
+          select: {
+            id: true,
+            status: true,
+            qrCode: true,
+            qrImage: true, // Specifically ensuring this is here
+            guestName: true,
             ticketType: {
               include: {
                 event: {
@@ -43,6 +48,9 @@ export async function GET(
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 })
     }
+
+    // Security Tip: If the order is FAILED, you might want to return a specific 
+    // flag so the SuccessPage can show a "Payment Failed" message instead.
 
     return NextResponse.json(order)
   } catch (err: any) {

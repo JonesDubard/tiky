@@ -1,63 +1,61 @@
 // app/api/webhooks/mtn-momo/route.ts
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "lib/prisma"
-import { generateTicketsForOrder } from "lib/tickets/generate"
+import { revalidatePath } from "next/cache"
 
 export async function PUT(req: NextRequest) {
   try {
-    const body = await req.json()
-    console.log("MTN MoMo webhook received:", body)
+    const { referenceId, status, financialTransactionId } = await req.json()
 
-    const { referenceId, status, financialTransactionId } = body
-
-    if (!referenceId) {
-      return NextResponse.json({ error: "Missing referenceId" }, { status: 400 })
-    }
-
-    const payment = await prisma.payment.findFirst({
+    const payment = await prisma.payment.findUnique({
       where: { providerRef: referenceId },
+      include: { order: { include: { tickets: true } } }
     })
 
-    if (!payment) {
-      console.error("No payment found for referenceId:", referenceId)
-      return NextResponse.json({ error: "Payment not found" }, { status: 404 })
+    if (!payment || !payment.order) {
+      return NextResponse.json({ error: "Record not found" }, { status: 404 })
     }
 
     if (status === "SUCCESSFUL") {
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: {
-          status: "COMPLETED",
-          externalId: financialTransactionId,
-          processedAt: new Date(),
-        },
-      })
-
-      if (payment.orderId) {
-        await prisma.order.update({
-          where: { id: payment.orderId },
-          data: { status: "COMPLETED" },
+      await prisma.$transaction([
+        // 1. Update Payment
+        prisma.payment.update({
+          where: { id: payment.id },
+          data: { status: "COMPLETED", externalId: financialTransactionId, processedAt: new Date() }
+        }),
+        // 2. Update Order
+        prisma.order.update({
+          where: { id: payment.orderId! },
+          data: { status: "COMPLETED" }
+        }),
+        // 3. Update Tickets to PAID (This fixes your Dashboard stats)
+        prisma.ticketInstance.updateMany({
+          where: { orderId: payment.orderId },
+          data: { status: "PAID" }
         })
-        await generateTicketsForOrder(payment.orderId)
-      }
-    } else if (status === "FAILED" || status === "REJECTED") {
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: { status: "FAILED" },
-      })
+      ])
+    } 
+    else if (status === "FAILED" || status === "REJECTED") {
+      await prisma.$transaction(async (tx) => {
+        await tx.payment.update({ where: { id: payment.id }, data: { status: "FAILED" } })
+        await tx.order.update({ where: { id: payment.orderId! }, data: { status: "FAILED" } })
+        await tx.ticketInstance.updateMany({ where: { orderId: payment.orderId }, data: { status: "CANCELLED" } })
 
-      if (payment.orderId) {
-        await prisma.order.update({
-          where: { id: payment.orderId },
-          data: { status: "FAILED" },
-        })
-      }
+        // --- RESTOCK INVENTORY ---
+        for (const ticket of payment.order!.tickets) {
+          await tx.ticketType.update({
+            where: { id: ticket.ticketTypeId },
+            data: { quantity: { increment: 1 } }
+          })
+        }
+      })
     }
 
+    revalidatePath("/admin")
+    revalidatePath(`/events/${payment.eventId}`)
+
     return NextResponse.json({ received: true })
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error"
-    console.error("MTN webhook error:", message)
-    return NextResponse.json({ error: message }, { status: 500 })
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
