@@ -118,9 +118,11 @@ export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session?.user || (session.user.role !== "ADMIN" && session.user.role !== "ORGANIZER")) {
-      return new NextResponse("Unauthorized", { status: 401 })
-    }
+    const allowedRoles = ["ADMIN", "ORGANIZER", "STAFF"];
+
+    if (!session?.user || !allowedRoles.includes(session.user.role.toUpperCase())) {
+  return NextResponse.json({ error: "Unauthorized access" }, { status: 401 });
+}
 
     const { qrCode } = await req.json()
 

@@ -273,6 +273,7 @@ import {
   Keyboard,
   Camera,
   CameraOff,
+  History as HistoryIcon,
 } from "lucide-react"
 
 type ValidationResult = {
@@ -290,6 +291,7 @@ type ValidationResult = {
     holder: string
     email?: string | null
     validatedAt?: string
+    
   }
 }
 
@@ -301,7 +303,9 @@ export default function ValidateTicketPage() {
   const [scanCount, setScanCount] = useState(0)
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [cameraActive, setCameraActive] = useState(false)
-  const [lastScanned, setLastScanned] = useState<string | null>(null)
+  const lastScannedRef = useRef<string | null>(null)
+
+  const [history, setHistory] = useState<ValidationResult[]>([])
 
   const inputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -309,6 +313,31 @@ export default function ValidateTicketPage() {
   const streamRef = useRef<MediaStream | null>(null)
   const scanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const jsQRRef = useRef<any>(null)
+  const playTone = (frequency: number, duration: number) => {
+  if (typeof window === "undefined") return;
+  try {
+    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.frequency.value = frequency;
+    oscillator.type = "sine";
+    
+    // Smooth volume ramp to avoid "clicking" sounds
+    gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.01);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + duration);
+  } catch (e) {
+    console.error("Audio feedback failed", e);
+  }
+};
+  
 
   // Load jsQR from CDN
   useEffect(() => {
@@ -340,7 +369,7 @@ export default function ValidateTicketPage() {
     setCameraError(null)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: 640, height: 480 },
+        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
       })
       streamRef.current = stream
       if (videoRef.current) {
@@ -386,39 +415,66 @@ export default function ValidateTicketPage() {
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
       const code = jsQRRef.current(imageData.data, imageData.width, imageData.height)
 
-      if (code?.data && code.data !== lastScanned) {
-        setLastScanned(code.data)
-        validateTicket(code.data)
-        // Prevent duplicate scans for 3 seconds
-        setTimeout(() => setLastScanned(null), 3000)
-      }
+      if (code?.data && code.data !== lastScannedRef.current) {
+  lastScannedRef.current = code.data; // Block further scans immediately
+  validateTicket(code.data);
+  
+  // Allow scanning the same code again after 5 seconds
+  setTimeout(() => { lastScannedRef.current = null; }, 5000);
+}
     }, 300)
   }
 
   const validateTicket = async (qrCode: string) => {
-    if (!qrCode.trim() || loading) return
-    setLoading(true)
-    setResult(null)
+    if (!qrCode.trim() || loading) return;
+    setLoading(true);
+    setResult(null);
 
     try {
       const res = await fetch("/api/admin/tickets/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ qrCode: qrCode.trim() }),
-      })
-      const data = await res.json()
-      setResult(data)
-      setScanCount((c) => c + 1)
-    } catch {
-      setResult({ valid: false, error: "Network error. Please try again." })
-    } finally {
-      setLoading(false)
-      setInputValue("")
-      if (mode === "manual") {
-        setTimeout(() => inputRef.current?.focus(), 100)
+      });
+
+      const data = await res.json();
+
+      // Add to history list (Keep last 5)
+      setHistory(prev => [data, ...prev].slice(0, 5));
+
+      if (res.ok && data.valid) {
+        playTone(880, 0.15); 
+        if (navigator.vibrate) navigator.vibrate(100); 
+        
+        setResult(data);
+        setScanCount((c) => c + 1);
+
+        if (mode === "camera") {
+          setTimeout(() => {
+            setResult(null);
+            lastScannedRef.current = null;
+          }, 3000);
+        }
+      } else {
+        playTone(220, 0.2); 
+        setTimeout(() => playTone(180, 0.3), 200); 
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]); 
+        
+        setResult({
+          valid: false,
+          alreadyUsed: data.alreadyUsed,
+          error: data.error || "Invalid Ticket",
+          ticket: data.ticket,
+        });
       }
+    } catch (err) {
+      playTone(110, 0.5); 
+      setResult({ valid: false, error: "Network error. Check connection." });
+    } finally {
+      setLoading(false);
+      setInputValue("");
     }
-  }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -657,6 +713,51 @@ export default function ValidateTicketPage() {
           >
             Scan Next Ticket
           </button>
+        </div>
+      )}
+
+      {/* History */}
+
+      {history.length > 0 && (
+        <div className="mt-8">
+          <div className="flex items-center gap-2 mb-4 text-gray-600 px-1">
+            <HistoryIcon className="w-4 h-4" />
+            <h3 className="text-sm font-semibold uppercase tracking-wider">Recent Scans</h3>
+          </div>
+          <div className="space-y-3">
+            {history.map((item, idx) => (
+              <div 
+                key={idx} 
+                className={`flex items-center justify-between p-3 rounded-xl border bg-white shadow-sm transition-all ${
+                  idx === 0 ? "scale-105 border-blue-200" : "opacity-70 border-gray-100"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  {item.valid ? (
+                    <CheckCircle className="w-5 h-5 text-green-500" />
+                  ) : (
+                    <XCircle className={`w-5 h-5 ${item.alreadyUsed ? 'text-yellow-500' : 'text-red-500'}`} />
+                  )}
+                  <div>
+                    <p className="text-sm font-bold text-gray-900 leading-none">
+                      {item.ticket?.holder || "Unknown Holder"}
+                    </p>
+                    <p className="text-[10px] text-gray-500 mt-1 uppercase">
+                      {item.ticket?.ticketType || "General Entry"}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className={`text-[10px] font-bold ${item.valid ? 'text-green-600' : 'text-red-600'}`}>
+                    {item.valid ? 'VALID' : item.alreadyUsed ? 'USED' : 'INVALID'}
+                  </p>
+                  <p className="text-[10px] text-gray-400">
+                    {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
