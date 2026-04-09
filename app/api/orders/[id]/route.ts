@@ -1,4 +1,8 @@
 // app/api/orders/[id]/route.ts
+//
+// UPDATED: Returns referenceCode, proofUrl, proofNote, paymentMethod
+// so the pending page can display instructions and proof status.
+
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "lib/prisma"
 
@@ -11,16 +15,29 @@ export async function GET(
 
     const order = await prisma.order.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        status: true,
+        totalPrice: true,
+        // New manual payment fields
+        referenceCode: true,
+        proofUrl: true,
+        proofNote: true,
+        paymentMethod: true,
+        ticketGenerated: true,
+        createdAt: true,
         tickets: {
           select: {
             id: true,
             status: true,
             qrCode: true,
-            qrImage: true, // Specifically ensuring this is here
+            qrImage: true,
             guestName: true,
             ticketType: {
-              include: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
                 event: {
                   select: {
                     id: true,
@@ -42,6 +59,13 @@ export async function GET(
             currency: true,
           },
         },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
       },
     })
 
@@ -49,12 +73,12 @@ export async function GET(
       return NextResponse.json({ error: "Order not found" }, { status: 404 })
     }
 
-    // Security Tip: If the order is FAILED, you might want to return a specific 
-    // flag so the SuccessPage can show a "Payment Failed" message instead.
-
     return NextResponse.json(order)
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Order fetch error:", err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Internal server error" },
+      { status: 500 }
+    )
   }
 }

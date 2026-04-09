@@ -35,8 +35,8 @@ const contactInfo = [
   {
     icon: Mail,
     label: 'Email',
-    primary: 'tikysupport@gmail.com',
-    href: 'mailto:tikysupport@gmail.com',
+    primary: 'tikyliberia@gmail.com',
+    href: 'mailto:tikyliberia@gmail.com',
     secondary: null,
   },
   {

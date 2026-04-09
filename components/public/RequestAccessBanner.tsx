@@ -5,7 +5,7 @@ interface RequestAccessBannerProps {
   type: "poll" | "event";
 }
 
-const SUPPORT_EMAIL = "hellodubardstudio@gmail.com";
+const SUPPORT_EMAIL = "tikyliberia@gmail.com";
 
 export default function RequestAccessBanner({ type }: RequestAccessBannerProps) {
   const Icon = type === "poll" ? Vote : Calendar;

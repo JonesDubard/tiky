@@ -100,6 +100,15 @@ export default function Navbar() {
       <div className="flex items-center gap-3 flex-shrink-0">
         {session ? (
           <div className="flex items-center gap-3">
+            {/* My Tickets link for desktop */}
+            <Link
+              href="/my-tickets"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-slate-700 hover:text-brand-primary transition-all duration-200"
+            >
+              <Ticket className="w-4 h-4" />
+              <span className="text-sm">My Tickets</span>
+            </Link>
+
             {isAdmin && (
               <Link
                 href="/admin"
@@ -256,6 +265,21 @@ export default function Navbar() {
               </Link>
             );
           })}
+
+          {/* My Tickets link in mobile drawer */}
+          {session && (
+            <Link
+              href="/my-tickets"
+              className="flex items-center gap-3 p-3.5 rounded-xl transition-all active:scale-[0.98] hover:bg-slate-50 border border-transparent"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <div className="p-1.5 rounded-lg bg-slate-100 text-slate-500">
+                <Ticket className="w-4 h-4" />
+              </div>
+              <span className="font-medium text-sm text-slate-700">My Tickets</span>
+              <ChevronRight className="w-4 h-4 text-slate-300 ml-auto" />
+            </Link>
+          )}
         </div>
 
         <div className="p-4 border-t border-slate-100">

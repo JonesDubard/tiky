@@ -1,7 +1,11 @@
 // app/api/user/orders/route.ts
+//
+// UPDATED: Returns referenceCode, paymentMethod, proofUrl
+// so MyTicketsClient can show status and link to pending page.
+
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
-import { authOptions } from "app/api/auth/[...nextauth]/route"
+import { authOptions } from "lib/auth"
 import { prisma } from "lib/prisma"
 
 export async function GET() {
@@ -24,19 +28,27 @@ export async function GET() {
     const orders = await prisma.order.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
-      include: {
-        payments: {
-          select: {
-            paymentMethod: true,
-            status: true,
-            amount: true,
-            currency: true,
-          },
-        },
+      select: {
+        id: true,
+        status: true,
+        totalPrice: true,
+        createdAt: true,
+        // Manual payment fields
+        referenceCode: true,
+        paymentMethod: true,
+        proofUrl: true,
         tickets: {
-          include: {
+          select: {
+            id: true,
+            status: true,
+            qrCode: true,
+            qrImage: true,
+            createdAt: true,
             ticketType: {
-              include: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
                 event: {
                   select: {
                     id: true,
@@ -46,14 +58,6 @@ export async function GET() {
                     imageUrl: true,
                   },
                 },
-                // Get sold count for availability bar
-                _count: {
-                  select: {
-                    tickets: {
-                      where: { status: { in: ["PAID", "USED"] } },
-                    },
-                  },
-                },
               },
             },
           },
@@ -61,21 +65,8 @@ export async function GET() {
       },
     })
 
-    // Shape the data — add soldCount to ticketType
-    const shaped = orders.map(order => ({
-      ...order,
-      tickets: order.tickets.map(ticket => ({
-        ...ticket,
-        ticketType: {
-          ...ticket.ticketType,
-          soldCount: ticket.ticketType._count.tickets,
-          _count: undefined,
-        },
-      })),
-    }))
-
-    return NextResponse.json(shaped)
-  } catch (error: any) {
+    return NextResponse.json(orders)
+  } catch (error) {
     console.error("User orders error:", error)
     return new NextResponse("Internal Server Error", { status: 500 })
   }

@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { Ticket, BarChart, Calendar } from "lucide-react"
+import Link from "next/link"
+import { Ticket, BarChart, Calendar, ChevronRight } from "lucide-react"
+
 
 type TicketInstance = {
   id: string
@@ -31,11 +33,9 @@ type Order = {
   status: string
   createdAt: string
   tickets: TicketInstance[]
-  payments: {
-    paymentMethod: string
-    status: string
-    amount: number
-  }[]
+  paymentMethod?: string | null
+  referenceCode?: string | null
+  proofUrl?: string | null
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -151,6 +151,23 @@ export default function ProfilePage() {
           )}
         </div>
 
+        {/* Quick link to My Tickets page */}
+        <Link
+          href="/my-tickets"
+          className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-200 mb-6 hover:shadow-md transition-all"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center text-xl">
+              🎫
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900">My Tickets</p>
+              <p className="text-xs text-gray-400">View & download your tickets</p>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-gray-400" />
+        </Link>
+
         {/* Orders / Tickets */}
         <h2 className="text-lg font-bold text-slate-800 mb-4">My Tickets</h2>
 
@@ -168,63 +185,63 @@ export default function ProfilePage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {orders.map(order => {
-              const isExpanded = expandedOrder === order.id
-              const payment = order.payments[0]
-              const firstTicket = order.tickets[0]
-              const event = firstTicket?.ticketType?.event
+            {Array.isArray(orders) && orders.map(order => {
+  const isExpanded = expandedOrder === order.id
+      const firstTicket = Array.isArray(order.tickets) ? order.tickets[0] : null
+      const event = firstTicket?.ticketType?.event
+      const paymentMethod = order.paymentMethod
 
-              return (
-                <div key={order.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                  {/* Order header */}
-                  <button
-                    onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
-                    className="w-full text-left"
-                  >
-                    <div className="p-5 flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 truncate">
-                          {event?.title || "Unknown Event"}
-                        </h3>
-                        {event && (
-                          <p className="text-xs text-gray-500 mt-0.5">
-                            {new Date(event.date).toLocaleDateString("en-US", {
-                              weekday: "short", month: "short", day: "numeric", year: "numeric",
-                            })}
-                            {" · "}{event.location}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-3 mt-2 flex-wrap">
-                          <span className="text-xs text-gray-400">
-                            {order.tickets.length} ticket{order.tickets.length !== 1 ? "s" : ""}
-                          </span>
-                          <span className="text-xs font-semibold text-gray-700">
-                            ${order.totalPrice.toFixed(2)} USD
-                          </span>
-                          {payment && (
-                            <span className="text-xs text-gray-400">
-                              {METHOD_LABELS[payment.paymentMethod] ?? payment.paymentMethod}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                          order.status === "COMPLETED" ? "bg-green-100 text-green-700" :
-                          order.status === "PENDING" ? "bg-yellow-100 text-yellow-700" :
-                          "bg-gray-100 text-gray-600"
-                        }`}>
-                          {order.status}
-                        </span>
-                        <svg
-                          className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                          fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </div>
-                    </div>
-                  </button>
+  return (
+    <div key={order.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      {/* Order header */}
+      <button
+        onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
+        className="w-full text-left"
+      >
+        <div className="p-5 flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-gray-900 truncate">
+              {event?.title || "Unknown Event"}
+            </h3>
+            {event && (
+              <p className="text-xs text-gray-500 mt-0.5">
+                {new Date(event.date).toLocaleDateString("en-US", {
+                  weekday: "short", month: "short", day: "numeric", year: "numeric",
+                })}
+                {" · "}{event.location}
+              </p>
+            )}
+            <div className="flex items-center gap-3 mt-2 flex-wrap">
+              <span className="text-xs text-gray-400">
+                {order.tickets ? order.tickets.length : 0} ticket{order.tickets?.length !== 1 ? "s" : ""}
+              </span>
+              <span className="text-xs font-semibold text-gray-700">
+                ${order.totalPrice?.toFixed(2) ?? "0.00"} USD
+              </span>
+              {paymentMethod && (
+             <span className="text-xs text-gray-400">
+             {METHOD_LABELS[paymentMethod] ?? paymentMethod}
+           </span>
+             )}
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-2 flex-shrink-0">
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+              order.status === "COMPLETED" ? "bg-green-100 text-green-700" :
+              order.status === "PENDING" ? "bg-yellow-100 text-yellow-700" :
+              "bg-gray-100 text-gray-600"
+            }`}>
+              {order.status}
+            </span>
+            <svg
+              className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+               </button>
 
                   {/* Expanded tickets */}
                   {isExpanded && (

@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 
 export default withAuth(
-  function middleware(req) {
+  function proxy(req) {
     const token = req.nextauth.token
 
     // For API routes — return JSON 401 instead of redirecting to login page

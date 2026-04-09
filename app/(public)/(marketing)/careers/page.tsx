@@ -114,8 +114,8 @@ export default function CareersPage() {
           </h2>
           <p className="text-gray-500 text-sm sm:text-base">
             Don't see the right fit? Send us an open application at{' '}
-            <a href="mailto:tikysupport@gmail.com" className="text-brand-primary hover:underline">
-              tikysupport@gmail.com
+            <a href="mailto:tikyliberia@gmail.com" className="text-brand-primary hover:underline">
+              tikyliberia@gmail.com
             </a>
           </p>
         </div>
@@ -127,8 +127,8 @@ export default function CareersPage() {
               <p className="text-gray-500 font-medium mb-1">No open positions right now</p>
               <p className="text-sm text-gray-400">
                 Check back soon or send an open application to{' '}
-                <a href="mailto:tikysupport@gmail.com" className="text-brand-primary hover:underline">
-                  tikysupport@gmail.com
+                <a href="mailto:tikyliberia@gmail.com" className="text-brand-primary hover:underline">
+                  tikyliberia@gmail.com
                 </a>
               </p>
             </div>

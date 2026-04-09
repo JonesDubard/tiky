@@ -116,6 +116,11 @@ model Order {
   status     String @default("PENDING")
   totalPrice Float
 
+  referenceCode String? @unique
+  proofUrl      String?
+  proofNote     String?
+  paymentMethod String?
+
   eventId String?
   event   Event?  @relation(fields: [eventId], references: [id])
 
@@ -134,7 +139,8 @@ model Order {
 
   @@index([userId])
   @@index([status])
-  @@index([eventId]) // ✅ helpful for filtering by event
+  @@index([eventId])
+  @@index([referenceCode])
 }
 
 model Payment {
@@ -277,4 +283,13 @@ model PasswordResetToken {
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
+}
+
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
 }
