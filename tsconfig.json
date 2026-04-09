@@ -13,11 +13,11 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
-    "ignoreDeprecations": "5.0", 
+     "ignoreDeprecations": "6.0", 
     "types": ["next", "next/types/global", "node"],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["app/*"]
+      "@/*": ["./app/*"]
     },
     "plugins": [
       {
