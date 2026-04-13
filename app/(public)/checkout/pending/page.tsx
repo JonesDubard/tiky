@@ -2,10 +2,12 @@
 
 // app/(public)/checkout/pending/page.tsx
 //
-// UPDATED: Payment account details (MoMo number, bank account etc.) now
-// fetched from /api/admin/settings instead of process.env.NEXT_PUBLIC_*
-// This means admins can update payment details from the dashboard without
-// a redeploy, and users always see the current correct account numbers.
+// CHANGES:
+// 1. MTN MoMo: updated to merchant account flow (*156# → MoMo Pay → Merchant #)
+//    Ref code shown as backup/memo, not primary identifier
+// 2. Orange Money: corrected flow (*144# → currency → send money → to orange number)
+// 3. File upload: removed capture="environment" — now shows OS picker sheet
+//    (Camera / Photos / Files) so users can access existing screenshots
 
 import { useState, useEffect, Suspense, useRef, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
@@ -39,7 +41,6 @@ type OrderData = {
   }[]
 }
 
-// Subset of settings we need on this page
 type PaymentSettings = {
   mtnMomoNumber: string
   mtnMomoName: string
@@ -57,24 +58,16 @@ const METHOD_LABELS: Record<string, string> = {
   bank_transfer: "Bank Transfer",
 }
 
-// Fallback values shown while settings load or if the fetch fails
 const SETTINGS_FALLBACK: PaymentSettings = {
   mtnMomoNumber: "",
-  mtnMomoName: "Tiky Events",
+  mtnMomoName: "Future Group International",
   orangeMoneyNumber: "",
-  orangeMoneyName: "Tiky Events",
+  orangeMoneyName: "Future Group International",
   bankName: "",
   bankAccountNumber: "",
-  bankAccountName: "Tiky Events LLC",
+  bankAccountName: "Future Group International",
   supportPhone: "",
 }
-
-// ── Public settings endpoint ──────────────────────────────────────────────────
-// We expose a minimal public endpoint so the pending page (which may be
-// viewed by unauthenticated users) can fetch payment account details
-// without hitting the admin-only settings API.
-// See: app/api/payment-settings/route.ts (created below)
-const SETTINGS_URL = "/api/payment-settings"
 
 // ── Inner component ───────────────────────────────────────────────────────────
 
@@ -101,20 +94,13 @@ function PendingPageInner() {
   const [polling, setPolling] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // ── Fetch payment settings ────────────────────────────────────────────────
-  // Runs once on mount — independent of order fetch
+  // Fetch payment settings (public endpoint, no auth needed)
   useEffect(() => {
-    fetch(SETTINGS_URL)
+    fetch("/api/payment-settings")
       .then((r) => r.ok ? r.json() : null)
-      .then((data) => {
-        if (data) setPaymentSettings((prev) => ({ ...prev, ...data }))
-      })
-      .catch(() => {
-        // Silently fall back to defaults — page still works
-      })
+      .then((data) => { if (data) setPaymentSettings((p) => ({ ...p, ...data })) })
+      .catch(() => {})
   }, [])
-
-  // ── Fetch order ───────────────────────────────────────────────────────────
 
   const fetchOrder = useCallback(async () => {
     if (!orderId) return
@@ -131,12 +117,9 @@ function PendingPageInner() {
     }
   }, [orderId])
 
-  useEffect(() => {
-    fetchOrder()
-  }, [fetchOrder])
+  useEffect(() => { fetchOrder() }, [fetchOrder])
 
-  // ── Polling after proof upload ────────────────────────────────────────────
-
+  // Poll after proof upload until COMPLETED or REJECTED
   useEffect(() => {
     if (uploadSuccess && order?.status === "AWAITING_APPROVAL") {
       setPolling(true)
@@ -177,23 +160,18 @@ function PendingPageInner() {
       setUploadError("Please upload a screenshot or enter your transaction ID")
       return
     }
-
     setUploading(true)
     setUploadError(null)
-
     try {
       const formData = new FormData()
       if (selectedFile) formData.append("proof", selectedFile)
       if (transactionId.trim()) formData.append("proofNote", transactionId.trim())
-
       const res = await fetch(`/api/orders/${orderId}/upload-proof`, {
         method: "POST",
         body: formData,
       })
-
       const result = await res.json()
       if (!res.ok) throw new Error(result.error ?? "Upload failed")
-
       setUploadSuccess(true)
       setUploadStep(false)
       await fetchOrder()
@@ -210,9 +188,7 @@ function PendingPageInner() {
     return (
       <div className="max-w-lg mx-auto mt-16 px-4 text-center">
         <p className="text-gray-500">No order ID provided.</p>
-        <Link href="/events" className="text-orange-500 text-sm mt-2 inline-block">
-          Browse events
-        </Link>
+        <Link href="/events" className="text-orange-500 text-sm mt-2 inline-block">Browse events</Link>
       </div>
     )
   }
@@ -233,9 +209,7 @@ function PendingPageInner() {
       <div className="max-w-lg mx-auto mt-16 px-4 text-center">
         <div className="text-4xl mb-4">⚠️</div>
         <p className="text-gray-700 font-medium">{error ?? "Order not found"}</p>
-        <Link href="/events" className="text-orange-500 text-sm mt-3 inline-block">
-          Back to events
-        </Link>
+        <Link href="/events" className="text-orange-500 text-sm mt-3 inline-block">Back to events</Link>
       </div>
     )
   }
@@ -245,7 +219,6 @@ function PendingPageInner() {
   const isOrange = order.paymentMethod === "orange_money"
   const isBank = order.paymentMethod === "bank_transfer"
 
-  // Helper: WhatsApp support link with order reference pre-filled
   const supportLink = paymentSettings.supportPhone
     ? `https://wa.me/${paymentSettings.supportPhone.replace(/\D/g, "")}?text=${encodeURIComponent(
         `Hi, I need help with order ref: ${order.referenceCode}`
@@ -264,30 +237,18 @@ function PendingPageInner() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">{"You're confirmed! 🎉"}</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Your payment was verified. Here are your tickets.
-          </p>
+          <p className="text-gray-500 text-sm mt-1">Your payment was verified. Here are your tickets.</p>
         </div>
-
         <div className="space-y-4">
           {order.tickets.map((ticket) => (
-            <div
-              key={ticket.id}
-              className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden"
-            >
+            <div key={ticket.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
               <div className="bg-orange-500 px-5 py-4 text-white">
-                <p className="text-xs opacity-80 uppercase tracking-wider">
-                  {ticket.ticketType.name}
-                </p>
+                <p className="text-xs opacity-80 uppercase tracking-wider">{ticket.ticketType.name}</p>
                 <p className="font-bold text-lg">{ticket.ticketType.event.title}</p>
               </div>
               <div className="p-5 text-center">
                 {ticket.qrImage ? (
-                  <img
-                    src={ticket.qrImage}
-                    alt="QR Code"
-                    className="w-44 h-44 mx-auto rounded-xl border-4 border-gray-50"
-                  />
+                  <img src={ticket.qrImage} alt="QR Code" className="w-44 h-44 mx-auto rounded-xl border-4 border-gray-50" />
                 ) : (
                   <div className="w-44 h-44 mx-auto bg-gray-100 rounded-xl flex items-center justify-center">
                     <p className="text-gray-400 text-xs">Generating QR...</p>
@@ -319,17 +280,10 @@ function PendingPageInner() {
             </div>
           ))}
         </div>
-
-        <Link
-          href="/my-tickets"
-          className="block text-center text-sm text-orange-500 font-medium mt-6 hover:text-orange-600 transition-colors"
-        >
+        <Link href="/my-tickets" className="block text-center text-sm text-orange-500 font-medium mt-6 hover:text-orange-600 transition-colors">
           View all my tickets →
         </Link>
-        <Link
-          href="/events"
-          className="block text-center text-sm text-gray-400 mt-3 hover:text-orange-500 transition-colors"
-        >
+        <Link href="/events" className="block text-center text-sm text-gray-400 mt-3 hover:text-orange-500 transition-colors">
           Browse more events
         </Link>
       </div>
@@ -349,33 +303,24 @@ function PendingPageInner() {
             </svg>
           </div>
           <h1 className="text-xl font-bold text-gray-900">Payment Not Confirmed</h1>
-          {reason && (
-            <p className="text-gray-500 text-sm mt-2 max-w-sm mx-auto">{reason}</p>
-          )}
+          {reason && <p className="text-gray-500 text-sm mt-2 max-w-sm mx-auto">{reason}</p>}
         </div>
-
         <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6">
           <p className="text-sm text-red-700">
-            Reference:{" "}
-            <span className="font-bold font-mono">{order.referenceCode}</span>
+            Reference: <span className="font-bold font-mono">{order.referenceCode}</span>
           </p>
           <p className="text-xs text-red-500 mt-1">
             Please ensure you used this reference code when making the transfer.
           </p>
         </div>
-
         <button
           onClick={() => setUploadStep(true)}
           className="w-full py-4 bg-orange-500 text-white font-bold rounded-2xl hover:bg-orange-600 transition-colors"
         >
           Resubmit Proof of Payment
         </button>
-
         {supportLink && (
-          <a
-            href={supportLink}
-            target="_blank"
-            rel="noreferrer"
+          <a href={supportLink} target="_blank" rel="noreferrer"
             className="block text-center text-sm text-green-600 font-medium mt-4"
           >
             Contact support on WhatsApp
@@ -390,7 +335,7 @@ function PendingPageInner() {
   return (
     <div className="max-w-lg mx-auto py-8 px-4 pb-20">
 
-      {/* Status banner — shown after proof upload */}
+      {/* Status banner */}
       {(order.status === "AWAITING_APPROVAL" || uploadSuccess) && (
         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6 flex items-start gap-3">
           <div className="text-blue-500 mt-0.5 flex-shrink-0">
@@ -406,9 +351,7 @@ function PendingPageInner() {
             )}
           </div>
           <div>
-            <p className="text-sm font-semibold text-blue-800">
-              Proof received — verifying payment
-            </p>
+            <p className="text-sm font-semibold text-blue-800">Proof received — verifying payment</p>
             <p className="text-xs text-blue-600 mt-0.5">
               We usually confirm within 15–30 minutes. This page will update automatically.
             </p>
@@ -421,14 +364,12 @@ function PendingPageInner() {
         <div className="absolute inset-0 opacity-5 pointer-events-none">
           <div className="absolute top-0 right-0 w-48 h-48 rounded-full bg-orange-500 -translate-y-1/2 translate-x-1/2" />
         </div>
-        <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">
-          Your Reference Code
-        </p>
+        <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">Your Reference Code</p>
         <p className="text-4xl font-black tracking-widest text-orange-400 font-mono mb-3">
           {order.referenceCode}
         </p>
         <p className="text-xs text-gray-400">
-          ⚠️ You MUST include this when making your transfer
+          Keep this safe — you may need it to confirm your payment
         </p>
         <button
           onClick={() => navigator.clipboard.writeText(order.referenceCode)}
@@ -441,29 +382,22 @@ function PendingPageInner() {
       {/* Order summary */}
       <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-6 shadow-sm">
         <div className="flex justify-between items-center mb-3">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-            Order Summary
-          </span>
-          <span className="text-xs text-gray-400 font-mono">
-            {order.id.slice(0, 12)}...
-          </span>
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Order Summary</span>
+          <span className="text-xs text-gray-400 font-mono">{order.id.slice(0, 12)}...</span>
         </div>
         {order.tickets.map((ticket) => (
-          <div
-            key={ticket.id}
-            className="flex justify-between text-sm text-gray-700 mb-1"
-          >
+          <div key={ticket.id} className="flex justify-between text-sm text-gray-700 mb-1">
             <span>{ticket.ticketType.name}</span>
             <span className="text-gray-400">× 1</span>
           </div>
         ))}
         <div className="border-t border-gray-100 mt-3 pt-3 flex justify-between font-bold text-gray-900">
-          <span>Total to transfer</span>
+          <span>Total to pay</span>
           <span>${order.totalPrice.toFixed(2)} USD</span>
         </div>
       </div>
 
-      {/* Payment instructions — hidden when upload form is open */}
+      {/* Payment instructions */}
       {!uploadStep && (
         <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-6 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
@@ -477,89 +411,109 @@ function PendingPageInner() {
           </div>
 
           <ol className="space-y-3">
+
+            {/* ── MTN MoMo — Merchant account flow ─────────────────────────── */}
             {isMomo && (
               <>
-                <Step n={1} text="Open MTN MoMo or dial *880#" />
-                <Step n={2} text={`Select "Transfer Money" → "To MoMo Number"`} />
+                <Step n={1} text="Dial *156# on your MTN line" />
+                <Step n={2} text={`Select "MoMo Pay"`} />
                 <Step n={3}>
-                  Send to:{" "}
+                  Enter merchant number:{" "}
                   <strong className="font-mono">
                     {paymentSettings.mtnMomoNumber || "—"}
                   </strong>
                   <br />
-                  <span className="text-gray-400 text-xs">
-                    {paymentSettings.mtnMomoName}
-                  </span>
+                  <span className="text-gray-400 text-xs">{paymentSettings.mtnMomoName}</span>
                 </Step>
-                <Step n={4} text={`Amount: $${order.totalPrice.toFixed(2)} USD`} />
-                <Step n={5}>
-                  Reference/memo:{" "}
-                  <strong className="font-mono text-orange-600">
-                    {order.referenceCode}
-                  </strong>
-                </Step>
-                <Step n={6} text="Screenshot your confirmation" />
+                <Step n={4} text="Select your currency (LRD or USD)" />
+                <Step n={5} text={`Enter amount: $${order.totalPrice.toFixed(2)} USD`} />
+                <Step n={6} text="Enter your MoMo PIN to confirm" />
+                <Step n={7} text="Screenshot the confirmation message" />
+
+                {/* Reference code as backup */}
+                <li className="mt-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2">
+                  <span className="text-amber-500 text-sm mt-0.5">⚠️</span>
+                  <div>
+                    <p className="text-xs font-semibold text-amber-800">
+                      If asked for a reference or memo:
+                    </p>
+                    <p className="text-sm font-mono font-bold text-orange-600 mt-0.5">
+                      {order.referenceCode}
+                    </p>
+                    <p className="text-xs text-amber-600 mt-0.5">
+                      This helps us match your payment if there are any issues.
+                    </p>
+                  </div>
+                </li>
               </>
             )}
 
+            {/* ── Orange Money flow ─────────────────────────────────────────── */}
             {isOrange && (
               <>
-                <Step n={1} text="Dial #144# or open Orange Money app" />
-                <Step n={2} text={`Select "Send Money"`} />
-                <Step n={3}>
-                  Send to:{" "}
+                <Step n={1} text="Dial *144# on your Orange line" />
+                <Step n={2} text="Select your currency (LRD or USD)" />
+                <Step n={3} text={`Select "Send Money"`} />
+                <Step n={4} text={`Select "To Orange Number"`} />
+                <Step n={5}>
+                  Enter number:{" "}
                   <strong className="font-mono">
                     {paymentSettings.orangeMoneyNumber || "—"}
                   </strong>
                   <br />
-                  <span className="text-gray-400 text-xs">
-                    {paymentSettings.orangeMoneyName}
-                  </span>
+                  <span className="text-gray-400 text-xs">{paymentSettings.orangeMoneyName}</span>
                 </Step>
-                <Step n={4} text={`Amount: $${order.totalPrice.toFixed(2)} USD`} />
-                <Step n={5}>
-                  Reference:{" "}
-                  <strong className="font-mono text-orange-600">
-                    {order.referenceCode}
-                  </strong>
-                </Step>
-                <Step n={6} text="Screenshot your receipt" />
+                <Step n={6} text={`Enter amount: $${order.totalPrice.toFixed(2)} USD`} />
+                <Step n={7} text="Enter your PIN to confirm" />
+                <Step n={8} text="Screenshot your confirmation SMS" />
+
+                {/* Reference code as backup */}
+                <li className="mt-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2">
+                  <span className="text-amber-500 text-sm mt-0.5">⚠️</span>
+                  <div>
+                    <p className="text-xs font-semibold text-amber-800">
+                      Your reference code (for support):
+                    </p>
+                    <p className="text-sm font-mono font-bold text-orange-600 mt-0.5">
+                      {order.referenceCode}
+                    </p>
+                    <p className="text-xs text-amber-600 mt-0.5">
+                      Keep this in case we need to verify your payment manually.
+                    </p>
+                  </div>
+                </li>
               </>
             )}
 
+            {/* ── Bank Transfer ─────────────────────────────────────────────── */}
             {isBank && (
               <>
                 <Step n={1}>
                   Bank: <strong>{paymentSettings.bankName || "—"}</strong>
                 </Step>
                 <Step n={2}>
-                  Account name:{" "}
-                  <strong>{paymentSettings.bankAccountName}</strong>
+                  Account name: <strong>{paymentSettings.bankAccountName}</strong>
                 </Step>
                 <Step n={3}>
                   Account number:{" "}
-                  <strong className="font-mono">
-                    {paymentSettings.bankAccountNumber || "—"}
-                  </strong>
+                  <strong className="font-mono">{paymentSettings.bankAccountNumber || "—"}</strong>
                 </Step>
                 <Step n={4} text={`Amount: $${order.totalPrice.toFixed(2)} USD`} />
                 <Step n={5}>
                   Narration/Reference:{" "}
-                  <strong className="font-mono text-orange-600">
-                    {order.referenceCode}
-                  </strong>
+                  <strong className="font-mono text-orange-600">{order.referenceCode}</strong>
                   <span className="block text-xs text-red-500 mt-0.5">
-                    This is required — {"don't"} skip!
+                    Required — this is how we identify your payment
                   </span>
                 </Step>
-                <Step n={6} text="Photo your bank slip or teller receipt" />
+                <Step n={6} text="Photograph your bank slip or teller receipt" />
               </>
             )}
           </ol>
         </div>
       )}
 
-      {/* CTA — only shown when still pending and upload form is closed */}
+      {/* CTA */}
       {!uploadStep && order.status === "PENDING_CONFIRMATION" && (
         <button
           onClick={() => setUploadStep(true)}
@@ -574,17 +528,15 @@ function PendingPageInner() {
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-gray-900">Upload Proof of Payment</h2>
-            <button
-              onClick={() => setUploadStep(false)}
-              className="text-gray-400 hover:text-gray-600"
-            >
+            <button onClick={() => setUploadStep(false)} className="text-gray-400 hover:text-gray-600">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
 
-          {/* Drop zone */}
+          {/* FIX: No capture attribute — shows full OS picker (Camera / Photos / Files) */}
+          {/* This lets mobile users who already took the screenshot access their gallery */}
           <div
             onDrop={handleFileDrop}
             onDragOver={(e) => e.preventDefault()}
@@ -600,29 +552,23 @@ function PendingPageInner() {
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={(e) =>
-                e.target.files?.[0] && handleFileSelect(e.target.files[0])
-              }
-              capture="environment"
+              onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
+              // FIX: No capture="environment" — lets user choose camera OR gallery
             />
             {filePreview ? (
               <div>
-                <img
-                  src={filePreview}
-                  alt="Preview"
-                  className="max-h-48 mx-auto rounded-lg object-contain"
-                />
-                <p className="text-xs text-green-600 font-medium mt-2">
-                  {selectedFile?.name} ✓
-                </p>
+                <img src={filePreview} alt="Preview" className="max-h-48 mx-auto rounded-lg object-contain" />
+                <p className="text-xs text-green-600 font-medium mt-2">{selectedFile?.name} ✓</p>
               </div>
             ) : (
               <>
-                <div className="text-4xl mb-2">📸</div>
+                <div className="text-4xl mb-2">📎</div>
                 <p className="text-sm font-medium text-gray-700">
-                  Tap to take photo or choose file
+                  Tap to upload screenshot
                 </p>
-                <p className="text-xs text-gray-400 mt-1">JPG, PNG up to 10MB</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Choose from Camera, Photos, or Files · JPG, PNG up to 10MB
+                </p>
               </>
             )}
           </div>
@@ -649,9 +595,7 @@ function PendingPageInner() {
           </div>
 
           {uploadError && (
-            <p className="text-sm text-red-500 mb-3 bg-red-50 rounded-xl px-3 py-2">
-              {uploadError}
-            </p>
+            <p className="text-sm text-red-500 mb-3 bg-red-50 rounded-xl px-3 py-2">{uploadError}</p>
           )}
 
           <button
@@ -671,14 +615,12 @@ function PendingPageInner() {
                 </svg>
                 Submitting...
               </span>
-            ) : (
-              "Submit Proof"
-            )}
+            ) : "Submit Proof"}
           </button>
         </div>
       )}
 
-      {/* Already submitted */}
+      {/* Submitted state */}
       {(order.status === "AWAITING_APPROVAL" || uploadSuccess) && !uploadStep && (
         <div className="mt-6 bg-blue-50 border border-blue-100 rounded-2xl p-4 text-center">
           <p className="text-sm font-medium text-blue-800">Proof submitted ✓</p>
@@ -697,16 +639,11 @@ function PendingPageInner() {
         </div>
       )}
 
-      {/* Support link */}
+      {/* Support */}
       {supportLink && (
         <p className="text-center text-xs text-gray-400 mt-6">
           Questions?{" "}
-          <a
-            href={supportLink}
-            target="_blank"
-            rel="noreferrer"
-            className="text-green-600 font-medium"
-          >
+          <a href={supportLink} target="_blank" rel="noreferrer" className="text-green-600 font-medium">
             WhatsApp support
           </a>
         </p>
@@ -717,38 +654,24 @@ function PendingPageInner() {
 
 // ── Step helper ───────────────────────────────────────────────────────────────
 
-function Step({
-  n,
-  text,
-  children,
-}: {
-  n: number
-  text?: string
-  children?: React.ReactNode
-}) {
+function Step({ n, text, children }: { n: number; text?: string; children?: React.ReactNode }) {
   return (
     <li className="flex items-start gap-3">
       <span className="flex-shrink-0 w-6 h-6 bg-orange-100 text-orange-600 rounded-full text-xs font-bold flex items-center justify-center mt-0.5">
         {n}
       </span>
-      <span className="text-sm text-gray-700 leading-relaxed">
-        {text ?? children}
-      </span>
+      <span className="text-sm text-gray-700 leading-relaxed">{text ?? children}</span>
     </li>
   )
 }
 
-// ── Page export ───────────────────────────────────────────────────────────────
-
 export default function PendingPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-        </div>
-      }
-    >
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
       <PendingPageInner />
     </Suspense>
   )

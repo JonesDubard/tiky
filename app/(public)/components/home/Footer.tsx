@@ -30,17 +30,17 @@ export default function Footer() {
           {/* Brand — full width on smallest screens */}
           <div className="col-span-2 sm:col-span-1">
             <Link href="/" className="inline-block mb-3">
-              <div className="relative w-[90px] h-[30px] overflow-hidden rounded-lg bg-white border border-slate-100 shadow-sm p-2">
-                <Image
-                  src="/Logo.jpg"
-                  alt="Tiky Logo"
-                  fill
-                  priority
-                  className="object-contain"
-                  sizes="90px"
-                />
-              </div>
-            </Link>
+  <div className="relative w-[110px] h-[32px] rounded-lg overflow-hidden">
+  <Image
+    src="/Tiky-Expanded.png"
+    alt="Tiky Logo"
+    fill
+    priority
+    className="object-contain"
+    sizes="110px"
+  />
+</div>
+</Link>
             <p className="text-slate-500 text-xs mb-4 max-w-[180px]">
               Discover events. Vote in polls. Secure tickets.
             </p>

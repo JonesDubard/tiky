@@ -1,4 +1,3 @@
-// components/navigation/Navbar.tsx
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -59,18 +58,30 @@ export default function Navbar() {
     }
   }, [pathname]);
 
+  // ── Desktop nav ────────────────────────────────────────────────────────────
+
   const DesktopNav = () => (
     <nav className={`hidden lg:flex fixed top-0 inset-x-0 z-50 h-20 items-center justify-between px-6 lg:px-8 transition-all duration-500 ${
       isScrolled
         ? 'bg-white/95 backdrop-blur-lg shadow-lg border-b border-slate-200/30'
         : 'bg-gradient-to-b from-white to-white/80'
     }`}>
+
+      {/* Logo — FIX: no white box, transparent background, logo fills naturally */}
       <Link href="/" className="flex items-center gap-3 group flex-shrink-0">
-        <div className="relative w-[110px] h-[36px] overflow-hidden rounded-xl bg-gradient-to-br from-white to-slate-50 shadow-sm border border-slate-100 p-2.5 transition-all duration-300 group-hover:shadow-md group-hover:scale-[1.03]">
-          <Image src="/Logo.jpg" alt="Tiky Logo" fill priority className="object-contain drop-shadow-sm" sizes="110px" />
-        </div>
+  <div className="relative w-[120px] h-[40px] transition-all duration-300 group-hover:scale-[1.03] rounded-xl overflow-hidden">
+    <Image
+      src="/Tiky-Expanded.png"
+      alt="Tiky"
+      fill
+      priority
+      className="object-contain object-left"
+      sizes="120px"
+    />
+  </div>
       </Link>
 
+      {/* Nav pill */}
       <div className="flex-1 flex items-center justify-center mx-8">
         <div ref={navRef} className="relative flex items-center gap-1 bg-slate-100/70 rounded-2xl p-1.5 backdrop-blur-sm">
           <span
@@ -97,10 +108,10 @@ export default function Navbar() {
         </div>
       </div>
 
+      {/* Right actions */}
       <div className="flex items-center gap-3 flex-shrink-0">
         {session ? (
           <div className="flex items-center gap-3">
-            {/* My Tickets link for desktop */}
             <Link
               href="/my-tickets"
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-slate-700 hover:text-brand-primary transition-all duration-200"
@@ -108,7 +119,6 @@ export default function Navbar() {
               <Ticket className="w-4 h-4" />
               <span className="text-sm">My Tickets</span>
             </Link>
-
             {isAdmin && (
               <Link
                 href="/admin"
@@ -140,6 +150,8 @@ export default function Navbar() {
     </nav>
   );
 
+  // ── Mobile ─────────────────────────────────────────────────────────────────
+
   const MobileTopBar = () => (
     <>
       <div className={`lg:hidden fixed top-0 inset-x-0 z-40 h-16 px-4 flex items-center justify-between transition-all duration-300 ${
@@ -153,10 +165,11 @@ export default function Navbar() {
           <Menu className="w-5 h-5 text-slate-700" />
         </button>
 
+        {/* Logo — FIX: transparent, no white box */}
         <Link href="/" className="flex items-center justify-center">
-          <div className="relative w-[90px] h-[30px] overflow-hidden rounded-lg bg-white p-1.5 shadow-sm border border-slate-100">
-            <Image src="/Logo.jpg" alt="Tiky Logo" fill className="object-contain" sizes="90px" />
-          </div>
+          <div className="relative w-[100px] h-[32px] rounded-lg overflow-hidden">
+  <Image src="/Tiky-Expanded.png" alt="Tiky" fill className="object-contain" sizes="100px" />
+</div>
         </Link>
 
         {isAdmin ? (
@@ -188,9 +201,12 @@ export default function Navbar() {
       }`}>
         <div className="p-5 border-b border-slate-100">
           <div className="flex items-center justify-between mb-5">
-            <div className="relative w-[90px] h-[30px] overflow-hidden rounded-lg bg-white p-1.5 border border-slate-200">
-              <Image src="/Logo.jpg" alt="Tiky Logo" fill className="object-contain" sizes="90px" />
-            </div>
+
+            {/* Logo in drawer — FIX: transparent, no white box */}
+            <div className="relative w-[100px] h-[32px] rounded-lg overflow-hidden">
+  <Image src="/Tiky-Expanded.png" alt="Tiky" fill className="object-contain object-left" sizes="100px" />
+</div>
+
             <button
               onClick={() => setMobileMenuOpen(false)}
               className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-90 transition-all"
@@ -266,7 +282,6 @@ export default function Navbar() {
             );
           })}
 
-          {/* My Tickets link in mobile drawer */}
           {session && (
             <Link
               href="/my-tickets"
@@ -306,6 +321,8 @@ export default function Navbar() {
       </div>
     </>
   );
+
+  // ── Mobile bottom nav ──────────────────────────────────────────────────────
 
   const MobileBottomNav = () => (
     <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-lg border-t border-slate-200/50 shadow-2xl">

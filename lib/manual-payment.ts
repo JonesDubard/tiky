@@ -72,8 +72,8 @@ export function getPaymentInstructions(
       accountNumber: process.env.MTN_MOMO_NUMBER ?? "+231 88 000 0000",
       accountName: process.env.MTN_MOMO_NAME ?? "Tiky Events",
       instructions: [
-        `Dial *880#`,
-        `Select "Transfer Money" → "To MoMo Number"`,
+        `Dial *156#`,
+        `Select "Send Money" → "To MoMo Number"`,
         `Enter number: ${process.env.MTN_MOMO_NUMBER ?? "+231 88 000 0000"}`,
         `Enter amount: ${amountStr}`,
         `In the reference/memo field, type: ${referenceCode}`,

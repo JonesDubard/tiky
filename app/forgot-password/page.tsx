@@ -48,7 +48,7 @@ export default function ForgotPasswordPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-block mb-5">
             <div className="relative w-[120px] h-[40px] mx-auto overflow-hidden rounded-xl bg-white shadow-sm border border-slate-100 p-2">
-              <Image src="/Logo.jpg" alt="Tiky" fill className="object-contain" sizes="120px" />
+              <Image src="/Tiky-Expanded.png" alt="Tiky" fill className="object-contain" sizes="120px" />
             </div>
           </Link>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Forgot your password?</h1>

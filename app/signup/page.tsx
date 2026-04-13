@@ -112,7 +112,7 @@ export default function SignupPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-block mb-4">
             <div className="relative w-[110px] h-[36px] overflow-hidden rounded-xl bg-white shadow-sm border border-slate-100 p-2.5 mx-auto">
-              <Image src="/Logo.jpg" alt="Tiky" fill className="object-contain" sizes="110px" priority />
+              <Image src="/Tiky-Expanded.png" alt="Tiky" fill className="object-contain" sizes="110px" priority />
             </div>
           </Link>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Create Account</h1>
