@@ -69,17 +69,17 @@ export default function Navbar() {
 
       {/* Logo — FIX: no white box, transparent background, logo fills naturally */}
       <Link href="/" className="flex items-center gap-3 group flex-shrink-0">
-  <div className="relative w-[120px] h-[40px] transition-all duration-300 group-hover:scale-[1.03] rounded-xl overflow-hidden">
+  <div className="relative w-[140px] h-[45px] transition-all duration-300 group-hover:scale-[1.03] rounded-xl overflow-hidden">
     <Image
       src="/Tiky-Expanded.png"
       alt="Tiky"
       fill
       priority
-      className="object-contain object-left"
-      sizes="120px"
+      className="object-contain"   // removed object-left
+      sizes="140px"
     />
   </div>
-      </Link>
+</Link>
 
       {/* Nav pill */}
       <div className="flex-1 flex items-center justify-center mx-8">
