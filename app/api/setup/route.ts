@@ -17,7 +17,7 @@ export async function POST() {
     }
 
     // Create admin user
-    const hashedPassword = await hash("Admin123!", 10);
+    const hashedPassword = await hash("password123!", 10);
     
     const admin = await prisma.user.create({
       data: {
@@ -31,7 +31,7 @@ export async function POST() {
     return NextResponse.json({
       message: "Admin created successfully",
       email: admin.email,
-      password: "Admin123!"
+      //  Don't return the password or any sensitive info
     });
   } catch (error) {
     console.error("[SETUP_ERROR]", error);

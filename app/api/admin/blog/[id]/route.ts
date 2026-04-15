@@ -44,13 +44,32 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
+  const { title, content, coverImage, published } = body;
+
+  // Regenerate slug if title is being changed
+  let slugUpdate = {};
+  if (title !== undefined && title.trim()) {
+    const newSlug = title
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-");
+
+    // Ensure slug uniqueness (exclude current post)
+    const conflict = await prisma.post.findFirst({
+      where: { slug: newSlug, id: { not: id }, deletedAt: null },
+    });
+    slugUpdate = { slug: conflict ? `${newSlug}-${Date.now()}` : newSlug };
+  }
+
   const updated = await prisma.post.update({
     where: { id },
     data: {
-      ...(body.title && { title: body.title }),
-      ...(body.content && { content: body.content }),
-      ...(body.coverImage !== undefined && { coverImage: body.coverImage }),
-      ...(body.published !== undefined && { published: body.published }),
+      ...(title !== undefined && { title, ...slugUpdate }),
+      ...(content !== undefined && { content }),          // ✅ was falsy-checking, now undefined-checking
+      ...(coverImage !== undefined && { coverImage: coverImage || null }),
+      ...(published !== undefined && { published }),
     },
   });
 

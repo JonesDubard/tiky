@@ -49,6 +49,7 @@ export default function PollForm({ initialData, mode = "create" }: PollFormProps
       : "",
     eventId: initialData?.eventId ?? "",
     isFeatured: initialData?.isFeatured ?? false,
+    requiresTicket: (initialData as any)?.requiresTicket ?? false,
   });
 
   const [options, setOptions] = useState<PollOption[]>(
@@ -70,7 +71,7 @@ export default function PollForm({ initialData, mode = "create" }: PollFormProps
   }, []);
 
   const addOption = () => {
-    if (options.length >= 10) return showToast("Maximum 10 options allowed", "error");
+    if (options.length >= 20) return showToast("Maximum 20 candidates allowed", "error");
     setOptions([...options, { text: "", imageUrl: null }]);
   };
 
@@ -119,6 +120,7 @@ export default function PollForm({ initialData, mode = "create" }: PollFormProps
         endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
         eventId: form.pollType === "TOKEN_GATED" && form.eventId ? form.eventId : null,
         options: validOptions,
+        requiresTicket: form.requiresTicket,
       };
 
       const url = mode === "edit" && initialData?.id
@@ -273,16 +275,23 @@ export default function PollForm({ initialData, mode = "create" }: PollFormProps
           ))}
         </div>
 
-        {options.length < 10 && (
-          <button
-            type="button"
-            onClick={addOption}
-            className="mt-3 flex items-center gap-2 text-sm text-orange-600 hover:text-orange-700 font-medium"
-          >
-            <Plus className="w-4 h-4" />
-            Add Candidate
-          </button>
-        )}
+       <div className="mt-3 flex items-center justify-between">
+          {options.length < 20 ? (
+            <button
+              type="button"
+              onClick={addOption}
+              className="flex items-center gap-2 text-sm text-orange-600 hover:text-orange-700 font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              Add Candidate
+            </button>
+          ) : (
+            <span className="text-xs text-gray-400 italic">Maximum 20 candidates reached</span>
+          )}
+          <span className="text-xs text-gray-400 font-medium">
+            {options.filter(o => o.text.trim()).length} / 20 candidates
+          </span>
+        </div>
       </div>
 
       {/* Poll Type — visual cards */}
@@ -394,6 +403,26 @@ export default function PollForm({ initialData, mode = "create" }: PollFormProps
             className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
           />
         </div>
+      </div>
+
+      {/* Physical Ticket Voting */}
+      <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+        <input
+          id="requiresTicket"
+          type="checkbox"
+          checked={form.requiresTicket}
+          onChange={(e) => setForm({ ...form, requiresTicket: e.target.checked })}
+          className="w-4 h-4 mt-0.5 text-amber-500 border-gray-300 rounded focus:ring-amber-400"
+        />
+        <label htmlFor="requiresTicket" className="text-sm text-gray-700">
+          <span className="font-semibold flex items-center gap-1.5">
+            <Ticket className="w-3.5 h-3.5 text-amber-600" />
+            Require Physical Ticket to Vote
+          </span>
+          <span className="text-gray-500 font-normal block mt-0.5">
+            Voters enter their ticket ID. Each ticket = 1 vote. More tickets = more votes.
+          </span>
+        </label>
       </div>
 
       {/* Featured */}

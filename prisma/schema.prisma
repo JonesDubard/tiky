@@ -9,15 +9,17 @@ datasource db {
 
 // Replace enums with String constraints
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  password  String?
-  role      String   @default("USER") // Instead of Role enum
-  status    String   @default("active") // active, suspended
-  image     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  password      String?
+  role          String   @default("USER") // Instead of Role enum
+  status        String   @default("active") // active, suspended
+  image         String?
+  phoneNumber   String?  @unique
+  phoneVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   events       Event[]
   polls        Poll[]
@@ -99,8 +101,8 @@ model TicketInstance {
   // Store metadata as String (JSON) if needed
   metadata    String? // Store as JSON string
 
-  // Checked at 
   scannedAt DateTime?
+  votes     Vote[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -122,7 +124,7 @@ model Order {
   paymentMethod String?
 
   eventId String?
-  event   Event?  @relation(fields: [eventId], references: [id])
+  event   Event?  @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id])
@@ -162,7 +164,7 @@ model Payment {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  event     Event?   @relation(fields: [eventId], references: [id])
+  event     Event?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
   eventId   String?
 
   @@index([status])
@@ -170,18 +172,20 @@ model Payment {
 
 // Update Poll model 
 model Poll {
-  id          String    @id @default(cuid())
-  title       String
-  description String?
-  status      String    @default("ACTIVE") // ACTIVE, CLOSED
-  pollType    String    @default("PUBLIC") // PUBLIC, TOKEN_GATED
-  endDate     DateTime? // close date
-  isFeatured  Boolean   @default(false)
-  eventId     String? // link to event for PAID/TOKEN_GATED
-  createdById String? // creator FK
-  deletedAt   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  title          String
+  description    String?
+  status         String    @default("ACTIVE") // ACTIVE, CLOSED
+  pollType       String    @default("PUBLIC") // PUBLIC, TOKEN_GATED
+  endDate        DateTime? // close date
+  isFeatured     Boolean   @default(false)
+  eventId        String? // link to event for PAID/TOKEN_GATED
+  createdById    String? // creator FK
+  deletedAt      DateTime?
+  requiresTicket Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  linkedEventId  String?
 
   options PollOption[]
   votes   Vote[]
@@ -213,11 +217,10 @@ model Vote {
   option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
   user   User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // For guest voting 
-  deviceId String? // For non-authenticated users
-
-  // Store additional data as JSON string
-  metadata String? // JSON string
+  deviceId         String?
+  metadata         String?
+  ticketInstanceId String?
+  ticketInstance   TicketInstance? @relation(fields: [ticketInstanceId], references: [id])
 
   createdAt DateTime @default(now())
 
@@ -292,4 +295,16 @@ model Setting {
   updatedAt DateTime @updatedAt
 
   @@index([key])
+}
+
+model PhoneOtp {
+  id        String   @id @default(cuid())
+  phone     String
+  code      String
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([phone])
 }

@@ -9,14 +9,14 @@ async function main() {
   // Clear existing data (optional - be careful in production!)
   // await prisma.$executeRaw`DELETE FROM User;`
   
-  const password = await bcrypt.hash('password123', 10)
+  const password = await bcrypt.hash('password123!', 10)
 
   // Create Admin User
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@example.com' },
+    where: { email: 'tikyliberia@gmail.com' },
     update: {},
     create: {
-      email: 'admin@example.com',
+      email: 'tikyliberia@gmail.com',
       name: 'Admin User',
       password: password,
       role: 'ADMIN',

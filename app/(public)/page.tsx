@@ -8,6 +8,15 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 export const revalidate = 60;
 
+interface PublicPost {
+  id: string;
+  slug: string;
+  title: string;
+  coverImage: string | null;
+  createdAt: Date;
+  author: { name: string | null };
+}
+
 interface PublicEvent {
   id: string;
   title: string;
@@ -41,6 +50,23 @@ async function getEvents(): Promise<PublicEvent[]> {
     });
   } catch { return []; }
 }
+async function getBlogPosts(): Promise<PublicPost[]> {
+  try {
+    return await prisma.post.findMany({
+      where: { published: true, deletedAt: null },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        coverImage: true,
+        createdAt: true,
+        author: { select: { name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 3,
+    });
+  } catch { return []; }
+}
 
 async function getPolls(): Promise<PublicPoll[]> {
   try {
@@ -70,7 +96,7 @@ async function getPolls(): Promise<PublicPoll[]> {
 }
 
 export default async function HomePage() {
-  const [events, polls] = await Promise.all([getEvents(), getPolls()]);
+  const [events, polls, posts] = await Promise.all([getEvents(), getPolls(), getBlogPosts()]);
 
   return (
     <main className="min-h-screen">
@@ -107,6 +133,63 @@ export default async function HomePage() {
           </div>
         )}
       </section>
+
+      {/* Latest News / Blog */}
+      {posts.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+          <div className="flex items-center justify-between mb-6 md:mb-8">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Latest News</h2>
+              <p className="text-sm sm:text-base text-gray-600 mt-1">
+                Stories and highlights from our community
+              </p>
+            </div>
+            <Link
+              href="/blog"
+              className="inline-flex items-center gap-1 text-sm sm:text-base text-brand-primary hover:text-brand-accent font-medium transition-colors shrink-0 ml-4"
+            >
+              <span className="hidden sm:inline">View All</span>
+              <span className="sm:hidden">All</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {posts.map((post) => (
+              <Link key={post.id} href={`/blog/${post.slug}`} className="group block">
+                <article className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md hover:border-brand-primary/20 transition-all duration-200 active:scale-[0.99] h-full flex flex-col">
+                  <div className="aspect-[16/9] bg-gray-100 overflow-hidden">
+                    {post.coverImage ? (
+                      <img
+                        src={post.coverImage}
+                        alt={post.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-brand-primary/10 to-brand-accent/10">
+                        <span className="text-4xl">📰</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-4 sm:p-5 flex flex-col flex-1">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 group-hover:text-brand-primary transition-colors line-clamp-2 leading-snug">
+                      {post.title}
+                    </h3>
+                    <div className="mt-auto flex items-center justify-between text-xs text-gray-400 pt-3 border-t border-gray-50">
+                      <span className="font-medium">{post.author.name ?? "Tiky Team"}</span>
+                      <span>
+                        {new Date(post.createdAt).toLocaleDateString("en-US", {
+                          month: "short", day: "numeric", year: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </article>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Live Polls */}
       <section className="bg-gray-50">
