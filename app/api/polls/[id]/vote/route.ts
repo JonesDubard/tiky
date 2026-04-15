@@ -46,8 +46,6 @@ export async function POST(
     }
 
     // ── PHYSICAL TICKET VOTING ────────────────────────────────────────────────
-    // Each paid ticket = 1 vote. Voter supplies the QR/ID printed on their ticket.
-    // The same ticket can only vote once per poll. Someone with 3 tickets gets 3 votes.
     if (poll.requiresTicket) { 
       if (!ticketCode?.trim()) {
         return NextResponse.json(
@@ -61,7 +59,7 @@ export async function POST(
         include: {
           ticketType: { select: { eventId: true } },
           votes: {
-            where: { pollId }, // has THIS ticket already voted on THIS poll?
+            where: { pollId },
             select: { id: true },
           },
         },
@@ -74,7 +72,6 @@ export async function POST(
         );
       }
 
-      // Must belong to the linked event if poll specifies one
       if (poll.eventId && ticket.ticketType.eventId !== poll.eventId) {
         return NextResponse.json(
           { error: "This ticket is not valid for this poll's event." },
@@ -82,7 +79,6 @@ export async function POST(
         );
       }
 
-      // Must be a paid ticket
       if (ticket.status !== "PAID" && ticket.status !== "USED") {
         return NextResponse.json(
           { error: "Only paid tickets can be used to vote." },
@@ -90,7 +86,6 @@ export async function POST(
         );
       }
 
-      // This ticket has already voted on this poll
       if (ticket.votes.length > 0) {
         return NextResponse.json(
           { error: "This ticket has already been used to vote on this poll. Use a different ticket." },
@@ -98,12 +93,11 @@ export async function POST(
         );
       }
 
-      // ✅ Valid — cast the vote linked to this ticket
       const vote = await prisma.vote.create({
         data: {
           pollId,
           optionId,
-          userId,               // null if guest voter
+          userId,
           ticketInstanceId: ticket.id,
         },
       });
@@ -158,7 +152,6 @@ export async function POST(
   }
 }
 
-// ── Shared result builder ─────────────────────────────────────────────────────
 async function buildResults(pollId: string) {
   const options = await prisma.pollOption.findMany({
     where: { pollId },
