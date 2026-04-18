@@ -1,5 +1,4 @@
 // app/api/admin/orders/[id]/approve/route.ts
-//
 // Admin approves a manual payment.
 // Triggers ticket issuance (QR generation) and marks order COMPLETED.
 

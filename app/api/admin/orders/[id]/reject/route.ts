@@ -1,13 +1,11 @@
-// app/api/admin/orders/[id]/approve/route.ts
-//
-// Admin approves a manual payment.
-// Triggers ticket issuance (QR generation) and marks order COMPLETED.
+// app/api/admin/orders/[id]/reject/route.ts
+// Admin rejects a manual payment order.
+
 
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "lib/auth"
 import { prisma } from "lib/prisma"
-import { issueTicketsForOrder } from "lib/manual-payment"
 
 export async function POST(
   req: NextRequest,
@@ -21,16 +19,19 @@ export async function POST(
     }
 
     const { id: orderId } = await params
+    const body = await req.json().catch(() => ({}))
+    const reason: string = body.reason?.trim() || "Payment could not be verified"
 
-    // Verify order is in approvable state
+    // ── Load order with everything we need to reverse ──────────────────────
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      select: {
-        id: true,
-        status: true,
-        referenceCode: true,
-        totalPrice: true,
-        paymentMethod: true,
+      include: {
+        tickets: {
+          select: { id: true, status: true },
+        },
+        payments: {
+          select: { id: true },
+        },
       },
     })
 
@@ -38,35 +39,92 @@ export async function POST(
       return NextResponse.json({ error: "Order not found" }, { status: 404 })
     }
 
-    const approvableStatuses = ["AWAITING_APPROVAL", "PENDING_CONFIRMATION", "REJECTED"]
-    if (!approvableStatuses.includes(order.status)) {
+    // ── Guard: only reject orders that are in a rejectable state ───────────
+    // COMPLETED is allowed here intentionally — covers the "undo accidental
+    // approval" case. REJECTED is blocked to prevent double-processing.
+    const rejectableStatuses = [
+      "AWAITING_APPROVAL",
+      "PENDING_CONFIRMATION",
+      "PENDING",
+      "COMPLETED",   // ← undo an accidental approval
+    ]
+    if (!rejectableStatuses.includes(order.status)) {
       return NextResponse.json(
-        { error: `Order is already ${order.status} and cannot be approved` },
+        { error: `Order is ${order.status} and cannot be rejected` },
         { status: 400 }
       )
     }
 
-    // Issue tickets — generates QR images and marks tickets PAID
-    const result = await issueTicketsForOrder(orderId)
+    // ── Determine which tickets need to be cancelled ───────────────────────
+    // RESERVED  → never issued, just cancel
+    // PAID      → was issued (approved), reverse it
+    // USED      → already scanned at door, do not cancel (integrity)
+    const cancellableTickets = order.tickets.filter(
+      (t) => t.status === "RESERVED" || t.status === "PAID"
+    )
+    const usedTicketCount = order.tickets.filter((t) => t.status === "USED").length
 
-    if (!result.success) {
-      return NextResponse.json(
-        { error: result.error ?? "Failed to issue tickets" },
-        { status: 500 }
+    if (usedTicketCount > 0) {
+      // Partial reversal warning — log it but still proceed with the rest
+      console.warn(
+        `[ADMIN REJECT] Order ${orderId} has ${usedTicketCount} already-scanned ticket(s). Those will NOT be cancelled.`
       )
     }
 
+    // ── Atomic reversal ────────────────────────────────────────────────────
+    await prisma.$transaction(async (tx) => {
+      // 1. Cancel all reversible tickets and wipe QR image
+      if (cancellableTickets.length > 0) {
+        await tx.ticketInstance.updateMany({
+          where: {
+            id: { in: cancellableTickets.map((t) => t.id) },
+          },
+          data: {
+            status: "CANCELLED",
+            qrImage: null,   // remove issued QR so cancelled tickets can't be used
+          },
+        })
+      }
+
+      // 2. Mark order as REJECTED
+      //    Store reason in proofNote prefixed so it's readable in the UI
+      //    (the orders page already checks for "REJECTED:" prefix to hide it
+      //    from the TX ID display)
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: "REJECTED",
+          ticketGenerated: false,
+          proofNote: `REJECTED: ${reason}`,
+        },
+      })
+
+      // 3. Mark all payments on this order as FAILED
+      if (order.payments.length > 0) {
+        await tx.payment.updateMany({
+          where: { orderId },
+          data: {
+            status: "FAILED",
+            processedAt: new Date(),
+          },
+        })
+      }
+    })
+
     console.log(
-      `[ADMIN APPROVE] Order ${orderId} (${order.referenceCode}) approved by ${session.user.email}. ${result.ticketCount} tickets issued.`
+      `[ADMIN REJECT] Order ${orderId} (${order.referenceCode}) rejected by ${session.user.email}. ` +
+      `Reason: "${reason}". ${cancellableTickets.length} ticket(s) cancelled.` +
+      (usedTicketCount > 0 ? ` ${usedTicketCount} already-used ticket(s) left intact.` : "")
     )
 
     return NextResponse.json({
       success: true,
-      ticketCount: result.ticketCount,
-      message: `Approved. ${result.ticketCount} ticket(s) issued.`,
+      cancelledTickets: cancellableTickets.length,
+      skippedUsedTickets: usedTicketCount,
+      message: `Order rejected. ${cancellableTickets.length} ticket(s) cancelled.`,
     })
   } catch (error) {
-    console.error("[ADMIN APPROVE] Error:", error)
+    console.error("[ADMIN REJECT] Error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
