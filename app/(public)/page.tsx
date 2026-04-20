@@ -38,8 +38,16 @@ interface PublicPoll {
 
 async function getEvents(): Promise<PublicEvent[]> {
   try {
+    // Calculate start of today in UTC (00:00:00 UTC)
+    const now = new Date();
+    const startOfTodayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+
     return await prisma.event.findMany({
-      where: { published: true, date: { gte: new Date() }, deletedAt: null },
+      where: {
+        published: true,
+        date: { gte: startOfTodayUTC }, // Show events from today onward
+        deletedAt: null
+      },
       select: {
         id: true, title: true, description: true, date: true,
         location: true, imageUrl: true,
