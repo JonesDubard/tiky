@@ -1,4 +1,3 @@
-// app/api/admin/polls/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "lib/prisma";
 import { getServerSession } from "next-auth";
@@ -22,7 +21,17 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { title, description, pollType, status, isFeatured, endDate, eventId, options } = body;
+    const {
+      title,
+      description,
+      pollType,
+      status,
+      isFeatured,
+      endDate,
+      eventId,
+      requiresTicket,
+      options,
+    } = body;
 
     if (!title?.trim()) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -36,15 +45,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "At least 2 options are required" }, { status: 400 });
     }
 
+    // Validate pollType
+    const normalizedPollType = pollType === "TOKEN_GATED" ? "TOKEN_GATED" : "PUBLIC";
+
     const poll = await prisma.poll.create({
       data: {
         title: title.trim(),
         description: description?.trim() || null,
-        pollType: pollType || "FREE",
+        pollType: normalizedPollType,
         status: status || "ACTIVE",
         isFeatured: isFeatured ?? false,
         endDate: endDate ? new Date(endDate) : null,
-        eventId: eventId || null,
+        eventId: normalizedPollType === "TOKEN_GATED" ? eventId || null : null,
+        requiresTicket: normalizedPollType === "TOKEN_GATED" ? (requiresTicket ?? false) : false,
         createdById: user.id,
         options: {
           create: validOptions.map((o: { text?: string } | string) => ({

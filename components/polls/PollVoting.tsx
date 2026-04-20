@@ -1,8 +1,7 @@
 "use client";
 
-// components/polls/PollVoting.tsx
 import { useState, useEffect } from "react";
-import { CheckCircle, Lock, LogIn, Loader2, BarChart2, User } from "lucide-react";
+import { CheckCircle, Lock, LogIn, Loader2, BarChart2, User, Ticket } from "lucide-react";
 import { useSession } from "next-auth/react";
 
 interface PollOption {
@@ -18,6 +17,8 @@ interface PollVotingProps {
   totalVotes: number;
   isActive: boolean;
   pollType: string; // "PUBLIC" | "TOKEN_GATED"
+  requiresTicket?: boolean; // If true, physical ticket code required
+  eventId?: string | null;
   userVotedOptionId?: string | null;
 }
 
@@ -35,6 +36,8 @@ export default function PollVoting({
   totalVotes: initialTotal,
   isActive,
   pollType,
+  requiresTicket = false,
+  eventId,
   userVotedOptionId: initialVotedId = null,
 }: PollVotingProps) {
   const { data: session, status: authStatus } = useSession();
@@ -43,20 +46,43 @@ export default function PollVoting({
   const [totalVotes, setTotalVotes] = useState(initialTotal);
   const [userVotedOptionId, setUserVotedOptionId] = useState<string | null>(initialVotedId);
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  const [toast, setToast] = useState<{ msg: React.ReactNode; type: "success" | "error" } | null>(null);
+  const [ticketCode, setTicketCode] = useState("");
+  const [eligibility, setEligibility] = useState<{
+    canVote: boolean;
+    reason: string | null;
+    requiredAction: "login" | "buy_ticket" | "enter_code" | null;
+  } | null>(null);
 
   const hasVoted = !!userVotedOptionId;
   const showResults = hasVoted || !isActive;
   const isTokenGated = pollType === "TOKEN_GATED";
+  const needsTicketCode = isTokenGated && requiresTicket;
 
-  const showToast = (msg: string, type: "success" | "error") => {
+  const showToast = (msg: React.ReactNode, type: "success" | "error") => {
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 3500);
+    setTimeout(() => setToast(null), 4000);
   };
 
+  // Fetch eligibility on mount (optional but improves UX)
   useEffect(() => {
     if (authStatus === "loading") return;
-    const load = async () => {
+    const checkEligibility = async () => {
+      try {
+        const res = await fetch(`/api/polls/${pollId}/eligibility`);
+        if (res.ok) {
+          const data = await res.json();
+          setEligibility(data);
+        }
+      } catch {}
+    };
+    checkEligibility();
+  }, [pollId, authStatus]);
+
+  // Load results initially (if already voted or poll closed)
+  useEffect(() => {
+    if (authStatus === "loading") return;
+    const loadResults = async () => {
       try {
         const res = await fetch(`/api/polls/${pollId}/results`);
         if (!res.ok) return;
@@ -68,27 +94,89 @@ export default function PollVoting({
         setResults(merged);
         setTotalVotes(data.totalVotes);
         if (data.userVotedOptionId) setUserVotedOptionId(data.userVotedOptionId);
-      } catch { /* silent */ }
+      } catch {}
     };
-    load();
-  }, [pollId, authStatus]);
+    loadResults();
+  }, [pollId, authStatus, options]);
+
+  const getErrorMessage = (errorCode: string): { title: string; action?: { label: string; href: string } } => {
+    switch (errorCode) {
+      case "AUTH_REQUIRED":
+        return {
+          title: "You must be logged in to vote.",
+          action: { label: "Log in", href: "/login" },
+        };
+      case "NO_TICKET":
+        return {
+          title: "You need a ticket for this event to vote.",
+          action: { label: "Buy Ticket", href: eventId ? `/events/${eventId}` : "/events" },
+        };
+      case "TICKET_REQUIRED":
+        return { title: "Please enter your ticket code to vote." };
+      case "INVALID_TICKET":
+        return { title: "Ticket not found. Please check the code." };
+      case "WRONG_EVENT":
+        return { title: "This ticket is not valid for this poll's event." };
+      case "TICKET_NOT_PAID":
+        return { title: "Only paid tickets can be used to vote." };
+      case "TICKET_ALREADY_USED":
+        return { title: "This ticket has already been used to vote on this poll." };
+      case "ALREADY_VOTED":
+        return { title: "You have already voted on this poll." };
+      case "POLL_CLOSED":
+      case "POLL_ENDED":
+        return { title: "This poll is no longer active." };
+      default:
+        return { title: "Unable to cast vote. Please try again." };
+    }
+  };
 
   const handleVote = async () => {
-    if (!selected) return showToast("Please select a candidate first", "error");
-    if (authStatus !== "authenticated" && isTokenGated) {
-      return showToast("Please log in to vote on this poll", "error");
+    if (!selected) {
+      showToast("Please select an option first", "error");
+      return;
+    }
+
+    // If ticket code required, validate it's not empty
+    if (needsTicketCode && !ticketCode.trim()) {
+      showToast("Please enter your ticket code", "error");
+      return;
     }
 
     setLoading(true);
     try {
+      const payload: any = { optionId: selected };
+      if (needsTicketCode) {
+        payload.ticketCode = ticketCode.trim();
+      }
+
       const res = await fetch(`/api/polls/${pollId}/vote`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ optionId: selected }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (!res.ok) return showToast(data.error || "Failed to cast vote", "error");
 
+      if (!res.ok) {
+        const { error } = data;
+        const friendly = getErrorMessage(error);
+        if (friendly.action) {
+          showToast(
+            <span>
+              {friendly.title}{" "}
+              <a href={friendly.action.href} className="underline font-bold">
+                {friendly.action.label}
+              </a>
+            </span>,
+            "error"
+          );
+        } else {
+          showToast(friendly.title, "error");
+        }
+        return;
+      }
+
+      // Success
       const merged = (data.results ?? []).map((r: ResultOption) => ({
         ...r,
         imageUrl: options.find((o) => o.id === r.id)?.imageUrl ?? r.imageUrl ?? null,
@@ -97,6 +185,7 @@ export default function PollVoting({
       setTotalVotes(data.totalVotes);
       setUserVotedOptionId(selected);
       showToast("Your vote has been recorded! 🎉", "success");
+      setTicketCode(""); // Clear input
     } catch {
       showToast("Something went wrong. Please try again.", "error");
     } finally {
@@ -119,13 +208,18 @@ export default function PollVoting({
     ? Math.max(...displayOptions.map((o) => o.votes))
     : -1;
 
+  // Determine if we should show the ticket code input
+  const showTicketCodeInput = !showResults && isActive && needsTicketCode;
+
   return (
     <div className="relative">
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-xl shadow-lg text-white text-sm font-medium transition-all ${
-          toast.type === "success" ? "bg-green-500" : "bg-red-500"
-        }`}>
+        <div
+          className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-xl shadow-lg text-white text-sm font-medium transition-all ${
+            toast.type === "success" ? "bg-green-500" : "bg-red-500"
+          }`}
+        >
           {toast.msg}
         </div>
       )}
@@ -144,24 +238,67 @@ export default function PollVoting({
           </span>
         </div>
 
-        {/* Auth banners */}
-        {authStatus === "unauthenticated" && isActive && !isTokenGated && (
+        {/* Auth / eligibility banners */}
+        {authStatus === "unauthenticated" && isActive && !needsTicketCode && (
           <div className="mb-4 flex items-center gap-3 p-3 bg-orange-50 border border-orange-200 rounded-xl text-sm text-orange-700">
             <LogIn className="w-4 h-4 shrink-0" />
             <span>
-              Voting as guest.{" "}
-              <a href="/login" className="underline font-medium">Log in</a>{" "}
-              to prevent duplicate votes.
+              <a href="/login" className="underline font-medium">Log in</a> to vote.
             </span>
           </div>
         )}
-        {authStatus === "unauthenticated" && isActive && isTokenGated && (
+
+        {eligibility && !eligibility.canVote && isActive && !showResults && (
           <div className="mb-4 flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
-            <Lock className="w-4 h-4 shrink-0" />
-            <span>
-              <a href="/login" className="underline font-medium">Log in</a>{" "}
-              with your ticket account to vote on this poll.
-            </span>
+            {eligibility.requiredAction === "login" && (
+              <>
+                <LogIn className="w-4 h-4 shrink-0" />
+                <span>
+                  <a href="/login" className="underline font-medium">Log in</a> to vote.
+                </span>
+              </>
+            )}
+            {eligibility.requiredAction === "buy_ticket" && (
+              <>
+                <Ticket className="w-4 h-4 shrink-0" />
+                <span>
+                  You need a ticket.{" "}
+                  <a href={eventId ? `/events/${eventId}` : "/events"} className="underline font-medium">
+                    Buy Ticket
+                  </a>
+                </span>
+              </>
+            )}
+            {eligibility.requiredAction === "enter_code" && (
+              <>
+                <Lock className="w-4 h-4 shrink-0" />
+                <span>Enter your ticket code below to vote.</span>
+              </>
+            )}
+            {!eligibility.requiredAction && eligibility.reason && (
+              <span>{eligibility.reason}</span>
+            )}
+          </div>
+        )}
+
+        {/* Ticket code input field */}
+        {showTicketCodeInput && (
+          <div className="mb-4">
+            <label htmlFor="ticketCode" className="block text-sm font-medium text-gray-700 mb-1">
+              Ticket Code
+            </label>
+            <input
+              id="ticketCode"
+              type="text"
+              value={ticketCode}
+              onChange={(e) => setTicketCode(e.target.value)}
+              placeholder="Enter the code from your ticket"
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+              disabled={loading}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              The code printed on your physical/digital ticket.
+            </p>
           </div>
         )}
 
@@ -188,7 +325,6 @@ export default function PollVoting({
                 }`}
               >
                 <div className="flex items-center gap-3 p-3">
-                  {/* Photo / avatar */}
                   <div className="shrink-0 relative">
                     {option.imageUrl ? (
                       <div className="w-14 h-14 rounded-xl overflow-hidden border border-gray-100">
@@ -199,15 +335,18 @@ export default function PollVoting({
                         />
                       </div>
                     ) : (
-                      <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${
-                        isChosen || isMyVote ? "bg-orange-100" : isWinner ? "bg-orange-50" : "bg-gray-100"
-                      }`}>
-                        <User className={`w-6 h-6 ${
-                          isChosen || isMyVote || isWinner ? "text-orange-400" : "text-gray-400"
-                        }`} />
+                      <div
+                        className={`w-14 h-14 rounded-xl flex items-center justify-center ${
+                          isChosen || isMyVote ? "bg-orange-100" : isWinner ? "bg-orange-50" : "bg-gray-100"
+                        }`}
+                      >
+                        <User
+                          className={`w-6 h-6 ${
+                            isChosen || isMyVote || isWinner ? "text-orange-400" : "text-gray-400"
+                          }`}
+                        />
                       </div>
                     )}
-                    {/* My vote badge */}
                     {isMyVote && (
                       <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center shadow">
                         <CheckCircle className="w-3.5 h-3.5 text-white" />
@@ -215,12 +354,13 @@ export default function PollVoting({
                     )}
                   </div>
 
-                  {/* Name + bar or radio */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <span className={`text-sm font-semibold truncate ${
-                        isWinner ? "text-orange-900" : "text-gray-800"
-                      }`}>
+                      <span
+                        className={`text-sm font-semibold truncate ${
+                          isWinner ? "text-orange-900" : "text-gray-800"
+                        }`}
+                      >
                         {isWinner && <span className="mr-1">🏆</span>}
                         {option.text}
                       </span>
@@ -229,9 +369,11 @@ export default function PollVoting({
                           <span className="text-xs text-gray-400">
                             {option.votes.toLocaleString()}
                           </span>
-                          <span className={`text-sm font-bold w-10 text-right ${
-                            isWinner ? "text-orange-600" : "text-gray-500"
-                          }`}>
+                          <span
+                            className={`text-sm font-bold w-10 text-right ${
+                              isWinner ? "text-orange-600" : "text-gray-500"
+                            }`}
+                          >
                             {option.percentage}%
                           </span>
                         </div>
@@ -251,9 +393,11 @@ export default function PollVoting({
                       </div>
                     ) : (
                       <div className="flex items-center gap-1.5">
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
-                          isChosen ? "border-orange-500 bg-orange-500" : "border-gray-300"
-                        }`}>
+                        <div
+                          className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
+                            isChosen ? "border-orange-500 bg-orange-500" : "border-gray-300"
+                          }`}
+                        >
                           {isChosen && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                         </div>
                         <span className="text-xs text-gray-400">
@@ -268,7 +412,7 @@ export default function PollVoting({
           })}
         </div>
 
-        {/* Submit */}
+        {/* Submit button */}
         {!showResults && isActive && (
           <div className="mt-6">
             <button
@@ -285,7 +429,9 @@ export default function PollVoting({
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Submitting…
                 </span>
-              ) : "Submit Vote"}
+              ) : (
+                "Submit Vote"
+              )}
             </button>
           </div>
         )}

@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
         date: new Date(date),
         location,
         imageUrl,
-        published: published || false,
+        published: published !== undefined ? published : true,
         isFeatured: isFeatured || false,
         createdById: user.id,
         ticketTypes: {

@@ -4,8 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Bell, LayoutDashboard, Ticket, User, Menu, X, ChevronRight, LucideIcon } from 'lucide-react';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut  } from 'next-auth/react';
 import Image from 'next/image';
+import { Menu as HeadlessMenu, Transition } from '@headlessui/react'
+import { Fragment } from 'react'
 
 interface NavLink {
   name: string;
@@ -109,44 +111,101 @@ export default function Navbar() {
       </div>
 
       {/* Right actions */}
-      <div className="flex items-center gap-3 flex-shrink-0">
-        {session ? (
-          <div className="flex items-center gap-3">
-            <Link
-              href="/my-tickets"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-slate-700 hover:text-brand-primary transition-all duration-200"
-            >
-              <Ticket className="w-4 h-4" />
-              <span className="text-sm">My Tickets</span>
-            </Link>
-            {isAdmin && (
+{/* Right actions */}
+<div className="flex items-center gap-3 flex-shrink-0">
+  {session ? (
+    <HeadlessMenu as="div" className="relative">
+      <HeadlessMenu.Button className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium bg-gradient-to-r from-brand-primary to-brand-accent text-white hover:shadow-lg hover:scale-[1.02] transition-all duration-200 group">
+        <User className="w-4 h-4" />
+        <span className="text-sm font-medium max-w-[120px] truncate">{userDisplayName}</span>
+        <ChevronRight className="w-4 h-4 transition-transform group-hover:rotate-90" />
+      </HeadlessMenu.Button>
+
+      <Transition
+        as={Fragment}
+        enter="transition ease-out duration-100"
+        enterFrom="transform opacity-0 scale-95"
+        enterTo="transform opacity-100 scale-100"
+        leave="transition ease-in duration-75"
+        leaveFrom="transform opacity-100 scale-100"
+        leaveTo="transform opacity-0 scale-95"
+      >
+        <HeadlessMenu.Items className="absolute right-0 mt-2 w-56 origin-top-right rounded-xl bg-white shadow-lg border border-gray-100 focus:outline-none p-2 z-50">
+          <HeadlessMenu.Item>
+            {({ active }) => (
               <Link
-                href="/admin"
-                className="px-4 py-2.5 rounded-xl font-medium bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:shadow-lg hover:scale-[1.02] transition-all duration-200 text-sm"
+                href="/profile"
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm ${
+                  active ? 'bg-brand-primary/10 text-brand-primary' : 'text-gray-700'
+                }`}
               >
-                Admin
+                <User className="w-4 h-4" />
+                Profile
               </Link>
             )}
-            <Link
-              href={isAdmin ? "/admin" : "/profile"}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium bg-gradient-to-r from-brand-primary to-brand-accent text-white hover:shadow-lg hover:scale-[1.02] transition-all duration-200 group"
-            >
-              <User className="w-4 h-4" />
-              <span className="text-sm font-medium">{isAdmin ? "Dashboard" : userDisplayName}</span>
-              <ChevronRight className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
-            </Link>
-          </div>
-        ) : (
-          <Link
-            href="/login"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium bg-gradient-to-r from-brand-primary to-brand-accent text-white hover:shadow-lg hover:scale-[1.02] transition-all duration-200 group"
-          >
-            <User className="w-4 h-4" />
-            <span className="text-sm font-medium">Login</span>
-            <ChevronRight className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
-          </Link>
-        )}
-      </div>
+          </HeadlessMenu.Item>
+
+          <HeadlessMenu.Item>
+            {({ active }) => (
+              <Link
+                href="/my-tickets"
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm ${
+                  active ? 'bg-brand-primary/10 text-brand-primary' : 'text-gray-700'
+                }`}
+              >
+                <Ticket className="w-4 h-4" />
+                My Tickets
+              </Link>
+            )}
+          </HeadlessMenu.Item>
+
+          {isAdmin && (
+            <HeadlessMenu.Item>
+              {({ active }) => (
+                <Link
+                  href="/admin"
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm ${
+                    active ? 'bg-purple-100 text-purple-700' : 'text-purple-700'
+                  }`}
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  Admin Dashboard
+                </Link>
+              )}
+            </HeadlessMenu.Item>
+          )}
+
+          <div className="my-1 h-px bg-gray-100" />
+
+          <HeadlessMenu.Item>
+            {({ active }) => (
+              <button
+                onClick={() => signOut({ callbackUrl: '/' })}
+                className={`w-full text-left flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm ${
+                  active ? 'bg-red-50 text-red-600' : 'text-red-500'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Sign Out
+              </button>
+            )}
+          </HeadlessMenu.Item>
+        </HeadlessMenu.Items>
+      </Transition>
+    </HeadlessMenu>
+  ) : (
+    <Link
+      href="/login"
+      className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium bg-gradient-to-r from-brand-primary to-brand-accent text-white hover:shadow-lg hover:scale-[1.02] transition-all duration-200 group"
+    >
+      <User className="w-4 h-4" />
+      <span className="text-sm font-medium">Login</span>
+      <ChevronRight className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
+    </Link>
+  )}
+</div>
     </nav>
   );
 

@@ -8,6 +8,7 @@
 // 2. Orange Money: corrected flow (*144# → currency → send money → to orange number)
 // 3. File upload: removed capture="environment" — now shows OS picker sheet
 //    (Camera / Photos / Files) so users can access existing screenshots
+// 4. Expiration timer: shows countdown for pending orders, auto‑expires reservation
 
 import { useState, useEffect, Suspense, useRef, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
@@ -30,6 +31,7 @@ type OrderData = {
   paymentMethod: string
   proofUrl: string | null
   proofNote: string | null
+  expiresAt?: string | null      // NEW: expiration timestamp from backend
   tickets: {
     id: string
     status: string
@@ -70,7 +72,6 @@ const SETTINGS_FALLBACK: PaymentSettings = {
 }
 
 // ── Inner component ───────────────────────────────────────────────────────────
-
 function PendingPageInner() {
   const searchParams = useSearchParams()
   const orderId = searchParams.get("orderId")
@@ -88,11 +89,60 @@ function PendingPageInner() {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [uploadSuccess, setUploadSuccess] = useState(false)
+
+  // Copy success state
+  const [copySuccess, setCopySuccess] = useState(false)
+
+  // Expiration timer state
+  const [expiresAt, setExpiresAt] = useState<Date | null>(null)
+  const [timeLeft, setTimeLeft] = useState<string>("")
+  const [isExpired, setIsExpired] = useState(false)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Polling
   const [polling, setPolling] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Helper to copy text with fallback
+  const copyToClipboard = async (text: string) => {
+    // Try modern async clipboard API
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text)
+        setCopySuccess(true)
+        setTimeout(() => setCopySuccess(false), 2000)
+        return
+      } catch (err) {
+        console.warn('Clipboard API failed, trying fallback', err)
+      }
+    }
+
+    // Fallback for older browsers or insecure contexts
+    const textArea = document.createElement('textarea')
+    textArea.value = text
+    textArea.style.position = 'fixed'
+    textArea.style.left = '-9999px'
+    textArea.style.top = '-9999px'
+    document.body.appendChild(textArea)
+    textArea.focus()
+    textArea.select()
+
+    try {
+      const successful = document.execCommand('copy')
+      if (successful) {
+        setCopySuccess(true)
+        setTimeout(() => setCopySuccess(false), 2000)
+      } else {
+        alert('Unable to copy. Please copy manually.')
+      }
+    } catch (err) {
+      console.error('Fallback copy failed', err)
+      alert('Copy failed. Please copy the code manually.')
+    } finally {
+      document.body.removeChild(textArea)
+    }
+  }
 
   // Fetch payment settings (public endpoint, no auth needed)
   useEffect(() => {
@@ -109,6 +159,12 @@ function PendingPageInner() {
       if (!res.ok) throw new Error("Order not found")
       const data: OrderData = await res.json()
       setOrder(data)
+      // Capture expiresAt if present
+      if (data.expiresAt) {
+        const exp = new Date(data.expiresAt)
+        setExpiresAt(exp)
+        setIsExpired(exp.getTime() <= Date.now())
+      }
       return data
     } catch {
       setError("Could not load your order. Please check your internet connection.")
@@ -118,6 +174,29 @@ function PendingPageInner() {
   }, [orderId])
 
   useEffect(() => { fetchOrder() }, [fetchOrder])
+
+  // Countdown timer effect
+  useEffect(() => {
+    if (!expiresAt) return
+
+    const updateTimer = () => {
+      const now = new Date()
+      const diff = expiresAt.getTime() - now.getTime()
+      if (diff <= 0) {
+        setTimeLeft("00:00")
+        setIsExpired(true)
+        return
+      }
+      setIsExpired(false)
+      const minutes = Math.floor(diff / 60000)
+      const seconds = Math.floor((diff % 60000) / 1000)
+      setTimeLeft(`${minutes}:${seconds.toString().padStart(2, "0")}`)
+    }
+
+    updateTimer()
+    const interval = setInterval(updateTimer, 1000)
+    return () => clearInterval(interval)
+  }, [expiresAt])
 
   // Poll after proof upload until COMPLETED or REJECTED
   useEffect(() => {
@@ -335,6 +414,30 @@ function PendingPageInner() {
   return (
     <div className="max-w-lg mx-auto py-8 px-4 pb-20">
 
+      {/* NEW: Expiration Timer Banner */}
+      {order.status === "PENDING_CONFIRMATION" && expiresAt && !isExpired && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 text-center">
+          <p className="text-sm font-medium text-amber-800 flex items-center justify-center gap-1">
+            <span>⏳</span> Complete payment within <span className="font-mono font-bold">{timeLeft}</span>
+          </p>
+          <p className="text-xs text-amber-600 mt-1">
+            Your reservation expires at {expiresAt.toLocaleTimeString()}. Upload proof before time runs out.
+          </p>
+        </div>
+      )}
+
+      {order.status === "PENDING_CONFIRMATION" && isExpired && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6 text-center">
+          <p className="text-sm font-semibold text-red-700">❌ Reservation expired</p>
+          <p className="text-xs text-red-600 mt-1">
+            Your hold on these tickets has been released. Please start a new order.
+          </p>
+          <Link href="/events" className="mt-3 inline-block bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-medium">
+            Browse Events
+          </Link>
+        </div>
+      )}
+
       {/* Status banner */}
       {(order.status === "AWAITING_APPROVAL" || uploadSuccess) && (
         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6 flex items-start gap-3">
@@ -371,12 +474,19 @@ function PendingPageInner() {
         <p className="text-xs text-gray-400">
           Keep this safe — you may need it to confirm your payment
         </p>
-        <button
-          onClick={() => navigator.clipboard.writeText(order.referenceCode)}
-          className="mt-3 text-xs bg-white/10 hover:bg-white/20 transition-colors px-3 py-1.5 rounded-lg"
-        >
-          Copy code
-        </button>
+        <div className="relative inline-block">
+          <button
+            onClick={() => copyToClipboard(order.referenceCode)}
+            className="mt-3 text-xs bg-white/10 hover:bg-white/20 transition-colors px-3 py-1.5 rounded-lg"
+          >
+            {copySuccess ? 'Copied!' : 'Copy code'}
+          </button>
+          {copySuccess && (
+            <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded whitespace-nowrap pointer-events-none">
+              Copied to clipboard
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Order summary */}
@@ -514,7 +624,7 @@ function PendingPageInner() {
       )}
 
       {/* CTA */}
-      {!uploadStep && order.status === "PENDING_CONFIRMATION" && (
+      {!uploadStep && order.status === "PENDING_CONFIRMATION" && !isExpired && (
         <button
           onClick={() => setUploadStep(true)}
           className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-2xl transition-colors shadow-sm"
@@ -535,8 +645,6 @@ function PendingPageInner() {
             </button>
           </div>
 
-          {/* FIX: No capture attribute — shows full OS picker (Camera / Photos / Files) */}
-          {/* This lets mobile users who already took the screenshot access their gallery */}
           <div
             onDrop={handleFileDrop}
             onDragOver={(e) => e.preventDefault()}
@@ -553,7 +661,6 @@ function PendingPageInner() {
               accept="image/*"
               className="hidden"
               onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
-              // FIX: No capture="environment" — lets user choose camera OR gallery
             />
             {filePreview ? (
               <div>

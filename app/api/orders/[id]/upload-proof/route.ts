@@ -10,15 +10,15 @@ const STORAGE_BUCKET = "payment-proofs"
 // Helper to get Supabase client (lazy initialization)
 let supabaseClient: ReturnType<typeof createClient> | null = null
 
+// upload-proof/route.ts — replace the silent throw with a visible error:
 function getSupabaseClient() {
-  if (!supabaseClient) {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (!url || !key) {
-      throw new Error("Missing Supabase environment variables")
-    }
-    supabaseClient = createClient(url, key)
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) {
+    console.error("[UPLOAD PROOF] Missing env vars — NEXT_PUBLIC_SUPABASE_URL:", !!url, "SUPABASE_SERVICE_ROLE_KEY:", !!key)
+    throw new Error("Storage service is not configured. Contact support.")
   }
+  if (!supabaseClient) supabaseClient = createClient(url, key)
   return supabaseClient
 }
 

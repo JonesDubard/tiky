@@ -135,6 +135,8 @@ model Order {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  expiresAt DateTime?
+
   TicketReservation TicketReservation[]
   ticketGenerated   Boolean             @default(false)
   pdfUrl            String?

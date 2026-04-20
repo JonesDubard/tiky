@@ -1,6 +1,5 @@
 "use client";
 
-// components/admin/PollForm.tsx
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -26,6 +25,7 @@ interface PollFormProps {
     endDate?: string | null;
     eventId?: string | null;
     isFeatured?: boolean;
+    requiresTicket?: boolean;
     options: PollOption[];
   };
   mode?: "create" | "edit";
@@ -49,7 +49,7 @@ export default function PollForm({ initialData, mode = "create" }: PollFormProps
       : "",
     eventId: initialData?.eventId ?? "",
     isFeatured: initialData?.isFeatured ?? false,
-    requiresTicket: (initialData as any)?.requiresTicket ?? false,
+    requiresTicket: initialData?.requiresTicket ?? false,
   });
 
   const [options, setOptions] = useState<PollOption[]>(
@@ -63,10 +63,11 @@ export default function PollForm({ initialData, mode = "create" }: PollFormProps
     setTimeout(() => setToast(null), 3500);
   };
 
+  // Fetch events for dropdown
   useEffect(() => {
-    fetch("/api/events?limit=100")
-      .then((r) => r.ok ? r.json() : null)
-      .then((d) => d && setEvents(d.events ?? d ?? []))
+    fetch("/api/admin/events?published=true")
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => setEvents(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, []);
 
@@ -113,19 +114,24 @@ export default function PollForm({ initialData, mode = "create" }: PollFormProps
     const validOptions = options.filter((o) => o.text.trim());
     if (validOptions.length < 2) return showToast("At least 2 options are required", "error");
 
+    // Validate event selection for TOKEN_GATED digital ticket flow
+    if (form.pollType === "TOKEN_GATED" && !form.requiresTicket && !form.eventId) {
+      return showToast("Please select an event for digital ticket voting", "error");
+    }
+
     setLoading(true);
     try {
       const payload = {
         ...form,
         endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
-        eventId: form.pollType === "TOKEN_GATED" && form.eventId ? form.eventId : null,
+        eventId: form.pollType === "TOKEN_GATED" ? form.eventId || null : null,
+        requiresTicket: form.pollType === "TOKEN_GATED" ? form.requiresTicket : false,
         options: validOptions,
-        requiresTicket: form.requiresTicket,
       };
 
       const url = mode === "edit" && initialData?.id
-        ? `/api/polls/${initialData.id}`
-        : "/api/polls";
+        ? `/api/admin/polls/${initialData.id}`
+        : "/api/admin/polls";
 
       const res = await fetch(url, {
         method: mode === "edit" ? "PUT" : "POST",
@@ -275,7 +281,7 @@ export default function PollForm({ initialData, mode = "create" }: PollFormProps
           ))}
         </div>
 
-       <div className="mt-3 flex items-center justify-between">
+        <div className="mt-3 flex items-center justify-between">
           {options.length < 20 ? (
             <button
               type="button"
@@ -305,21 +311,21 @@ export default function PollForm({ initialData, mode = "create" }: PollFormProps
               value: "PUBLIC",
               icon: Globe,
               label: "Public",
-              desc: "Anyone can vote",
+              desc: "Any logged-in user can vote",
               color: "blue",
             },
             {
               value: "TOKEN_GATED",
               icon: Ticket,
-              label: "Ticket Holders Only",
-              desc: "Must have a paid ticket",
+              label: "Ticket Holders",
+              desc: "Only ticket holders (digital or physical)",
               color: "orange",
             },
           ].map(({ value, icon: Icon, label, desc, color }) => (
             <button
               key={value}
               type="button"
-              onClick={() => setForm({ ...form, pollType: value })}
+              onClick={() => setForm({ ...form, pollType: value, requiresTicket: value === "TOKEN_GATED" ? form.requiresTicket : false })}
               className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${
                 form.pollType === value
                   ? color === "blue"
@@ -348,31 +354,58 @@ export default function PollForm({ initialData, mode = "create" }: PollFormProps
         </div>
       </div>
 
-      {/* Event link — only for TOKEN_GATED */}
+      {/* TOKEN_GATED specific options */}
       {form.pollType === "TOKEN_GATED" && (
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-            <span className="flex items-center gap-1">
-              <Link2 className="w-3.5 h-3.5" />
-              Link to Event
-            </span>
-          </label>
-          <select
-            value={form.eventId}
-            onChange={(e) => setForm({ ...form, eventId: e.target.value })}
-            className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
-          >
-            <option value="">— Any ticket holder can vote —</option>
-            {events.map((event) => (
-              <option key={event.id} value={event.id}>
-                {event.title}
-              </option>
-            ))}
-          </select>
-          <p className="mt-1.5 text-xs text-gray-400">
-            If linked, only users with a paid ticket to this specific event can vote.
-          </p>
-        </div>
+        <>
+          {/* Event link */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              <span className="flex items-center gap-1">
+                <Link2 className="w-3.5 h-3.5" />
+                Link to Event
+              </span>
+            </label>
+            <select
+              value={form.eventId}
+              onChange={(e) => setForm({ ...form, eventId: e.target.value })}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+            >
+              <option value="">— Select an event —</option>
+              {events.map((event) => (
+                <option key={event.id} value={event.id}>
+                  {event.title}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1.5 text-xs text-gray-400">
+              {form.requiresTicket
+                ? "Optional: Restrict votes to tickets of this specific event."
+                : "Required: Users must have a paid ticket for this event."}
+            </p>
+          </div>
+
+          {/* Physical ticket requirement checkbox */}
+          <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+            <input
+              id="requiresTicket"
+              type="checkbox"
+              checked={form.requiresTicket}
+              onChange={(e) => setForm({ ...form, requiresTicket: e.target.checked })}
+              className="w-4 h-4 mt-0.5 text-amber-500 border-gray-300 rounded focus:ring-amber-400"
+            />
+            <label htmlFor="requiresTicket" className="text-sm text-gray-700">
+              <span className="font-semibold flex items-center gap-1.5">
+                <Ticket className="w-3.5 h-3.5 text-amber-600" />
+                Require Physical Ticket Code
+              </span>
+              <span className="text-gray-500 font-normal block mt-0.5">
+                Voters must enter a unique ticket code (printed on ticket). Each ticket can vote once.
+                <br />
+                <strong>If unchecked</strong>, voters can vote using their account's ticket purchase (no code entry).
+              </span>
+            </label>
+          </div>
+        </>
       )}
 
       {/* Status + Close Date */}
@@ -403,26 +436,6 @@ export default function PollForm({ initialData, mode = "create" }: PollFormProps
             className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
           />
         </div>
-      </div>
-
-      {/* Physical Ticket Voting */}
-      <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-        <input
-          id="requiresTicket"
-          type="checkbox"
-          checked={form.requiresTicket}
-          onChange={(e) => setForm({ ...form, requiresTicket: e.target.checked })}
-          className="w-4 h-4 mt-0.5 text-amber-500 border-gray-300 rounded focus:ring-amber-400"
-        />
-        <label htmlFor="requiresTicket" className="text-sm text-gray-700">
-          <span className="font-semibold flex items-center gap-1.5">
-            <Ticket className="w-3.5 h-3.5 text-amber-600" />
-            Require Physical Ticket to Vote
-          </span>
-          <span className="text-gray-500 font-normal block mt-0.5">
-            Voters enter their ticket ID. Each ticket = 1 vote. More tickets = more votes.
-          </span>
-        </label>
       </div>
 
       {/* Featured */}

@@ -1,53 +1,68 @@
 // app/(public)/polls/page.tsx
-import { prisma } from 'lib/prisma';
-import PollCard from 'components/polls/PollCard';
-import { BarChart3, Filter, Search, Lock } from 'lucide-react';
-import { getServerSession } from 'next-auth';
-import { authOptions } from 'lib/auth';
-import RequestAccessBanner from "components/public/RequestAccessBanner";
+// Server component — fetches data, passes it to the client PollsGrid.
+// All search/filter/sort logic lives in PollsGrid.tsx.
 
-type PollWithRelations = Awaited<ReturnType<typeof getPolls>>[0];
+import { prisma } from 'lib/prisma'
+import { BarChart3, Lock } from 'lucide-react'
+import { getServerSession } from 'next-auth'
+import { authOptions } from 'lib/auth'
+import RequestAccessBanner from "components/public/RequestAccessBanner"
+import PollsGrid from "app/(public)/components/polls/PollsGrid"
+import type { PollSummary } from "app/(public)/components/polls/PollsGrid"
 
-async function getPolls() {
+async function getPolls(): Promise<PollSummary[]> {
   try {
     const polls = await prisma.poll.findMany({
       where: { status: 'ACTIVE', deletedAt: null },
       include: {
         options: {
-          include: { _count: { select: { votes: true } } }
+          include: { _count: { select: { votes: true } } },
         },
-        _count: { select: { votes: true } }
+        _count: { select: { votes: true } },
       },
-      orderBy: { createdAt: 'desc' }
-    });
+      orderBy: { createdAt: 'desc' },
+    })
 
     return polls.map(poll => ({
-      ...poll,
-      totalVotes: poll._count.votes,
-      isFeatured: poll.isFeatured ?? false,
-      status: poll.status
-    }));
+      id:          poll.id,
+      title:       poll.title,
+      description: poll.description,
+      status:      poll.status,
+      pollType:    poll.pollType,
+      endDate:     poll.endDate,
+      isFeatured:  poll.isFeatured ?? false,
+      totalVotes:  poll._count.votes,
+      options:     poll.options.map(o => ({
+        id:       o.id,
+        text:     o.text,
+        imageUrl: o.imageUrl,
+        _count:   { votes: o._count.votes },
+      })),
+    }))
   } catch (error) {
-    console.error('Error fetching polls:', error);
-    return [];
+    console.error('Error fetching polls:', error)
+    return []
   }
 }
 
 export default async function PollsPage() {
   const [polls, session] = await Promise.all([
     getPolls(),
-    getServerSession(authOptions)
-  ]);
+    getServerSession(authOptions),
+  ])
 
-  const isAdmin = session?.user?.role === 'ADMIN' || session?.user?.role === 'ORGANIZER';
-  const isRegularUser = !isAdmin;
-  const totalVotes = polls.reduce((sum, poll) => sum + poll.totalVotes, 0);
-  const livePolls = polls.filter(p => p.status === 'LIVE');
-  const featuredPolls = polls.filter(p => p.isFeatured);
+  const isAdmin       = session?.user?.role === 'ADMIN' || session?.user?.role === 'ORGANIZER'
+  const isRegularUser = !isAdmin
+
+  // Static stats — computed server-side from full list
+  const totalVotes   = polls.reduce((sum, p) => sum + p.totalVotes, 0)
+  const featuredCount = polls.filter(p => p.isFeatured).length
+  const publicCount   = polls.filter(p => p.pollType === 'PUBLIC').length
+  const gatedCount    = polls.filter(p => p.pollType === 'TOKEN_GATED').length
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-      {/* Hero */}
+      {/* ── Hero ── */}
       <div className="relative overflow-hidden bg-gradient-to-br from-purple-600 to-purple-800">
         <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-10" />
         <div className="container relative mx-auto px-4 py-16 md:py-24">
@@ -65,7 +80,7 @@ export default async function PollsPage() {
             </p>
 
             {isAdmin && (
-              <div className="mb-8">
+              <div className="mb-4">
                 <a
                   href="/admin/polls/create"
                   className="inline-flex items-center gap-2 px-6 py-3 bg-white text-purple-700 font-semibold rounded-lg hover:shadow-lg transition-shadow"
@@ -78,33 +93,13 @@ export default async function PollsPage() {
                 </p>
               </div>
             )}
-
-            <div className="bg-white/10 backdrop-blur-md rounded-xl p-2 border border-white/20">
-              <div className="flex flex-col md:flex-row gap-2">
-                <div className="flex-1">
-                  <div className="relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/70 w-5 h-5" />
-                    <input
-                      type="search"
-                      placeholder="Search polls by title, topic, or description..."
-                      className="w-full pl-12 pr-4 py-3 bg-transparent text-white placeholder-white/70 focus:outline-none"
-                    />
-                  </div>
-                </div>
-                <button className="px-6 py-3 bg-white/20 text-white font-semibold rounded-lg hover:bg-white/30 transition-colors flex items-center gap-2">
-                  <Filter className="w-5 h-5" />
-                  Filters
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* ── Main content ── */}
       <div className="container mx-auto px-4 py-8 md:py-12">
 
-        {/* Admin notice */}
         {isAdmin && (
           <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-6">
             <div className="flex items-center gap-3">
@@ -119,34 +114,33 @@ export default async function PollsPage() {
           </div>
         )}
 
-        {/* Request access banner for regular users — top of page */}
         {isRegularUser && (
           <div className="mb-6">
             <RequestAccessBanner type="poll" />
           </div>
         )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        {/* Stats — static, computed server-side */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
             <div className="text-2xl font-bold text-purple-600">{polls.length}</div>
             <div className="text-slate-600 text-sm">Active Polls</div>
           </div>
           <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-            <div className="text-2xl font-bold text-green-600">{totalVotes}</div>
+            <div className="text-2xl font-bold text-green-600">{totalVotes.toLocaleString()}</div>
             <div className="text-slate-600 text-sm">Total Votes</div>
           </div>
           <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-            <div className="text-2xl font-bold text-blue-600">{livePolls.length}</div>
-            <div className="text-slate-600 text-sm">Live Now</div>
+            <div className="text-2xl font-bold text-blue-600">{publicCount}</div>
+            <div className="text-slate-600 text-sm">Public Polls</div>
           </div>
           <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-            <div className="text-2xl font-bold text-orange-600">{featuredPolls.length}</div>
-            <div className="text-slate-600 text-sm">Featured</div>
+            <div className="text-2xl font-bold text-orange-600">{gatedCount}</div>
+            <div className="text-slate-600 text-sm">Ticket-Gated</div>
           </div>
         </div>
 
-        {/* Polls Grid */}
+        {/* ── PollsGrid handles all interactive filtering ── */}
         {polls.length === 0 ? (
           <div className="text-center py-12">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 mb-4">
@@ -156,8 +150,7 @@ export default async function PollsPage() {
             <p className="text-slate-500 mb-6">
               {isAdmin
                 ? "Create the first poll from the admin dashboard!"
-                : "Check back soon for new polls and surveys!"
-              }
+                : "Check back soon for new polls and surveys!"}
             </p>
             {isAdmin && (
               <a
@@ -170,48 +163,7 @@ export default async function PollsPage() {
             )}
           </div>
         ) : (
-          <div>
-            {featuredPolls.length > 0 && (
-              <div className="mb-12">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h2 className="text-2xl font-bold text-slate-900 mb-1">Featured Polls</h2>
-                    <p className="text-slate-600">Highlighted polls with high engagement</p>
-                  </div>
-                  <div className="text-sm text-purple-600 font-medium">
-                    {featuredPolls.length} featured
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {featuredPolls.map(poll => (
-                    <PollCard key={poll.id} poll={poll} clickable={true} />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div>
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900 mb-1">All Active Polls</h2>
-                  <p className="text-slate-600">Browse and vote on all available polls</p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-sm text-slate-600">{polls.length} polls</div>
-                  <select className="px-3 py-2 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 text-sm focus:outline-none">
-                    <option>Sort by: Newest</option>
-                    <option>Sort by: Most Votes</option>
-                    <option>Sort by: Ending Soon</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {polls.map(poll => (
-                  <PollCard key={poll.id} poll={poll} clickable={true} />
-                ))}
-              </div>
-            </div>
-          </div>
+          <PollsGrid polls={polls} />
         )}
 
         {/* Admin CTA */}
@@ -241,7 +193,6 @@ export default async function PollsPage() {
           </div>
         )}
 
-        {/* Regular user CTA at bottom — second banner with more context */}
         {isRegularUser && polls.length > 0 && (
           <div className="mt-12 pt-12 border-t border-slate-200">
             <RequestAccessBanner type="poll" />
@@ -249,5 +200,5 @@ export default async function PollsPage() {
         )}
       </div>
     </div>
-  );
+  )
 }
