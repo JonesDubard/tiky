@@ -26,6 +26,7 @@ export async function GET(req: Request) {
         id: true,
         status: true,
         qrCode: true,
+        qrImage: true,
         guestName: true,
         guestEmail: true,
         phoneNumber: true,
