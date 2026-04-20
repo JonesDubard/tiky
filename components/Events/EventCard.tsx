@@ -126,7 +126,7 @@ export default function EventCard({ event }: EventCardProps) {
             </div>
             <button className="btn-primary flex items-center gap-2 text-sm px-6 py-3">
               <TicketIcon className="w-4 h-4" />
-              Book Now
+              Buy Tickets
             </button>
           </div>
         </div>
