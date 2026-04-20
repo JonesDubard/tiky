@@ -81,7 +81,7 @@ export default function EventForm({ initialData }: EventFormProps) {
     const form = event.currentTarget
     const formData = new FormData(form)
 
-    // Build event data object using form values
+    // Build event data object using form value
     const eventData = {
       ...(isEditMode && { id: initialData.id }),
       title: formData.get('title') as string,
