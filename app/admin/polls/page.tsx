@@ -29,6 +29,7 @@ export default async function AdminPollsPage() {
     include: {
       _count: { select: { options: true, votes: true } },
       creator: { select: { name: true, email: true } },
+      event: { select: { title: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -76,6 +77,9 @@ export default async function AdminPollsPage() {
                     <p className="text-xs text-gray-400 mt-0.5">
                       By {poll.creator?.name || poll.creator?.email || "Unknown"}
                     </p>
+                    <p className="text-xs text-gray-500 mt-1">
+  Event: {poll.event?.title || "—"}
+</p>
                   </div>
                   <span className={`shrink-0 px-2 py-0.5 text-xs rounded-full ${
                     poll.status === "ACTIVE" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
@@ -111,52 +115,56 @@ export default async function AdminPollsPage() {
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Poll</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Options</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Votes</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {polls.map((poll) => (
-                    <tr key={poll.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900">{poll.title}</div>
-                        <div className="text-sm text-gray-500">
-                          By {poll.creator?.name || poll.creator?.email || "Unknown"}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{poll._count.options}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{poll._count.votes}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          poll.status === "ACTIVE" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
-                        }`}>
-                          {poll.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          poll.pollType === "PAID" ? "bg-yellow-100 text-yellow-800" : "bg-blue-100 text-blue-800"
-                        }`}>
-                          {poll.pollType || "FREE"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right space-x-1">
-                        <Link href={`/admin/polls/${poll.id}`} className="inline-flex items-center p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
-                          <Eye className="w-4 h-4" />
-                        </Link>
-                        <Link href={`/admin/polls/${poll.id}/edit`} className="inline-flex items-center p-2 text-green-600 hover:bg-green-50 rounded-lg">
-                          <Edit className="w-4 h-4" />
-                        </Link>
-                        <DeleteButton id={poll.id} type="poll" title={poll.title} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
+  <tr>
+    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Poll</th>
+    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Options</th>
+    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Votes</th>
+    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Linked Event</th>
+    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+  </tr>
+</thead>
+<tbody className="bg-white divide-y divide-gray-200">
+  {polls.map((poll) => (
+    <tr key={poll.id} className="hover:bg-gray-50">
+      <td className="px-6 py-4">
+        <div className="text-sm font-medium text-gray-900">{poll.title}</div>
+        <div className="text-sm text-gray-500">
+          By {poll.creator?.name || poll.creator?.email || "Unknown"}
+        </div>
+      </td>
+      <td className="px-6 py-4 text-sm text-gray-900">{poll._count.options}</td>
+      <td className="px-6 py-4 text-sm text-gray-900">{poll._count.votes}</td>
+      <td className="px-6 py-4">
+        <span className={`px-2 py-1 text-xs rounded-full ${
+          poll.status === "ACTIVE" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+        }`}>
+          {poll.status}
+        </span>
+      </td>
+      <td className="px-6 py-4">
+        <span className={`px-2 py-1 text-xs rounded-full ${
+          poll.pollType === "PAID" ? "bg-yellow-100 text-yellow-800" : "bg-blue-100 text-blue-800"
+        }`}>
+          {poll.pollType || "FREE"}
+        </span>
+      </td>
+      <td className="px-6 py-4 text-sm text-gray-900">
+        {poll.event?.title || "—"}
+      </td>
+      <td className="px-6 py-4 text-right space-x-1">
+        <Link href={`/admin/polls/${poll.id}`} className="inline-flex items-center p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
+          <Eye className="w-4 h-4" />
+        </Link>
+        <Link href={`/admin/polls/${poll.id}/edit`} className="inline-flex items-center p-2 text-green-600 hover:bg-green-50 rounded-lg">
+          <Edit className="w-4 h-4" />
+        </Link>
+        <DeleteButton id={poll.id} type="poll" title={poll.title} />
+      </td>
+    </tr>
+  ))}
+</tbody>
               </table>
             </div>
           </div>

@@ -5,6 +5,45 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from 'lib/auth'
 import { put } from '@vercel/blob'
 
+export async function GET(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { role: true },
+    });
+
+    if (!user || (user.role !== "ADMIN" && user.role !== "ORGANIZER")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Determine if we should only return published events
+    const { searchParams } = new URL(req.url);
+    const publishedOnly = searchParams.get("published") === "true";
+
+    const events = await prisma.event.findMany({
+      where: {
+        deletedAt: null,
+        ...(publishedOnly && { published: true }),
+      },
+      select: {
+        id: true,
+        title: true,
+      },
+      orderBy: { date: "desc" },
+    });
+
+    return NextResponse.json(events);
+  } catch (error) {
+    console.error("[EVENTS_LIST]", error);
+    return NextResponse.json({ error: "Failed to fetch events" }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)

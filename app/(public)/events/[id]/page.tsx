@@ -5,12 +5,15 @@ import Image from "next/image"
 import { Calendar, MapPin, Clock, Users } from "lucide-react"
 import { format } from "date-fns"
 import TicketPurchaseCard from "components/Events/TicketPurchaseCard"
+import PollSection from "app/(public)/components/polls/PollSection"
+
 
 // ── Force dynamic rendering ───────────────────────────────────────────────────
 // Without this Next.js caches the page at build time and ticket quantities
 // shown to users will never update after a purchase. Setting dynamic to
 // "force-dynamic" ensures every request hits the database for fresh data.
 // revalidatePath() calls in the payment route will also work correctly.
+
 export const dynamic = "force-dynamic"
 
 interface EventPageProps {
@@ -21,44 +24,51 @@ async function getEvent(id: string) {
   if (!id) return null
 
   try {
-    const event = await prisma.event.findFirst({
-      where: {
-        id,
-        deletedAt: null,
-      },
+    return await prisma.event.findFirst({
+      where: { id, deletedAt: null },
       include: {
-        createdBy: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
-        ticketTypes: {
-          orderBy: { price: "asc" },
-        },
-        _count: {
-          select: { ticketTypes: true },
-        },
+        createdBy: { select: { name: true, email: true } },
+        ticketTypes: { orderBy: { price: "asc" } },
+        _count: { select: { ticketTypes: true } },
       },
     })
-
-    return event
   } catch (error) {
     console.error("Error fetching event:", error)
     return null
   }
 }
 
-export default async function EventPage({ params }: EventPageProps) {
-  // Next.js 15 — params is a Promise and must be awaited
-  const { id } = await params
+// Fetch poll separately (it does not belong inside getEvent)
+async function getPollForEvent(eventId: string) {
+  try {
+    return await prisma.poll.findFirst({
+      where: {
+        eventId,
+        status: "ACTIVE",
+        deletedAt: null,
+      },
+      include: {
+        options: { orderBy: { createdAt: "asc" } },
+      },
+    })
+  } catch (error) {
+    console.error("Error fetching poll:", error)
+    return null
+  }
+}
 
+export default async function EventPage({ params }: EventPageProps) {
+  const { id } = await params
   if (!id) notFound()
 
-  const event = await getEvent(id)
+  // Fetch event and poll in parallel (both independent)
+  const [event, poll] = await Promise.all([
+    getEvent(id),
+    getPollForEvent(id),
+  ])
+
   if (!event) notFound()
 
-  // Total remaining tickets across all ticket types
   const totalRemaining = event.ticketTypes.reduce((sum, t) => sum + t.quantity, 0)
   const isSoldOut = totalRemaining === 0
 
@@ -129,6 +139,12 @@ export default async function EventPage({ params }: EventPageProps) {
                 {event.description || "No description available."}
               </p>
             </section>
+
+            {poll && (
+             <section className="bg-white rounded-xl shadow-sm p-6">
+            <PollSection poll={poll} />
+            </section>
+)}
 
             {/* Live ticket availability summary */}
             <section className="bg-white rounded-xl shadow-sm p-6">

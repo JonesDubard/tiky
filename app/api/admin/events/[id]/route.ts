@@ -4,36 +4,43 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "lib/auth"
 import { put } from "@vercel/blob"
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(req: NextRequest) {
+  
   try {
-    const { id } = await params
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    console.log("🔥 GET /api/admin/events HIT");
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const event = await prisma.event.findUnique({
-      where: { id },
-      include: {
-        ticketTypes: true,
-        createdBy: {
-          select: { id: true, name: true, email: true },
-        },
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { role: true },
+    });
+
+    if (!user || (user.role !== "ADMIN" && user.role !== "ORGANIZER")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const publishedOnly = searchParams.get("published") === "true";
+
+    const events = await prisma.event.findMany({
+      where: {
+        deletedAt: null,
+        ...(publishedOnly && { published: true }),
       },
-    })
+      select: {
+        id: true,
+        title: true,
+      },
+      orderBy: { date: "desc" },
+    });
 
-    if (!event) {
-      return NextResponse.json({ error: "Event not found" }, { status: 404 })
-    }
-
-    return NextResponse.json(event)
+    return NextResponse.json(events);
   } catch (error) {
-    console.error("[EVENT_GET]", error)
-    return NextResponse.json({ error: "Failed to fetch event" }, { status: 500 })
+    console.error("[EVENTS_LIST]", error);
+    return NextResponse.json({ error: "Failed to fetch events" }, { status: 500 });
   }
 }
 

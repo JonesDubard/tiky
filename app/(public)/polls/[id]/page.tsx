@@ -1,9 +1,14 @@
 // app/(public)/polls/[id]/page.tsx
+// KEY FIX: isActive reflects the TRUE poll status.
+// blockReason explains why the user can't vote — separate from poll status.
+// This prevents "poll is closed" showing when the poll is open but user lacks a ticket.
+
 import { prisma } from "lib/prisma";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import { BarChart, Clock, Users, Lock, Globe, Crown } from "lucide-react";
 import PollVoting from "components/polls/PollVoting";
+import type { VoteBlockReason } from "components/polls/PollVoting";
 import { getServerSession } from "next-auth";
 import { authOptions } from "lib/auth";
 import Link from "next/link";
@@ -36,9 +41,7 @@ async function getRelatedPolls(pollId: string) {
   try {
     return await prisma.poll.findMany({
       where: { status: "ACTIVE", NOT: { id: pollId }, deletedAt: null },
-      include: {
-        _count: { select: { votes: true } },
-      },
+      include: { _count: { select: { votes: true } } },
       orderBy: { createdAt: "desc" },
       take: 2,
     });
@@ -57,34 +60,51 @@ export default async function PollPage({ params }: PollPageProps) {
   if (!poll) notFound();
 
   const isTokenGated = poll.pollType === "TOKEN_GATED";
+  const isLoggedIn   = !!session?.user;
+
+  // ✅ TRUE poll status — based only on poll data, not user eligibility
   const isActive =
-    poll.status === "ACTIVE" && (!poll.endDate || new Date(poll.endDate) > new Date());
-  const isLoggedIn = !!session?.user;
+    poll.status === "ACTIVE" &&
+    (!poll.endDate || new Date(poll.endDate) > new Date());
 
-  // TOKEN_GATED: check ticket ownership
-  let hasTicketAccess = false;
-  if (isTokenGated && isLoggedIn && poll.eventId) {
-    const user = await prisma.user.findUnique({
-      where: { email: session!.user!.email! },
-      select: { id: true },
-    });
-    if (user) {
-      const paidOrder = await prisma.order.findFirst({
-        where: { userId: user.id, eventId: poll.eventId, status: "PAID" },
-      });
-      hasTicketAccess = !!paidOrder;
+  // ── Determine blockReason ──────────────────────────────────────────────────
+  // This is separate from isActive — explains why the user can't vote
+  // without incorrectly marking the poll as closed.
+  let blockReason: VoteBlockReason = null;
+
+  if (isActive) {
+    if (isTokenGated) {
+      if (!isLoggedIn) {
+        // Not logged in → prompt to log in
+        blockReason = "not_logged_in";
+      } else if (poll.eventId) {
+        // Logged in → check if they have a paid ticket for this event
+        const user = await prisma.user.findUnique({
+          where: { email: session!.user!.email! },
+          select: { id: true },
+        });
+
+        if (user) {
+          const paidOrder = await prisma.order.findFirst({
+            where: { userId: user.id, eventId: poll.eventId, status: "PAID" },
+          });
+          if (!paidOrder) {
+            // Logged in but no ticket
+            blockReason = "no_ticket";
+          }
+          // else: paidOrder found → blockReason stays null → user can vote
+        } else {
+          blockReason = "not_logged_in";
+        }
+      }
+      // TOKEN_GATED with no eventId → just requires login (already covered above)
     }
-  } else if (isTokenGated && !poll.eventId) {
-    // TOKEN_GATED but no specific event linked — just requires login
-    hasTicketAccess = isLoggedIn;
+    // PUBLIC polls → blockReason stays null → anyone can vote
   }
+  // Poll is not active → blockReason stays null (isActive=false handles the display)
 
-  const canVote = isActive && (
-    !isTokenGated || hasTicketAccess
-  );
-
-  const relatedPolls = await getRelatedPolls(id);
-  const isEndingSoon =
+  const relatedPolls  = await getRelatedPolls(id);
+  const isEndingSoon  =
     poll.endDate &&
     new Date(poll.endDate).getTime() - Date.now() < 24 * 60 * 60 * 1000;
 
@@ -103,7 +123,7 @@ export default async function PollPage({ params }: PollPageProps) {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Poll Header */}
+        {/* Poll header */}
         <div className="bg-white rounded-2xl shadow-sm p-8 mb-6">
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1">
@@ -112,7 +132,6 @@ export default async function PollPage({ params }: PollPageProps) {
                   {poll.title}
                 </h1>
 
-                {/* Poll type badge */}
                 {isTokenGated ? (
                   <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-amber-100 text-amber-700">
                     <Lock className="w-4 h-4" />
@@ -140,6 +159,8 @@ export default async function PollPage({ params }: PollPageProps) {
                 <p className="text-lg text-gray-600">{poll.description}</p>
               )}
             </div>
+
+            {/* ✅ Status badge reflects TRUE poll status */}
             <div className={`ml-4 px-4 py-2 rounded-full text-sm font-semibold shrink-0 ${
               isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
             }`}>
@@ -147,7 +168,7 @@ export default async function PollPage({ params }: PollPageProps) {
             </div>
           </div>
 
-          {/* Metadata row */}
+          {/* Metadata */}
           <div className="flex flex-wrap gap-6 text-sm text-gray-600 border-t border-gray-100 pt-4">
             <div className="flex items-center gap-1.5">
               <BarChart className="w-4 h-4 text-orange-500" />
@@ -174,52 +195,24 @@ export default async function PollPage({ params }: PollPageProps) {
               </div>
             )}
           </div>
-
-          {/* TOKEN_GATED access warning */}
-          {isTokenGated && !isLoggedIn && isActive && (
-            <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3">
-              <Lock className="w-5 h-5 text-amber-600 shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-amber-800">
-                  Ticket holders only
-                </p>
-                <p className="text-sm text-amber-700">
-                  <a href="/login" className="underline font-medium">Log in</a> with your ticket account to vote.
-                </p>
-              </div>
-            </div>
-          )}
-          {isTokenGated && isLoggedIn && !hasTicketAccess && poll.eventId && isActive && (
-            <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3">
-              <Lock className="w-5 h-5 text-amber-600 shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-amber-800">
-                  You don't have a ticket for this event
-                </p>
-                <p className="text-sm text-amber-700">
-                  Purchase a ticket to{" "}
-                  <Link href={`/events/${poll.eventId}`} className="underline font-medium">
-                    {poll.event?.title ?? "the linked event"}
-                  </Link>{" "}
-                  to unlock voting.
-                </p>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Voting component */}
+        {/* ✅ PollVoting receives true isActive + blockReason separately */}
         <PollVoting
           pollId={poll.id}
-          options={poll.options.map((opt) => ({
-            id: opt.id,
-            text: opt.text,
+          options={poll.options.map(opt => ({
+            id:       opt.id,
+            text:     opt.text,
             imageUrl: opt.imageUrl ?? null,
-            votes: opt._count.votes,
+            votes:    opt._count.votes,
           }))}
           totalVotes={poll._count.votes}
-          isActive={canVote}
+          isActive={isActive}            // ← TRUE poll status, never false just because user can't vote
           pollType={poll.pollType}
+          requiresTicket={poll.requiresTicket}
+          eventId={poll.eventId}
+          eventTitle={poll.event?.title ?? null}
+          blockReason={blockReason}      // ← WHY user can't vote (null = they can)
         />
 
         {/* Related polls */}
@@ -227,7 +220,7 @@ export default async function PollPage({ params }: PollPageProps) {
           <div className="mt-8">
             <h2 className="text-xl font-bold text-gray-900 mb-4">More Polls</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {relatedPolls.map((rp) => (
+              {relatedPolls.map(rp => (
                 <Link
                   key={rp.id}
                   href={`/polls/${rp.id}`}
