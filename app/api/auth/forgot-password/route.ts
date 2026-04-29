@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "lib/prisma"
 import crypto from "crypto"
-import { Resend } from "resend" // npm i resend
+import { Resend } from "resend" 
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const BASE_URL = process.env.NEXTAUTH_URL || "http://www.tikylr.com"
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     const resetUrl = `${BASE_URL}/reset-password?token=${token}`
 
     await resend.emails.send({
-      from: "Tiky <tikyliberia@gmail.com>", // replace with verified sender
+      from: "Tiky <tikyliberia@gmail.com>", 
       to: normalizedEmail,
       subject: "Reset your Tiky password",
       html: `
