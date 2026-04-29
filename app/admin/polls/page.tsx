@@ -7,6 +7,8 @@ import Link from "next/link";
 import { Plus, Edit, Eye } from "lucide-react";
 import DeleteButton from "app/admin/polls/components/DeleteButton";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminPollsPage() {
   const session = await getServerSession(authOptions);
 

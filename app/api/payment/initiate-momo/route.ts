@@ -118,13 +118,13 @@ export async function POST(req: NextRequest) {
     // Sends USSD push to customer's phone. Fails gracefully if MTN is unreachable.
     try {
       await requestToPay({
-        referenceId,
-        amount:       result.totalAmount.toFixed(2),
-        currency:     "USD",
-        partyId:      msisdn,
-        payerMessage: `Tiky ticket payment — ${result.order.id.slice(0, 8).toUpperCase()}`,
-        payeeNote:    `Ticket purchase order ${result.order.id}`,
-      })
+  referenceId,
+  amount:       result.totalAmount.toFixed(2),
+  currency:     "USD",
+  partyId:      msisdn,
+  payerMessage: "Tiky ticket payment",
+  payeeNote:    "Ticket purchase",
+})
     } catch (momoError) {
       console.error("[MOMO RAW ERROR]", JSON.stringify(momoError, Object.getOwnPropertyNames(momoError)))
   const message = momoError instanceof Error ? momoError.message : "MoMo request failed"

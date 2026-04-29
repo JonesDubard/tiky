@@ -10,6 +10,8 @@ import RequestAccessBanner from "components/public/RequestAccessBanner"
 import PollsGrid from "app/(public)/components/polls/PollsGrid"
 import type { PollSummary } from "app/(public)/components/polls/PollsGrid"
 
+export const dynamic = "force-dynamic";
+
 async function getPolls(): Promise<PollSummary[]> {
   try {
     const polls = await prisma.poll.findMany({

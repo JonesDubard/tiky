@@ -11,6 +11,8 @@ import RequestAccessBanner from "components/public/RequestAccessBanner"
 import EventsGrid from "../components/home/EventsGrid"
 import type { EventSummary } from "../components/home/EventsGrid"
 
+export const dynamic = "force-dynamic";
+
 async function getEvents(): Promise<EventSummary[]> {
   try {
     const events = await prisma.event.findMany({

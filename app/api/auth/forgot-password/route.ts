@@ -5,7 +5,7 @@ import crypto from "crypto"
 import { Resend } from "resend" // npm i resend
 
 const resend = new Resend(process.env.RESEND_API_KEY)
-const BASE_URL = process.env.NEXTAUTH_URL || "http://localhost:3000"
+const BASE_URL = process.env.NEXTAUTH_URL || "http://www.tikylr.com"
 const TOKEN_EXPIRY_MINUTES = 60
 
 function isValidEmail(email: string) {
