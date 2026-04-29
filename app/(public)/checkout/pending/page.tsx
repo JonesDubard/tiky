@@ -9,25 +9,25 @@ import { CheckCircle, XCircle, RefreshCw, Smartphone, Ticket } from "lucide-reac
 type PollStatus = "waiting" | "processing" | "completed" | "failed"
 
 function PendingInner() {
-  const router       = useRouter()
+  const router = useRouter()
   const searchParams = useSearchParams()
-  const orderId      = searchParams.get("orderId")
-  const method       = searchParams.get("method") ?? "mtn_momo"
+  const orderId = searchParams.get("orderId")
+  const method = searchParams.get("method") ?? "mtn_momo"
 
-  const [status, setStatus]     = useState<PollStatus>("waiting")
+  const [status, setStatus] = useState<PollStatus>("waiting")
   const [elapsedSec, setElapsed] = useState(0)
   const [errorMsg, setErrorMsg] = useState("")
+  const [redirecting, setRedirecting] = useState(false)
 
-  // Max 5 minutes (60 attempts × 5s)
-  const MAX_ATTEMPTS = 60
+  const MAX_ATTEMPTS = 100
 
-  // ── Elapsed timer ─────────────────────────────────────────────────────────
+  // ── Elapsed timer ────────────────────────────────────────────────────────
   useEffect(() => {
     const timer = setInterval(() => setElapsed(s => s + 1), 1000)
     return () => clearInterval(timer)
   }, [])
 
-  // ── Polling ───────────────────────────────────────────────────────────────
+  // ── Immediate check + polling ────────────────────────────────────────────
   useEffect(() => {
     if (!orderId) {
       setStatus("failed")
@@ -35,70 +35,93 @@ function PendingInner() {
       return
     }
 
-    let stopped  = false
-    let attempt  = 0
-
-    const poll = async () => {
-      if (stopped) return
-
+    // Immediate check on mount
+    const immediateCheck = async () => {
       try {
-        const res  = await fetch(`/api/payment/status?orderId=${orderId}`)
+        const res = await fetch(`/api/payment/status?orderId=${orderId}`)
         const data = await res.json()
-
+        console.log("[PENDING IMMEDIATE] Status:", data)
         if (data.orderStatus === "COMPLETED" && data.ticketsReady) {
           setStatus("completed")
-          setTimeout(() => {
-            router.push(`/checkout/success?orderId=${orderId}`)
-          }, 1500)
+          setRedirecting(true)
+          router.push(`/checkout/success?orderId=${orderId}`)
           return
         }
-
-        if (data.orderStatus === "PROCESSING") {
-          // Payment confirmed but tickets still generating — keep showing spinner
-          // but with a different message
-          setStatus("processing")
-          attempt++
-          if (!stopped) setTimeout(poll, 3000) // poll faster during processing
-          return
-        }
-
-        if (data.orderStatus === "FAILED" || data.orderStatus === "CANCELLED") {
-          setStatus("failed")
-          setErrorMsg(data.error ?? "Payment was not completed.")
-          return
-        }
-
-        // Still PENDING
-        attempt++
-        if (attempt >= MAX_ATTEMPTS) {
-          setStatus("failed")
-          setErrorMsg(
-            "Payment confirmation timed out. If you approved the payment on your phone, your tickets will be sent to you shortly — or contact support with your order ID."
-          )
-          return
-        }
-
-        if (!stopped) setTimeout(poll, 5000) // poll every 5 seconds per MTN recommendation
-      } catch {
-        attempt++
-        if (!stopped && attempt < MAX_ATTEMPTS) {
-          setTimeout(poll, 5000)
-        }
+      } catch (e) {
+        console.error("Immediate check failed", e)
       }
+      // If not completed, start polling
+      startPolling()
     }
 
-    // Start polling immediately — no delay
-    poll()
-    return () => { stopped = true }
-  }, [orderId, router])
+    let isStopped = false
+    let attempt = 0
+
+    const startPolling = () => {
+      const poll = async () => {
+        if (isStopped || redirecting) return
+        try {
+          const res = await fetch(`/api/payment/status?orderId=${orderId}`)
+          const data = await res.json()
+          console.log(`[POLLING #${attempt}]`, data)
+
+          if (data.orderStatus === "COMPLETED" && data.ticketsReady) {
+            setStatus("completed")
+            setRedirecting(true)
+            console.log("✅ Payment complete – redirecting to success page")
+            router.push(`/checkout/success?orderId=${orderId}`)
+            return
+          }
+
+          if (data.orderStatus === "PROCESSING") {
+            setStatus("processing")
+            attempt++
+            if (!isStopped && !redirecting) setTimeout(poll, 3000)
+            return
+          }
+
+          if (data.orderStatus === "FAILED" || data.orderStatus === "CANCELLED") {
+            setStatus("failed")
+            setErrorMsg(data.error ?? "Payment was not completed.")
+            return
+          }
+
+          // Still PENDING
+          attempt++
+          if (attempt >= MAX_ATTEMPTS) {
+            setStatus("failed")
+            setErrorMsg(
+              "Payment confirmation timed out. If you approved the payment on your phone, your tickets will be sent to you shortly — or contact support with your order ID."
+            )
+            return
+          }
+
+          if (!isStopped && !redirecting) setTimeout(poll, 5000)
+        } catch (err) {
+          console.error("Poll request failed", err)
+          attempt++
+          if (!isStopped && !redirecting && attempt < MAX_ATTEMPTS) {
+            setTimeout(poll, 5000)
+          }
+        }
+      }
+
+      // Start polling after a short initial delay
+      setTimeout(poll, 2000)
+    }
+
+    immediateCheck()
+
+    return () => {
+      isStopped = true
+    }
+  }, [orderId, router, redirecting])
 
   const minutes = Math.floor(elapsedSec / 60)
   const seconds = elapsedSec % 60
-  const elapsedLabel = minutes > 0
-    ? `${minutes}m ${seconds}s`
-    : `${seconds}s`
+  const elapsedLabel = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`
 
-  // ── Completed ──────────────────────────────────────────────────────────────
+  // ── Completed ──────────────────────────────────────────────────────────
   if (status === "completed") {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -116,7 +139,7 @@ function PendingInner() {
     )
   }
 
-  // ── Processing (payment done, tickets generating) ─────────────────────────
+  // ── Processing ─────────────────────────────────────────────────────────
   if (status === "processing") {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -136,7 +159,7 @@ function PendingInner() {
     )
   }
 
-  // ── Failed ─────────────────────────────────────────────────────────────────
+  // ── Failed ─────────────────────────────────────────────────────────────
   if (status === "failed") {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -170,7 +193,7 @@ function PendingInner() {
     )
   }
 
-  // ── Waiting / polling ──────────────────────────────────────────────────────
+  // ── Waiting / polling ─────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-xl p-8 max-w-sm w-full text-center">
@@ -221,14 +244,20 @@ function PendingInner() {
           </p>
         )}
 
-        {/* Fallback notice after 90 seconds */}
+        {/* Fallback manual button after 90 seconds */}
         {elapsedSec >= 90 && (
           <div className="mt-6 p-3 bg-amber-50 border border-amber-200 rounded-xl text-left">
             <p className="text-xs font-semibold text-amber-800 mb-1">Taking longer than expected?</p>
-            <p className="text-xs text-amber-700">
+            <p className="text-xs text-amber-700 mb-3">
               If you approved the payment on your phone but nothing has happened here,
-              please contact support with your order ID above.
+              please contact support with your order ID above. Or click below to view your tickets (if ready).
             </p>
+            <a
+              href={`/checkout/success?orderId=${orderId}`}
+              className="w-full py-2 bg-amber-100 text-amber-900 rounded-lg font-medium text-xs text-center block"
+            >
+              View My Tickets Now
+            </a>
           </div>
         )}
       </div>

@@ -387,22 +387,22 @@ const PAYMENT_METHODS = [
       </svg>
     ),
   },
-  {
-    id: "bank_transfer" as PaymentMethod,
-    label: "Bank Transfer",
-    description: "Ecobank · UBA · Any bank",
-    badge: null,
-    color: "border-blue-400 bg-blue-50 text-blue-700",
-    activeColor: "ring-2 ring-blue-400 border-blue-400",
-    needsPhone: false,
-    isInstant: false,
-    icon: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-          d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-      </svg>
-    ),
-  },
+  // {
+  //   id: "bank_transfer" as PaymentMethod,
+  //   label: "Bank Transfer",
+  //   description: "Ecobank · UBA · Any bank",
+  //   badge: null,
+  //   color: "border-blue-400 bg-blue-50 text-blue-700",
+  //   activeColor: "ring-2 ring-blue-400 border-blue-400",
+  //   needsPhone: false,
+  //   isInstant: false,
+  //   icon: (
+  //     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  //       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+  //         d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+  //     </svg>
+  //   ),
+  // },
 ]
 
 function CheckoutInner() {

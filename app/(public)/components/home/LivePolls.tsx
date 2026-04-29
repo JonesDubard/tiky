@@ -184,6 +184,8 @@ import Link from 'next/link';
 import { BarChart, Clock, Users } from 'lucide-react';
 import { format } from 'date-fns';
 
+// export const dynamic = "force-dynamic";
+
 interface LivePollsProps {
   polls: {
     id: string;
