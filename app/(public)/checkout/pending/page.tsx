@@ -41,12 +41,12 @@ function PendingInner() {
         const res = await fetch(`/api/payment/status?orderId=${orderId}`)
         const data = await res.json()
         console.log("[PENDING IMMEDIATE] Status:", data)
-        if (data.orderStatus === "COMPLETED" && data.ticketsReady) {
-          setStatus("completed")
-          setRedirecting(true)
-          router.push(`/checkout/success?orderId=${orderId}`)
-          return
-        }
+        if (data.orderStatus === "COMPLETED") {
+            setStatus("completed")
+            setRedirecting(true)
+            router.push(`/checkout/success?orderId=${orderId}`)
+            return
+}
       } catch (e) {
         console.error("Immediate check failed", e)
       }
