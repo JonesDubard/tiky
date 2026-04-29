@@ -130,14 +130,23 @@ export interface IssueTicketsResult {
  * Called by the admin approve endpoint.
  * Idempotent — safe to call multiple times (checks existing status).
  */
+// Replace ONLY the issueTicketsForOrder function in lib/manual-payment.ts
+// Everything else in that file stays the same.
+//
+// CHANGES:
+// 1. Logs the exact error so Vercel shows what's failing in the transaction
+// 2. Breaks QR generation OUT of the Prisma transaction
+//    (QRCode.toDataURL is async/CPU-heavy and can cause transaction timeouts)
+// 3. Generates all QR codes first, THEN does the DB transaction
+
 export async function issueTicketsForOrder(
   orderId: string
 ): Promise<IssueTicketsResult> {
-  // Fetch the order with its reserved tickets
+
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
-      tickets: true,
+      tickets:  true,
       payments: { select: { id: true } },
     },
   })
@@ -146,64 +155,80 @@ export async function issueTicketsForOrder(
     return { success: false, ticketCount: 0, error: "Order not found" }
   }
 
-  // Idempotency: if already completed, skip
+  // Idempotency — already done
   if (order.status === "COMPLETED") {
     return { success: true, ticketCount: order.tickets.length }
   }
 
-  const reservedTickets = order.tickets.filter((t) => t.status === "RESERVED")
+  const reservedTickets = order.tickets.filter(t => t.status === "RESERVED")
 
   if (reservedTickets.length === 0) {
+    console.error(`[issueTickets] No RESERVED tickets for order ${orderId}. Ticket statuses:`,
+      order.tickets.map(t => `${t.id}:${t.status}`).join(", ")
+    )
     return { success: false, ticketCount: 0, error: "No reserved tickets found" }
   }
 
+  // ── Generate ALL QR codes BEFORE the transaction ──────────────────────────
+  // QRCode.toDataURL is CPU-intensive async work. Running it inside a Prisma
+  // transaction holds the DB connection open too long and causes timeouts.
+  const qrResults: { ticketId: string; qrDataUrl: string }[] = []
+
+  try {
+    for (const ticket of reservedTickets) {
+      const qrDataUrl = await QRCode.toDataURL(ticket.qrCode, {
+        width:  400,
+        margin: 2,
+        color:  { dark: "#000000", light: "#FFFFFF" },
+      })
+      qrResults.push({ ticketId: ticket.id, qrDataUrl })
+    }
+  } catch (qrError) {
+    console.error(`[issueTickets] QR generation failed for order ${orderId}:`, qrError)
+    return {
+      success:     false,
+      ticketCount: 0,
+      error:       `QR generation failed: ${qrError instanceof Error ? qrError.message : "unknown"}`,
+    }
+  }
+
+  // ── Single fast DB transaction — no async work inside ────────────────────
   try {
     await prisma.$transaction(async (tx) => {
-      // 1. Generate QR image for each reserved ticket and mark as PAID
-      for (const ticket of reservedTickets) {
-        const qrDataUrl = await QRCode.toDataURL(ticket.qrCode, {
-          width: 400,
-          margin: 2,
-          color: { dark: "#000000", light: "#FFFFFF" },
-        })
-
+      // 1. Update each ticket to PAID with its pre-generated QR
+      for (const { ticketId, qrDataUrl } of qrResults) {
         await tx.ticketInstance.update({
-          where: { id: ticket.id },
-          data: {
-            status: "PAID",
-            qrImage: qrDataUrl,
-          },
+          where: { id: ticketId },
+          data:  { status: "PAID", qrImage: qrDataUrl },
         })
       }
 
-      // 2. Mark order as COMPLETED
+      // 2. Mark order COMPLETED
       await tx.order.update({
         where: { id: orderId },
-        data: {
-          status: "COMPLETED",
-          ticketGenerated: true,
-        },
+        data:  { status: "COMPLETED", ticketGenerated: true },
       })
 
-      // 3. Mark payment as COMPLETED
+      // 3. Mark payment COMPLETED
       if (order.payments.length > 0) {
         await tx.payment.updateMany({
           where: { orderId },
-          data: {
-            status: "COMPLETED",
-            processedAt: new Date(),
-          },
+          data:  { status: "COMPLETED", processedAt: new Date() },
         })
       }
     })
 
+    console.log(`[issueTickets] Success — order ${orderId}, ${reservedTickets.length} tickets issued`)
     return { success: true, ticketCount: reservedTickets.length }
+
   } catch (error) {
-    console.error("issueTicketsForOrder failed:", error)
+    // Log the FULL error — this shows in Vercel logs
+    console.error(`[issueTickets] Transaction failed for order ${orderId}:`, error)
+    console.error(`[issueTickets] Error details:`, JSON.stringify(error, null, 2))
     return {
-      success: false,
+      success:     false,
       ticketCount: 0,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error:       error instanceof Error ? error.message : "Transaction failed",
     }
   }
 }

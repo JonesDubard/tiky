@@ -1,3 +1,11 @@
+// app/api/payment/status/route.ts
+//
+// SURGICAL FIX:
+// The previous version updated payment to COMPLETED before calling
+// issueTicketsForOrder — then issueTicketsForOrder tried to updateMany
+// the same payment record inside a transaction, causing a conflict.
+// Now we let issueTicketsForOrder handle everything in one transaction.
+
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "lib/prisma"
 import { getPaymentStatus } from "lib/momo"
@@ -5,7 +13,6 @@ import { issueTicketsForOrder } from "lib/manual-payment"
 
 export async function GET(req: NextRequest) {
   const orderId = req.nextUrl.searchParams.get("orderId")
-
   if (!orderId) {
     return NextResponse.json({ error: "orderId required" }, { status: 400 })
   }
@@ -14,18 +21,8 @@ export async function GET(req: NextRequest) {
     const order = await prisma.order.findUnique({
       where:   { id: orderId },
       include: {
-        payments: {
-          select: {
-            id:          true,
-            status:      true,
-            providerRef: true,
-            externalId:  true,
-            eventId:     true,
-          },
-        },
-        tickets: {
-          select: { id: true, status: true },
-        },
+        payments: { select: { id: true, status: true, providerRef: true, externalId: true, eventId: true } },
+        tickets:  { select: { id: true, status: true } },
       },
     })
 
@@ -35,11 +32,9 @@ export async function GET(req: NextRequest) {
 
     const payment = order.payments[0]
 
-    // ── Fast path: DB already shows COMPLETED ────────────────────────────────
-    // Return immediately — do NOT check qrImage here
-    // The success page handles showing a loading state while QR generates
+    // ── Fast path: already COMPLETED in DB ───────────────────────────────────
     if (order.status === "COMPLETED") {
-      console.log(`[STATUS] ${orderId} → COMPLETED (from DB)`)
+      console.log(`[STATUS] ${orderId} already COMPLETED`)
       return NextResponse.json({ orderStatus: "COMPLETED", ticketsReady: true })
     }
 
@@ -52,7 +47,7 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // ── No payment record ────────────────────────────────────────────────────
+    // ── No payment record yet ────────────────────────────────────────────────
     if (!payment?.providerRef) {
       return NextResponse.json({ orderStatus: "PENDING", ticketsReady: false })
     }
@@ -65,49 +60,61 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // ── Check MTN for current status ─────────────────────────────────────────
-    console.log(`[STATUS] ${orderId} → checking MTN, ref: ${payment.providerRef}`)
+    // ── Payment already marked COMPLETED but order isn't ────────────────────
+    // This means issueTicketsForOrder ran but failed — retry it
+    if (payment.status === "COMPLETED" && order.status !== "COMPLETED") {
+      console.log(`[STATUS] ${orderId} payment COMPLETED but order not — retrying fulfillment`)
+      const result = await issueTicketsForOrder(orderId)
+      console.log(`[STATUS] ${orderId} retry result:`, JSON.stringify(result))
+
+      if (result.success) {
+        return NextResponse.json({ orderStatus: "COMPLETED", ticketsReady: true })
+      }
+      return NextResponse.json({
+        orderStatus:  "PROCESSING",
+        ticketsReady: false,
+        message:      "Payment confirmed. Finalizing tickets...",
+      })
+    }
+
+    // ── Check MTN ────────────────────────────────────────────────────────────
+    console.log(`[STATUS] ${orderId} checking MTN, providerRef: ${payment.providerRef}`)
 
     let momoStatus: { status: string; financialTransactionId: string | null; reason: string | null }
     try {
       momoStatus = await getPaymentStatus(payment.providerRef)
     } catch (err) {
-      console.error(`[STATUS] MTN check failed for ${orderId}:`, err)
+      console.error(`[STATUS] ${orderId} MTN check error:`, err)
       return NextResponse.json({ orderStatus: "PENDING", ticketsReady: false })
     }
 
-    console.log(`[STATUS] ${orderId} → MTN says: ${momoStatus.status}`)
+    console.log(`[STATUS] ${orderId} MTN status: ${momoStatus.status}`)
 
     // ── MTN SUCCESSFUL ───────────────────────────────────────────────────────
     if (momoStatus.status === "SUCCESSFUL") {
-      // Update payment first
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: {
-          status:      "COMPLETED",
-          externalId:  momoStatus.financialTransactionId ?? undefined,
-          processedAt: new Date(),
-        },
-      })
-
-      // Issue tickets — generates QR and marks order COMPLETED
-      console.log(`[STATUS] ${orderId} → running issueTicketsForOrder`)
-      const result = await issueTicketsForOrder(orderId)
-      console.log(`[STATUS] ${orderId} → issueTicketsForOrder:`, JSON.stringify(result))
-
-      if (!result.success) {
-        // Tickets failed to generate — but payment went through
-        // Return PROCESSING so pending page shows "generating tickets"
-        // Admin can manually trigger from dashboard if needed
-        console.error(`[STATUS] ${orderId} → issueTicketsForOrder failed:`, result.error)
-        return NextResponse.json({
-          orderStatus:  "PROCESSING",
-          ticketsReady: false,
-          message:      "Payment confirmed. Generating tickets…",
+      // Store the MTN transaction ID on the payment record BEFORE issuing
+      // but do NOT mark it COMPLETED — let issueTicketsForOrder do that
+      // atomically together with the order and tickets
+      if (momoStatus.financialTransactionId && !payment.externalId) {
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data:  { externalId: momoStatus.financialTransactionId },
         })
       }
 
-      // All good — order is now COMPLETED in DB
+      console.log(`[STATUS] ${orderId} calling issueTicketsForOrder`)
+      const result = await issueTicketsForOrder(orderId)
+      console.log(`[STATUS] ${orderId} issueTicketsForOrder result:`, JSON.stringify(result))
+
+      if (!result.success) {
+        console.error(`[STATUS] ${orderId} issueTicketsForOrder failed:`, result.error)
+        return NextResponse.json({
+          orderStatus:  "PROCESSING",
+          ticketsReady: false,
+          message:      "Payment confirmed. Generating tickets...",
+        })
+      }
+
       return NextResponse.json({ orderStatus: "COMPLETED", ticketsReady: true })
     }
 
@@ -117,13 +124,12 @@ export async function GET(req: NextRequest) {
         prisma.payment.update({ where: { id: payment.id }, data: { status: "FAILED" } }),
         prisma.order.update({ where: { id: orderId }, data: { status: "FAILED" } }),
       ])
-
       return NextResponse.json({
         orderStatus:  "FAILED",
         ticketsReady: false,
         error:        momoStatus.reason
           ? `Payment declined: ${momoStatus.reason}`
-          : "Payment was declined or cancelled. Please try again.",
+          : "Payment was declined. Please try again.",
       })
     }
 
