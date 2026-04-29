@@ -126,8 +126,9 @@ export async function POST(req: NextRequest) {
         payeeNote:    `Ticket purchase order ${result.order.id}`,
       })
     } catch (momoError) {
-      const message = momoError instanceof Error ? momoError.message : "MoMo request failed"
-      console.error("[MOMO] requesttopay failed:", message)
+      console.error("[MOMO RAW ERROR]", JSON.stringify(momoError, Object.getOwnPropertyNames(momoError)))
+  const message = momoError instanceof Error ? momoError.message : "MoMo request failed"
+  console.error("[MOMO] requesttopay failed:", message)
 
       await prisma.payment.updateMany({
         where: { providerRef: referenceId },
