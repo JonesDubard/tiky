@@ -326,7 +326,9 @@ function PendingInner() {
       if (isStopped.current) return
 
       try {
-        const res  = await fetch(`/api/payment/status?orderId=${orderId}`)
+        const res  = await fetch(`/api/payment/status?orderId=${orderId}`, {
+  cache: 'no-store'
+})
         const data = await res.json() as {
           orderStatus:  string
           ticketsReady?: boolean
@@ -514,8 +516,8 @@ function PendingInner() {
           </p>
         )}
 
-        {/* After 90s — give user a manual escape hatch */}
-        {elapsedSec >= 90 && (
+        {/* After 30s — give user a manual escape hatch */}
+        {elapsedSec >= 30 && (
           <div className="mt-5 p-3 bg-amber-50 border border-amber-200 rounded-xl text-left">
             <p className="text-xs font-semibold text-amber-800 mb-1">
               Taking longer than expected?
