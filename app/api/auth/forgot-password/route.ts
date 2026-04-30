@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     const resetUrl = `${BASE_URL}/reset-password?token=${token}`
 
     await resend.emails.send({
-      from: "Tiky <tikyliberia@gmail.com>", 
+      from: "Tiky <noreply@tikylr.com>", 
       to: normalizedEmail,
       subject: "Reset your Tiky password",
       html: `
