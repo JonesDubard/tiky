@@ -531,10 +531,37 @@ function SuccessInner() {
                   ) : (
                     <div className="w-48 h-48 bg-gray-100 flex items-center justify-center mx-auto">Pending...</div>
                   )}
-                  <div className="mt-6 p-3 bg-gray-50 rounded-lg">
-                    <p className="text-xs text-gray-400 uppercase">Ticket ID</p>
-                    <p className="font-mono text-xs break-all">{currentTicket.id}</p>
-                  </div>
+
+                  <div className="mt-6 space-y-3">
+  {/* Ticket ID */}
+  <div className="p-3 bg-gray-50 rounded-lg">
+    <p className="text-xs text-gray-400 uppercase">Ticket ID</p>
+    <p className="font-mono text-xs break-all">{currentTicket.id}</p>
+  </div>
+
+  {/* Voting Code (QR Code string) */}
+  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+    <p className="text-xs text-amber-600 uppercase font-semibold mb-1">
+      🗳️ Voting Code
+    </p>
+    <div className="flex items-center gap-2">
+      <p className="font-mono text-sm text-gray-800 break-all flex-1">
+        {currentTicket.qrCode}
+      </p>
+      <button
+        onClick={() => navigator.clipboard.writeText(currentTicket.qrCode)}
+        className="shrink-0 px-3 py-1 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold hover:bg-amber-200"
+      >
+        Copy
+      </button>
+    </div>
+    <p className="text-xs text-amber-500 mt-1">
+      Use this code to vote in the event poll.
+    </p>
+  </div>
+</div>
+
+
                 </div>
 
                 <div className="p-6 border-t border-dashed border-gray-100 space-y-3">

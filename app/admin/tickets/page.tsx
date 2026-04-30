@@ -51,11 +51,12 @@ export default async function TicketsPage() {
 
   // ── Revenue from PAID + USED tickets ───────────────────────────────────
   // Fetch ticket prices and sum in JavaScript (Prisma cannot aggregate over relations)
-  const paidTickets = await prisma.ticketInstance.findMany({
-    where: { status: { in: ["PAID", "USED"] } },
-    select: { ticketType: { select: { price: true } } },
+    // ── Revenue from COMPLETED payments (matches dashboard) ─────────────
+  const revenueAgg = await prisma.payment.aggregate({
+    where: { status: "COMPLETED" },
+    _sum: { amount: true },
   })
-  const revenue = paidTickets.reduce((sum, t) => sum + (t.ticketType?.price ?? 0), 0)
+  const revenue = revenueAgg._sum.amount ?? 0
 
   const stats = { total, reserved, paid, used, cancelled, revenue }
 

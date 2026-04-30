@@ -525,6 +525,22 @@ function TicketCard({
       {isExpanded && (
         <div className="bg-gray-50 border-t border-dashed border-gray-200 px-5 py-4 space-y-3">
           <InfoRow label="Ticket ID" value={ticket.id} mono />
+          {/* Voting Code */}
+<div className="flex justify-between items-start gap-3">
+  <span className="text-xs text-gray-400 flex-shrink-0 pt-0.5">Voting Code</span>
+  <div className="flex items-center gap-2">
+    <span className="font-mono text-xs text-gray-700 break-all">{ticket.qrCode}</span>
+    <button
+      onClick={(e) => {
+        e.stopPropagation()
+        navigator.clipboard.writeText(ticket.qrCode)
+      }}
+      className="px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded hover:bg-amber-200"
+    >
+      Copy
+    </button>
+  </div>
+</div>
           <InfoRow label="Event" value={event.title} />
           <InfoRow
             label="Date & Time"
