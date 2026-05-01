@@ -13,7 +13,7 @@ export async function POST(
     const body = await req.json();
     const { optionId, ticketCode } = body;
 
-    // ── 1. Authentication ──────────────────────────────────────────────────
+    // 1. Authentication
     if (!session?.user?.email) {
       return NextResponse.json(
         { error: "AUTH_REQUIRED", message: "You must be logged in to vote." },
@@ -32,7 +32,7 @@ export async function POST(
       );
     }
 
-    // ── 2. Load poll with necessary relations ─────────────────────────────
+    // 2. Load poll
     const poll = await prisma.poll.findUnique({
       where: { id: pollId, deletedAt: null },
       select: {
@@ -53,7 +53,7 @@ export async function POST(
       );
     }
 
-    // ── 3. Poll active? ───────────────────────────────────────────────────
+    // 3. Poll active?
     const now = new Date();
     if (poll.status !== "ACTIVE") {
       return NextResponse.json(
@@ -68,7 +68,7 @@ export async function POST(
       );
     }
 
-    // ── 4. Validate option ────────────────────────────────────────────────
+    // 4. Validate option
     if (!optionId) {
       return NextResponse.json(
         { error: "MISSING_OPTION", message: "No option selected." },
@@ -82,122 +82,85 @@ export async function POST(
       );
     }
 
-    // ── 5. Check for existing vote ────────────────────────────────────────
-    const existingVote = await prisma.vote.findFirst({
-      where: { pollId, userId: user.id },
-    });
-    if (existingVote) {
-      return NextResponse.json(
-        { error: "ALREADY_VOTED", message: "You have already voted on this poll." },
-        { status: 409 }
-      );
-    }
-
-    // ── 6. Ticket / eligibility validation ────────────────────────────────
-    // For TOKEN_GATED polls, user must have a paid order for the linked event.
-    if (poll.pollType === "TOKEN_GATED") {
-      // 6a. Physical ticket flow (requires ticket code)
-      if (poll.requiresTicket) {
-        if (!ticketCode?.trim()) {
-          return NextResponse.json(
-            {
-              error: "TICKET_REQUIRED",
-              message: "This poll requires a physical ticket code.",
-            },
-            { status: 403 }
-          );
-        }
-
-        const ticket = await prisma.ticketInstance.findUnique({
-          where: { qrCode: ticketCode.trim() },
-          include: {
-            ticketType: { select: { eventId: true } },
-            votes: { where: { pollId } },
-          },
-        });
-
-        if (!ticket) {
-          return NextResponse.json(
-            { error: "INVALID_TICKET", message: "Ticket not found." },
-            { status: 404 }
-          );
-        }
-
-        if (poll.eventId && ticket.ticketType.eventId !== poll.eventId) {
-          return NextResponse.json(
-            {
-              error: "WRONG_EVENT",
-              message: "This ticket is not for the event linked to this poll.",
-            },
-            { status: 403 }
-          );
-        }
-
-        if (ticket.status !== "PAID" && ticket.status !== "USED") {
-          return NextResponse.json(
-            { error: "TICKET_NOT_PAID", message: "Only paid tickets can vote." },
-            { status: 403 }
-          );
-        }
-
-        if (ticket.votes.length > 0) {
-          return NextResponse.json(
-            {
-              error: "TICKET_ALREADY_USED",
-              message: "This ticket has already been used to vote on this poll.",
-            },
-            { status: 409 }
-          );
-        }
-
-        // Create vote with ticket link
-        const vote = await prisma.vote.create({
-          data: {
-            pollId,
-            optionId,
-            userId: user.id,
-            ticketInstanceId: ticket.id,
-          },
-        });
-
-        const results = await buildResults(pollId);
-        return NextResponse.json(
-          { success: true, voteId: vote.id, ...results },
-          { status: 201 }
-        );
-      }
-
-      // 6b. Digital ticket flow (requires paid order)
-      if (!poll.eventId) {
-        return NextResponse.json(
-          {
-            error: "NO_EVENT_LINKED",
-            message: "This poll requires a ticket but no event is linked.",
-          },
-          { status: 400 }
-        );
-      }
-
-      const paidOrder = await prisma.order.findFirst({
-        where: {
-          userId: user.id,
-          eventId: poll.eventId,
-          status: "COMPLETED", // ✅ Only confirmed/paid orders
-        },
+    // ── 5. Uniqueness & eligibility ────────────────────────────────────────
+    if (poll.pollType === "PUBLIC") {
+      // One vote per user
+      const existing = await prisma.vote.findFirst({
+        where: { pollId, userId: user.id },
       });
-
-      if (!paidOrder) {
+      if (existing) {
         return NextResponse.json(
-          {
-            error: "NO_TICKET",
-            message: "You need a valid ticket for the linked event to vote.",
-          },
+          { error: "ALREADY_VOTED", message: "You have already voted on this poll." },
+          { status: 409 }
+        );
+      }
+    } else if (poll.pollType === "TOKEN_GATED") {
+      // Must provide a ticket code
+      if (!ticketCode?.trim()) {
+        return NextResponse.json(
+          { error: "TICKET_REQUIRED", message: "A ticket code is required to vote in this poll." },
           { status: 403 }
         );
       }
+
+      const ticket = await prisma.ticketInstance.findUnique({
+        where: { qrCode: ticketCode.trim() },
+        include: {
+          ticketType: { select: { eventId: true } },
+          votes: { where: { pollId } },
+          order: { select: { userId: true } },
+        },
+      });
+
+      if (!ticket) {
+        return NextResponse.json(
+          { error: "INVALID_TICKET", message: "Ticket not found." },
+          { status: 404 }
+        );
+      }
+
+      // Check event match
+      if (poll.eventId && ticket.ticketType.eventId !== poll.eventId) {
+        return NextResponse.json(
+          { error: "WRONG_EVENT", message: "This ticket is not for the linked event." },
+          { status: 403 }
+        );
+      }
+
+      // Ticket must be paid
+      if (ticket.status !== "PAID" && ticket.status !== "USED") {
+        return NextResponse.json(
+          { error: "TICKET_NOT_PAID", message: "Only paid tickets can vote." },
+          { status: 403 }
+        );
+      }
+
+      // One vote per ticket
+      if (ticket.votes.length > 0) {
+        return NextResponse.json(
+          { error: "TICKET_ALREADY_USED", message: "This ticket has already voted on this poll." },
+          { status: 409 }
+        );
+      }
+
+      // Create vote linked to ticket
+      const vote = await prisma.vote.create({
+        data: {
+          pollId,
+          optionId,
+          userId: user.id,
+          ticketInstanceId: ticket.id,
+        },
+      });
+
+      const results = await buildResults(pollId);
+      return NextResponse.json(
+        { success: true, voteId: vote.id, ...results },
+        { status: 201 }
+      );
     }
 
-    // ── 7. Create vote ────────────────────────────────────────────────────
+    // ── Create vote for PUBLIC polls ─────────────────────────────────────
     const vote = await prisma.vote.create({
       data: {
         pollId,

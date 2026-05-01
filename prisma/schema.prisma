@@ -209,27 +209,22 @@ model PollOption {
 }
 
 model Vote {
-  id String @id @default(cuid())
-
-  pollId   String
-  optionId String
-  userId   String?
-
-  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
-  option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
-  user   User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  id               String         @id @default(cuid())
+  pollId           String
+  optionId         String
+  userId           String?
+  poll             Poll           @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option           PollOption     @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user             User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
   deviceId         String?
   metadata         String?
   ticketInstanceId String?
   ticketInstance   TicketInstance? @relation(fields: [ticketInstanceId], references: [id])
+  createdAt        DateTime       @default(now())
 
-  createdAt DateTime @default(now())
-
-  @@unique([pollId, userId]) // Registered users only
   @@index([pollId])
   @@index([optionId])
-  @@index([deviceId]) // Add index for deviceId lookups
+  @@index([deviceId])
 }
 
 model TicketReservation {
