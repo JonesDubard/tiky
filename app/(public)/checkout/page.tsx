@@ -372,21 +372,21 @@ const PAYMENT_METHODS = [
       </svg>
     ),
   },
-  {
-    id: "orange_money" as PaymentMethod,
-    label: "Orange Money",
-    description: "Transfer manually, upload receipt",
-    badge: null,
-    color: "border-orange-400 bg-orange-50 text-orange-700",
-    activeColor: "ring-2 ring-orange-400 border-orange-400",
-    needsPhone: false,
-    isInstant: false,
-    icon: (
-      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-        <circle cx="12" cy="12" r="10" />
-      </svg>
-    ),
-  },
+  // {
+  //   id: "orange_money" as PaymentMethod,
+  //   label: "Orange Money",
+  //   description: "Transfer manually, upload receipt",
+  //   badge: null,
+  //   color: "border-orange-400 bg-orange-50 text-orange-700",
+  //   activeColor: "ring-2 ring-orange-400 border-orange-400",
+  //   needsPhone: false,
+  //   isInstant: false,
+  //   icon: (
+  //     <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+  //       <circle cx="12" cy="12" r="10" />
+  //     </svg>
+  //   ),
+  // },
   // {
   //   id: "bank_transfer" as PaymentMethod,
   //   label: "Bank Transfer",
