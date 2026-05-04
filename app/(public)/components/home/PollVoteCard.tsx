@@ -230,6 +230,7 @@ export default function PollVoteCard({ poll, contestants: initialContestants }: 
   const [voting, setVoting] = useState(false);
   const [hasVotedAtLeastOnce, setHasVotedAtLeastOnce] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [remainingVotes, setRemainingVotes] = useState<number | null>(null);
   const [totalVotes, setTotalVotes] = useState<number>(0);
 
@@ -275,7 +276,7 @@ export default function PollVoteCard({ poll, contestants: initialContestants }: 
     if (!canVote) return;
 
     if (poll.requiresTicket && !token.trim()) {
-      setError('Please enter your ticket code.');
+      setToast({ msg: 'Please enter your ticket code.', type: 'error' });
       return;
     }
 
@@ -313,11 +314,14 @@ export default function PollVoteCard({ poll, contestants: initialContestants }: 
           );
           setTotalVotes(result.totalVotes ?? 0);
         }
+        setToast({ msg: 'Your vote was recorded! 🎉 Thank you for voting!', type: 'success' });
+        setTimeout(() => setToast(null), 5000);
       } else {
         setError(result.message || 'Voting failed.');
+        setToast({ msg: result.message || 'Voting failed.', type: 'error' });
       }
     } catch (err) {
-      setError('Network error. Please try again.');
+      setToast({ msg: 'Network error. Please try again.', type: 'error' });
     } finally {
       setVoting(false);
     }
@@ -369,10 +373,9 @@ export default function PollVoteCard({ poll, contestants: initialContestants }: 
           </p>
         </div>
       )}
-
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
-          {error}
+      {toast && (
+        <div className={`mb-4 p-3 rounded-lg text-sm ${toast.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+          {toast.msg}
         </div>
       )}
 
