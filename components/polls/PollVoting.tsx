@@ -514,7 +514,8 @@ export default function PollVoting({
   const needsTicketCode = isTokenGated && requiresTicket;
   // User can interact if poll active, no external block reasons (like not_logged_in, no_ticket),
   // and they have remaining votes.
-  const canInteract    = isActive && !blockReason && remainingVotes > 0;
+  const canInteract = isActive && remainingVotes > 0 &&
+  (!blockReason || blockReason === "enter_code");
 
   const showToast = (msg: React.ReactNode, type: "success" | "error") => {
     setToast({ msg, type });
