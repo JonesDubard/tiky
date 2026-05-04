@@ -240,16 +240,33 @@ export default function PollVoteCard({ poll, contestants: initialContestants }: 
 
   // Fetch remaining votes for token‑gated polls
   useEffect(() => {
-    if (poll.requiresTicket) {
-      fetch(`/api/polls/${poll.id}/remaining-votes`)
-        .then(res => res.json())
-        .then(data => setRemainingVotes(data.remaining))
-        .catch(() => setRemainingVotes(null));
-    } else {
-      // Public polls have exactly one vote per user
-      setRemainingVotes(1);
-    }
-  }, [poll.id, poll.requiresTicket]);
+  if (poll.requiresTicket) {
+    // Token‑gated poll
+    fetch(`/api/polls/${poll.id}/remaining-votes`)
+      .then(res => res.json())
+      .then(data => {
+        setRemainingVotes(data.remaining ?? 0);
+        // If they've already used at least one ticket, show results
+        if (data.totalTickets > 0 && data.remaining < data.totalTickets) {
+          setHasVotedAtLeastOnce(true);
+        }
+      })
+      .catch(() => setRemainingVotes(null));
+  } else {
+    // Public poll – check if user already voted
+    fetch(`/api/polls/${poll.id}/remaining-votes`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.hasVoted) {
+          setHasVotedAtLeastOnce(true);
+          setRemainingVotes(0); // no votes left
+        } else {
+          setRemainingVotes(1); // can vote once
+        }
+      })
+      .catch(() => setRemainingVotes(null));
+  }
+}, [poll.id, poll.requiresTicket]);
 
   const canVote = remainingVotes !== null && remainingVotes > 0;
 
