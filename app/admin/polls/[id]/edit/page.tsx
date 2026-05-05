@@ -47,6 +47,7 @@ export default async function EditPollPage({
     endDate: poll.endDate ? poll.endDate.toISOString() : null,
     eventId: poll.eventId ?? null,
     isFeatured: poll.isFeatured ?? false,
+    requiresTicket: poll.requiresTicket ?? false,
     options: poll.options.map((opt) => ({ id: opt.id, text: opt.text })),
   };
 

@@ -115,9 +115,9 @@ export default function PollForm({ initialData, mode = "create" }: PollFormProps
     if (validOptions.length < 2) return showToast("At least 2 options are required", "error");
 
     // Validate event selection for TOKEN_GATED digital ticket flow
-    if (form.pollType === "TOKEN_GATED" && !form.requiresTicket && !form.eventId) {
-      return showToast("Please select an event for digital ticket voting", "error");
-    }
+    if (form.pollType === "TOKEN_GATED" && !form.eventId) {
+  return showToast("Please select an event for ticket‑gated voting.", "error");
+}
 
     setLoading(true);
     try {
