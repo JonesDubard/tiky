@@ -125,20 +125,20 @@ export default function ProfilePage() {
             {/* Stats */}
             <div className="grid grid-cols-3 gap-3 w-full sm:w-auto">
               <div className="text-center p-3 bg-orange-50 rounded-xl">
-                <Ticket className="w-5 h-5 text-orange-500 mx-auto mb-1" />
-                <p className="text-xl font-bold text-slate-900">{allTickets.length}</p>
-                <p className="text-xs text-slate-500">Tickets</p>
-              </div>
-              <div className="text-center p-3 bg-green-50 rounded-xl">
-                <BarChart className="w-5 h-5 text-green-500 mx-auto mb-1" />
-                <p className="text-xl font-bold text-slate-900">{activeTickets}</p>
-                <p className="text-xs text-slate-500">Active</p>
-              </div>
-              <div className="text-center p-3 bg-blue-50 rounded-xl">
-                <Calendar className="w-5 h-5 text-blue-500 mx-auto mb-1" />
-                <p className="text-xl font-bold text-slate-900">{orders.length}</p>
-                <p className="text-xs text-slate-500">Orders</p>
-              </div>
+  <Ticket className="w-5 h-5 text-orange-500 mx-auto mb-1" />
+  <p className="text-xl font-bold text-slate-900">{allTickets.length}</p>
+  <p className="text-xs text-slate-500">All Tickets</p>
+</div>
+<div className="text-center p-3 bg-green-50 rounded-xl">
+  <BarChart className="w-5 h-5 text-green-500 mx-auto mb-1" />
+  <p className="text-xl font-bold text-slate-900">{activeTickets}</p>
+  <p className="text-xs text-slate-500">Paid</p>
+</div>
+<div className="text-center p-3 bg-blue-50 rounded-xl">
+  <Calendar className="w-5 h-5 text-blue-500 mx-auto mb-1" />
+  <p className="text-xl font-bold text-slate-900">{orders.length}</p>
+  <p className="text-xs text-slate-500">Total Orders</p>
+</div>
             </div>
           </div>
 
