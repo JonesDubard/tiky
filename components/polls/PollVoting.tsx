@@ -507,14 +507,15 @@ export default function PollVoting({
     msg: React.ReactNode; type: "success" | "error"
   } | null>(null);
 
-  const [remainingVotes, setRemainingVotes]   = useState<number>(1);   // 1 for public, N for token-gated
+  const [remainingVotes, setRemainingVotes]   = useState<number | null>(null);  
   const [hasVotedAtLeastOnce, setHasVotedAtLeastOnce] = useState(false);
 
   const isTokenGated   = pollType === "TOKEN_GATED";
   const needsTicketCode = isTokenGated && requiresTicket;
   // User can interact if poll active, no external block reasons (like not_logged_in, no_ticket),
   // and they have remaining votes.
-  const canInteract = isActive && remainingVotes > 0 &&
+ 
+  const canInteract = isActive && (remainingVotes ?? 0) > 0 &&
   (!blockReason || blockReason === "enter_code");
 
   const showToast = (msg: React.ReactNode, type: "success" | "error") => {
@@ -542,7 +543,7 @@ export default function PollVoting({
 
         // Fetch remaining votes / prior vote status
         if (isTokenGated) {
-          const resRemaining = await fetch(`/api/polls/${pollId}/remaining-votes`);
+          const resRemaining = await fetch(`/api/polls/${pollId}/remaining-votes`, { cache: 'no-store' });
           if (resRemaining.ok) {
             const remData = await resRemaining.json();
             const rem = remData.remaining ?? 0;
@@ -555,7 +556,7 @@ export default function PollVoting({
           }
         } else {
           // Public poll: check if user already voted
-          const resRemaining = await fetch(`/api/polls/${pollId}/remaining-votes`);
+          const resRemaining = await fetch(`/api/polls/${pollId}/remaining-votes`, { cache: 'no-store' });
           if (resRemaining.ok) {
             const remData = await resRemaining.json();
             if (remData.hasVoted) {
@@ -641,7 +642,7 @@ export default function PollVoting({
       setTotalVotes(data.totalVotes);
       setUserVotedOptionId(selected);
       setHasVotedAtLeastOnce(true);
-      setRemainingVotes(prev => (prev > 0 ? prev - 1 : 0));
+      setRemainingVotes(prev => (prev !== null && prev > 0 ? prev - 1 : 0));
       setTicketCode("");
       setSelected(null);
       showToast("Your vote has been recorded! 🎉", "success");
@@ -747,7 +748,7 @@ export default function PollVoting({
         {renderBlockBanner()}
 
         {/* Ticket code + remaining votes display (only for token-gated polls with votes left) */}
-        {canInteract && needsTicketCode && (
+        {needsTicketCode && (
           <div className="mb-4">
             <label htmlFor="ticketCode" className="block text-sm font-medium text-gray-700 mb-1">
               Ticket Code
@@ -761,9 +762,11 @@ export default function PollVoting({
               className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
               disabled={loading}
             />
-            <p className="text-xs text-gray-500 mt-1">
-              You have {remainingVotes} vote{remainingVotes !== 1 ? 's' : ''} remaining.
-            </p>
+           {remainingVotes !== null && remainingVotes > 0 && (
+  <p className="text-xs text-gray-500 mt-1">
+    You have {remainingVotes} vote{remainingVotes !== 1 ? 's' : ''} remaining.
+  </p>
+)}
           </div>
         )}
 
@@ -901,11 +904,11 @@ export default function PollVoting({
         )}
 
         {/* Hint for token-gated polls with remaining votes */}
-        {isActive && hasVotedAtLeastOnce && remainingVotes > 0 && (
-          <div className="mt-4 text-center text-sm text-blue-600 bg-blue-50 rounded-xl py-2">
-            You have {remainingVotes} more vote{remainingVotes !== 1 ? 's' : ''} — enter another ticket code and submit again.
-          </div>
-        )}
+       {isActive && hasVotedAtLeastOnce && (remainingVotes ?? 0) > 0 && (
+  <div className="mt-4 text-center text-sm text-blue-600 bg-blue-50 rounded-xl py-2">
+    You have {remainingVotes} more vote{remainingVotes !== 1 ? 's' : ''} — enter another ticket code and submit again.
+  </div>
+)}
       </div>
     </div>
   );

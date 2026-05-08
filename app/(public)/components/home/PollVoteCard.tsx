@@ -243,7 +243,7 @@ export default function PollVoteCard({ poll, contestants: initialContestants }: 
   useEffect(() => {
   if (poll.requiresTicket) {
     // Token‑gated poll
-    fetch(`/api/polls/${poll.id}/remaining-votes`)
+    fetch(`/api/polls/${poll.id}/remaining-votes`, { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
         setRemainingVotes(data.remaining ?? 0);
@@ -255,7 +255,7 @@ export default function PollVoteCard({ poll, contestants: initialContestants }: 
       .catch(() => setRemainingVotes(null));
   } else {
     // Public poll – check if user already voted
-    fetch(`/api/polls/${poll.id}/remaining-votes`)
+    fetch(`/api/polls/${poll.id}/remaining-votes`, { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
         if (data.hasVoted) {
@@ -356,7 +356,7 @@ export default function PollVoteCard({ poll, contestants: initialContestants }: 
       </div>
 
       {/* Token input (only for token‑gated polls with remaining votes) */}
-      {poll.requiresTicket && canVote && (
+      {poll.requiresTicket && (
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">
             🎟️ Ticket Code (from your purchase)
@@ -368,9 +368,11 @@ export default function PollVoteCard({ poll, contestants: initialContestants }: 
             placeholder="e.g. a1b2c3d4..."
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
-          <p className="mt-1 text-xs text-gray-500">
-            You have {remainingVotes} vote{remainingVotes !== 1 ? 's' : ''} remaining.
-          </p>
+          {remainingVotes !== null && remainingVotes > 0 && (
+  <p className="mt-1 text-xs text-gray-500">
+    You have {remainingVotes} vote{remainingVotes !== 1 ? 's' : ''} remaining.
+  </p>
+)}
         </div>
       )}
       {toast && (
