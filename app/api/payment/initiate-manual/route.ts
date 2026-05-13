@@ -53,6 +53,26 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    if (!session?.user?.id) {
+      const hasTokenGatedPoll = await prisma.poll.findFirst({
+    where: {
+      eventId,
+      status: "ACTIVE",
+      pollType: "TOKEN_GATED",
+      deletedAt: null,
+    },
+    select: { id: true },
+  });
+  if (hasTokenGatedPoll) {
+    return NextResponse.json(
+      {
+        error: "This event requires login to vote. Please log in before purchasing tickets.",
+      },
+      { status: 401 }
+    );
+  }
+}
+
     if (!VALID_METHODS.includes(paymentMethod)) {
       return NextResponse.json(
         { error: `Invalid payment method. Must be one of: ${VALID_METHODS.join(", ")}` },

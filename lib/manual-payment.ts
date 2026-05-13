@@ -210,36 +210,67 @@ export async function issueTicketsForOrder(
   // ── Transaction ──
   try {
     await prisma.$transaction(async (tx) => {
+  // 1. Fetch ONLY currently RESERVED tickets (prevents double decrement)
+  const freshReservedTickets = await tx.ticketInstance.findMany({
+    where: {
+      orderId,
+      status: "RESERVED",
+    },
+    select: { id: true, ticketTypeId: true, qrCode: true },
+  });
 
-      // 1️⃣ Update tickets
-      for (const { ticketId, qrDataUrl } of qrResults) {
-        await tx.ticketInstance.update({
-          where: { id: ticketId },
-          data: {
-            status: "PAID",
-            qrImage: qrDataUrl,
-          },
-        })
-      }
+  // Build counts from the fresh list
+  const counts: Record<string, number> = {};
+  for (const ticket of freshReservedTickets) {
+    counts[ticket.ticketTypeId] = (counts[ticket.ticketTypeId] || 0) + 1;
+  }
 
-      // 2️⃣ COMPLETE ORDER (ALWAYS)
-      await tx.order.update({
-        where: { id: orderId },
-        data: {
-          status: "COMPLETED",
-          ticketGenerated: true,
-        },
-      })
+  // 2. Decrement inventory safely (oversell protection)
+  for (const [ticketTypeId, count] of Object.entries(counts)) {
+    const result = await tx.ticketType.updateMany({
+      where: {
+        id: ticketTypeId,
+        quantity: { gte: count },
+      },
+      data: { quantity: { decrement: count } },
+    });
 
-      // 3️⃣ COMPLETE PAYMENT
-      await tx.payment.updateMany({
-        where: { orderId },
-        data: {
-          status: "COMPLETED",
-          processedAt: new Date(),
-        },
-      })
-    })
+    if (result.count === 0) {
+      throw new Error(`Insufficient inventory for ticket type ${ticketTypeId}`);
+    }
+  }
+
+  // 3. Mark those fresh reserved tickets as PAID (thread‑safe)
+  let updatedCount = 0;
+  for (const ticket of freshReservedTickets) {
+    // Find the pre‑generated QR code for this ticket
+    const qrResult = qrResults.find(r => r.ticketId === ticket.id);
+    if (!qrResult) continue; // should never happen, but skip if missing
+
+    const updateResult = await tx.ticketInstance.updateMany({
+      where: {
+        id: ticket.id,
+        status: "RESERVED",
+      },
+      data: { status: "PAID", qrImage: qrResult.qrDataUrl },
+    });
+
+    updatedCount += updateResult.count;
+  }
+
+  // 4. Ensure ALL fresh reserved tickets were successfully updated
+  if (updatedCount !== freshReservedTickets.length) {
+    throw new Error(
+      `Only updated ${updatedCount}/${freshReservedTickets.length} tickets – possible race condition`
+    );
+  }
+
+  // 5. Complete the order
+  await tx.order.update({
+    where: { id: orderId },
+    data: { status: "COMPLETED", ticketGenerated: true },
+  });
+});
 
     return { success: true, ticketCount: order.tickets.length }
 
