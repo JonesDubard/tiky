@@ -5,7 +5,6 @@ import Image from "next/image"
 import { Calendar, MapPin, Clock, Users } from "lucide-react"
 import { format } from "date-fns"
 import TicketPurchaseCard from "components/Events/TicketPurchaseCard"
-import PollSection from "app/(public)/components/polls/PollSection"
 
 
 // ── Force dynamic rendering ───────────────────────────────────────────────────
@@ -141,11 +140,48 @@ export default async function EventPage({ params }: EventPageProps) {
             </section>
 
             {poll && (
-             <section className="bg-white rounded-xl shadow-sm p-6">
-            <PollSection poll={poll} />
-            </section>
-)}
 
+  <section className="bg-orange-50 border border-orange-200 rounded-xl p-6">
+
+    <div className="flex items-start justify-between gap-4">
+
+      <div className="flex-1">
+
+        <span className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-1 block">
+
+          Live Voting
+
+        </span>
+
+        <h3 className="text-xl font-bold text-gray-900 mb-1">{poll.title}</h3>
+
+        {poll.description && (
+
+          <p className="text-sm text-gray-600 mb-4 line-clamp-2">{poll.description}</p>
+
+        )}
+
+        <div className="flex items-center gap-3 text-sm text-gray-500 mb-4">
+          <span>🗳️ {poll.options.length} contestants</span>
+          {poll.endDate && (
+            <span>⏰ Ends {format(new Date(poll.endDate), "MMM d, yyyy")}</span>
+          )}
+        </div>
+        
+        <a
+          href={`/polls/${poll.id}`}
+          className="inline-block px-6 py-3 bg-orange-500 text-white font-bold rounded-xl hover:bg-orange-600 transition-colors"
+        >
+          Vote Now →
+        </a>
+
+      </div>
+
+    </div>
+
+  </section>
+
+)}
             {/* Live ticket availability summary */}
             <section className="bg-white rounded-xl shadow-sm p-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Ticket Availability</h2>
