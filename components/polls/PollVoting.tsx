@@ -122,78 +122,65 @@ export default function PollVoting({
   useEffect(() => {
   if (!paymentId || paymentStatus !== 'pending') return;
 
-  let active = true;
+  console.log('[POLL] Starting polling for', paymentId);
 
-  const poll = async () => {
-    if (!active) return;
+  const interval = setInterval(async () => {
     try {
       const res = await fetch(`/api/payment/status?orderId=${paymentId}`);
       const data = await res.json();
-      console.log('[POLL] status:', data.orderStatus); // temp debug
+      console.log('[POLL] status:', data.orderStatus);
 
       if (data.orderStatus === 'COMPLETED') {
-        active = false;
+        clearInterval(interval);
         setPaymentStatus('completed');
         setHasVotedAtLeastOnce(true);
+
         const resultsRes = await fetch(`/api/polls/${pollId}/results`);
         const resultsData = await resultsRes.json();
-        if (resultsData.results) {
-  setResults(resultsData.results.map((r: ResultOption) => ({
-    ...r,
-    imageUrl: optionsRef.current.find(o => o.id === r.id)?.imageUrl ?? r.imageUrl ?? null,
-  })));
-  setTotalVotes(resultsData.totalVotes ?? 0);
-        }
+setResults(resultsData.results.map((r: ResultOption) => ({
+  ...r,
+  imageUrl: optionsRef.current.find(o => o.id === r.id)?.imageUrl ?? r.imageUrl ?? null,
+})));
+setTotalVotes(resultsData.totalVotes ?? 0);
+setSelected(null);
+
         setToast({ msg: 'Your votes have been added! 🎉', type: 'success' });
         setTimeout(() => setToast(null), 5000);
-        setSelected(null);
         setQuantity(1);
-        return; // stop polling
-      }
-
-      if (data.orderStatus === 'FAILED') {
-        active = false;
+      } else if (data.orderStatus === 'FAILED') {
+        clearInterval(interval);
         setPaymentStatus('failed');
         setToast({ msg: 'Payment failed. Please try again.', type: 'error' });
-        return;
       }
-
-      // Still PENDING — schedule next poll in 3s
-      if (active) setTimeout(poll, 3000);
-
     } catch {
-      if (active) setTimeout(poll, 3000); // retry on network error
+      console.log('[POLL] Network error, will retry...');
     }
-  };
+  }, 4000);
 
-  // Start polling after 3s (give webhook time to fire)
-  const initialDelay = setTimeout(poll, 3000);
-
-  // Countdown ticker — purely visual
+  // Countdown ticker
   const ticker = setInterval(() => {
     setCountdown(prev => Math.max(0, prev - 1));
   }, 1000);
 
-  // Hard timeout at 3 minutes
+  // Hard timeout — 3 minutes
   const timeout = setTimeout(() => {
-    if (!active) return;
-    active = false;
+    clearInterval(interval);
+    clearInterval(ticker);
     setPaymentStatus(null);
     setPaymentId(null);
     setCountdown(120);
     setToast({
-      msg: 'Payment is taking longer than expected. Check your MoMo and try again.',
+      msg: 'Payment timed out. Check your MoMo and try again.',
       type: 'error'
     });
-  }, 180_000); // 3 minutes
+  }, 180_000);
 
   return () => {
-    active = false;
-    clearTimeout(initialDelay);
+    clearInterval(interval);
     clearInterval(ticker);
     clearTimeout(timeout);
   };
-}, [paymentId, paymentStatus, pollId]);
+}, [paymentId]); 
 
   const handleBuyVotes = async (method: 'mtn_momo' | 'orange_money') => {
   if (!selected) {

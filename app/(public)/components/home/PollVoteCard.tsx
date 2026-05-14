@@ -91,40 +91,67 @@ export default function PollVoteCard({ poll, contestants: initialContestants }: 
   }, [poll.id]);
 
   useEffect(() => {
-    if (!paymentId || paymentStatus !== 'pending') return;
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/payment/status?orderId=${paymentId}`);
-        const data = await res.json();
-        if (data.orderStatus === 'COMPLETED') {
-          setPaymentStatus('completed');
-          const resultsRes = await fetch(`/api/polls/${poll.id}/results`);
-          const resultsData = await resultsRes.json();
-          if (resultsData.results) {
-            setContestants(prev =>
-              prev.map(c => {
-                const fresh = resultsData.results.find((r: any) => r.id === c.id);
-                return fresh ? { ...c, votes: fresh.votes, percentage: fresh.percentage } : c;
-              })
-            );
-            setTotalVotes(resultsData.totalVotes ?? 0);
-          }
-          setToast({ msg: 'Your votes have been added! 🎉', type: 'success' });
-          setTimeout(() => setToast(null), 5000);
-          setSelectedContestant(null);
-          setQuantity(1);
-        } else if (data.orderStatus === 'FAILED') {
-          setPaymentStatus('failed');
-          setToast({ msg: 'Payment failed. Please try again.', type: 'error' });
+  if (!paymentId) return;
+
+  console.log('[POLLVOTECARD] Starting polling for', paymentId);
+
+  const interval = setInterval(async () => {
+    try {
+      const res = await fetch(`/api/payment/status?orderId=${paymentId}`);
+      const data = await res.json();
+      console.log('[POLLVOTECARD] status:', data.orderStatus);
+
+      if (data.orderStatus === 'COMPLETED') {
+        clearInterval(interval);
+        setPaymentStatus('completed');
+        setHasVotedAtLeastOnce(true);
+        const resultsRes = await fetch(`/api/polls/${poll.id}/results`);
+        const resultsData = await resultsRes.json();
+        if (resultsData.results) {
+          setContestants(prev =>
+            prev.map(c => {
+              const fresh = resultsData.results.find((r: any) => r.id === c.id);
+              return fresh ? { ...c, votes: fresh.votes, percentage: fresh.percentage } : c;
+            })
+          );
+          setTotalVotes(resultsData.totalVotes ?? 0);
         }
-        setCountdown(prev => prev - 1);
-        if (data.orderStatus !== 'PENDING') clearInterval(interval);
-      } catch {
-        // keep polling
+        setToast({ msg: 'Your votes have been added! 🎉', type: 'success' });
+        setTimeout(() => setToast(null), 5000);
+        setSelectedContestant(null);
+        setQuantity(1);
+      } else if (data.orderStatus === 'FAILED') {
+        clearInterval(interval);
+        setPaymentStatus('failed');
+        setToast({ msg: 'Payment failed. Please try again.', type: 'error' });
       }
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [paymentId, paymentStatus, poll.id]);
+    } catch {
+      // keep polling on network error
+    }
+  }, 4000);
+
+  const ticker = setInterval(() => {
+    setCountdown(prev => Math.max(0, prev - 1));
+  }, 1000);
+
+  const timeout = setTimeout(() => {
+    clearInterval(interval);
+    clearInterval(ticker);
+    setPaymentStatus(null);
+    setPaymentId(null);
+    setCountdown(120);
+    setToast({
+      msg: 'Payment timed out. Check your MoMo and try again.',
+      type: 'error'
+    });
+  }, 180_000);
+
+  return () => {
+    clearInterval(interval);
+    clearInterval(ticker);
+    clearTimeout(timeout);
+  };
+}, [paymentId]); 
 
  // handleBuyVotes is called when user clicks a payment button. It sets the pending method and shows the phone input modal.
 
