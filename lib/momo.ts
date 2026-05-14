@@ -53,6 +53,16 @@ export async function requestToPay(params: RequestToPayParams): Promise<void> {
     "Ocp-Apim-Subscription-Key": SUBSCRIPTION_KEY,
     "Content-Type":              "application/json",
   }
+
+  console.log("[MOMO REQUEST] Sending:", {
+  referenceId: params.referenceId,
+  amount: params.amount,
+  currency: params.currency,
+  partyIdLength: params.partyId.length,
+  hasCallbackUrl: !!CALLBACK_URL,
+  environment: ENVIRONMENT,
+})
+
   if (CALLBACK_URL) headers["X-Callback-Url"] = CALLBACK_URL
   const res = await fetch(`${BASE_URL}/collection/v1_0/requesttopay`, {
     method: "POST",
@@ -71,13 +81,6 @@ export async function requestToPay(params: RequestToPayParams): Promise<void> {
   console.error(`[MOMO REQUESTTOPAY ERROR] ${res.status} — Body:`, errBody)
   throw new Error(`MoMo requesttopay failed (${res.status}): ${errBody}`)
 }
-console.log("[MOMO REQUEST] Sending:", {
-  referenceId: params.referenceId,
-  amount: params.amount,
-  currency: params.currency,
-  partyIdLength: params.partyId.length,
-  hasCallbackUrl: !!CALLBACK_URL,
-});
 }
 
 export type MoMoStatus = "PENDING" | "SUCCESSFUL" | "FAILED"
@@ -111,8 +114,31 @@ export async function getPaymentStatus(referenceId: string): Promise<PaymentStat
 
 export function normalisePhone(raw: string): string | null {
   const digits = raw.replace(/\D/g, "")
-  if (digits.startsWith("231") && digits.length === 12) return digits
-  if (digits.startsWith("0")   && digits.length === 10) return `231${digits.slice(1)}`
-  if (digits.length === 9)                               return `231${digits}`
+
+  // Remove accidental leading 0 after country code (e.g., 2310881234567 → 231881234567)
+  if (digits.startsWith("2310") && digits.length === 13) {
+    return `231${digits.slice(4)}`
+  }
+
+  // Already correct international format (231 followed by 9 digits)
+  if (digits.startsWith("231") && digits.length === 12) {
+    return digits
+  }
+
+  // Liberian local format with leading 0 (e.g., 0881234567 → 231881234567)
+  if ((digits.startsWith("077") || digits.startsWith("088")) && digits.length === 10) {
+    return `231${digits.slice(1)}`
+  }
+
+  // Liberian format without leading 0 (e.g., 881234567 → 231881234567)
+  if ((digits.startsWith("77") || digits.startsWith("88")) && digits.length === 9) {
+    return `231${digits}`
+  }
+
+  // Generic fallback: if the number looks like a plausible MSISDN, try to normalize
+  if (digits.length >= 9 && digits.length <= 13) {
+    return digits
+  }
+
   return null
 }

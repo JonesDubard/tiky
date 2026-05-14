@@ -66,6 +66,11 @@ export async function POST(req: NextRequest) {
       // no session — that's fine
     }
 
+    console.log("[MOMO PHONE]", {
+    original: phoneNumber,
+    normalized: msisdn,
+})
+
     // Create payment record
     const payment = await prisma.payment.create({
       data: {
