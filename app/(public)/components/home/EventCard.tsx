@@ -15,6 +15,7 @@ interface EventCardProps {
     location: string;
     imageUrl: string | null;
     isFeatured?: boolean;
+    hasPoll?: boolean; 
     ticketTypes: Array<{
       id: string;
       name: string;
@@ -136,32 +137,45 @@ export default function EventCard({ event }: EventCardProps) {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                <div>
-                  {ticketsAvailable ? (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      {event.ticketTypes.length} ticket type{event.ticketTypes.length !== 1 ? 's' : ''} available
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                      Sold Out
-                    </span>
-                  )}
-                </div>
-                
-                <button 
-                  className="inline-flex items-center px-4 py-2 bg-brand-primary text-white text-sm font-medium rounded-lg hover:bg-brand-accent transition-colors duration-200"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    window.location.href = eventHref;
-                  }}
-                >
-                  Buy Tickets
-                  <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
+              {/* Label and button */}
+<div className="flex items-center justify-between pt-4 border-t border-gray-100">
+  <div>
+    {ticketsAvailable ? (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+        {event.ticketTypes.length} ticket type{event.ticketTypes.length !== 1 ? 's' : ''} available
+      </span>
+    ) : event.ticketTypes.length > 0 ? (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+        Sold Out
+      </span>
+    ) : event.hasPoll ? (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+        Voting Open
+      </span>
+    ) : (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+        No tickets
+      </span>
+    )}
+  </div>
+
+  <button 
+    onClick={(e) => {
+      e.preventDefault();
+      window.location.href = eventHref;
+    }}
+    className="inline-flex items-center px-4 py-2 bg-brand-primary text-white text-sm font-medium rounded-lg hover:bg-brand-accent transition-colors duration-200"
+  >
+    {event.ticketTypes.length > 0 
+      ? (ticketsAvailable ? "Buy Tickets" : "Details")
+      : event.hasPoll 
+        ? "Vote Now" 
+        : "View Event"}
+    <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+    </svg>
+  </button>
+</div>
             </div>
           </div>
         </div>

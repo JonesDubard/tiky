@@ -96,16 +96,21 @@ export default async function EventPage({ params }: EventPageProps) {
         <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12 text-white">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center gap-3 mb-3">
-              {isSoldOut && (
-                <span className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
-                  Sold Out
-                </span>
-              )}
-              {!isSoldOut && totalRemaining <= 10 && (
-                <span className="bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
-                  Only {totalRemaining} left!
-                </span>
-              )}
+              {event.ticketTypes.length > 0 ? (
+  isSoldOut ? (
+    <span className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+      Sold Out
+    </span>
+  ) : totalRemaining <= 10 ? (
+    <span className="bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+      Only {totalRemaining} left!
+    </span>
+  ) : null
+) : poll ? (
+  <span className="bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+    🗳️ Voting Event
+  </span>
+) : null}
             </div>
             <h1 className="text-3xl md:text-5xl font-bold mb-4">{event.title}</h1>
             <div className="flex flex-wrap gap-4 text-sm md:text-base">

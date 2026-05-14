@@ -25,6 +25,7 @@ interface PublicEvent {
   location: string;
   imageUrl: string | null;
   ticketTypes: { id: string; name: string; price: number; quantity: number }[];
+  hasPoll?: boolean;
 }
 
 interface PublicPoll {
@@ -38,24 +39,43 @@ interface PublicPoll {
 
 async function getEvents(): Promise<PublicEvent[]> {
   try {
-    // Calculate start of today in UTC (00:00:00 UTC)
     const now = new Date();
     const startOfTodayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
-    return await prisma.event.findMany({
+    const events = await prisma.event.findMany({
       where: {
         published: true,
-        date: { gte: startOfTodayUTC }, // Show events from today onward
+        date: { gte: startOfTodayUTC },
         deletedAt: null
       },
       select: {
-        id: true, title: true, description: true, date: true,
-        location: true, imageUrl: true,
-        ticketTypes: { select: { id: true, name: true, price: true, quantity: true } }
+        id: true,
+        title: true,
+        description: true,
+        date: true,
+        location: true,
+        imageUrl: true,
+        ticketTypes: { select: { id: true, name: true, price: true, quantity: true } },
+        polls: {
+          where: { status: "ACTIVE", deletedAt: null },
+          select: { id: true },
+          take: 1, 
+        },
       },
       orderBy: { date: "asc" },
       take: 4
     });
+
+    return events.map(e => ({
+      id: e.id,
+      title: e.title,
+      description: e.description,
+      date: e.date,
+      location: e.location,
+      imageUrl: e.imageUrl,
+      ticketTypes: e.ticketTypes,
+      hasPoll: e.polls.length > 0, 
+    }));
   } catch { return []; }
 }
 async function getBlogPosts(): Promise<PublicPost[]> {
