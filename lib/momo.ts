@@ -68,9 +68,8 @@ export async function requestToPay(params: RequestToPayParams): Promise<void> {
   })
   if (res.status !== 202) {
   const errBody = await res.text()
-  const fullMessage = `MoMo requesttopay failed (${res.status}): ${errBody}`
-  console.error('[MOMO REQUESTTOPAY ERROR]', fullMessage)
-  throw new Error(fullMessage)
+  console.error(`[MOMO REQUESTTOPAY ERROR] ${res.status} — Body:`, errBody)
+  throw new Error(`MoMo requesttopay failed (${res.status}): ${errBody}`)
 }
 }
 
