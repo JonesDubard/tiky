@@ -33,13 +33,41 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ received: true })
     }
 
-    let momoStatus
-    try {
-      momoStatus = await getPaymentStatus(referenceId)
-      console.log(`[MOMO WEBHOOK] MTN status: ${momoStatus.status}`)
-    } catch (err) {
-      console.error("[MOMO WEBHOOK] MTN check failed:", err)
-      return NextResponse.json({ received: true })
+    // ── Trust the webhook payload status directly ─────────────────────
+    // MTN sends the final status in the webhook body — no need to re-call
+    // their API. Re-calling causes 500s when MTN has internal errors.
+    const webhookStatus = body.status as string | undefined
+
+    let momoStatus: {
+      status: string
+      financialTransactionId: string | null
+      reason: string | null
+    }
+
+    if (webhookStatus === "SUCCESSFUL") {
+      momoStatus = {
+        status: "SUCCESSFUL",
+        financialTransactionId: body.financialTransactionId ?? null,
+        reason: null,
+      }
+      console.log(`[MOMO WEBHOOK] Payload status: SUCCESSFUL`)
+    } else if (webhookStatus === "FAILED") {
+      momoStatus = {
+        status: "FAILED",
+        financialTransactionId: null,
+        reason: body.reason ?? null,
+      }
+      console.log(`[MOMO WEBHOOK] Payload status: FAILED — reason: ${body.reason ?? "unknown"}`)
+    } else {
+      // Unknown/missing status in payload — verify with MTN as fallback
+      console.log(`[MOMO WEBHOOK] No clear status in payload, checking MTN API...`)
+      try {
+        momoStatus = await getPaymentStatus(referenceId)
+        console.log(`[MOMO WEBHOOK] MTN API status: ${momoStatus.status}`)
+      } catch (err) {
+        console.error("[MOMO WEBHOOK] MTN check failed:", err)
+        return NextResponse.json({ received: true })
+      }
     }
 
     if (momoStatus.status === "SUCCESSFUL") {
@@ -59,17 +87,10 @@ export async function PUT(req: NextRequest) {
           quantity: number
         }
 
-        // FIX: Create actual Vote rows so _count.votes is correct everywhere.
-        // voteCount is a stale denormalized field — do NOT increment it here.
         await prisma.$transaction([
-          // Create one Vote row per vote purchased
           ...Array.from({ length: quantity }, () =>
             prisma.vote.create({
-              data: {
-                pollId,
-                optionId,
-                // No deviceId or userId for guest paid votes — that's fine
-              },
+              data: { pollId, optionId },
             })
           ),
           prisma.payment.update({
@@ -132,7 +153,7 @@ export async function PUT(req: NextRequest) {
           data: { status: "FAILED" },
         })
       }
-      console.log(`[MOMO WEBHOOK] Payment failed — order ${payment.order?.id ?? "none"} cancelled`)
+      console.log(`[MOMO WEBHOOK] Payment failed — reason: ${momoStatus.reason ?? "unknown"}`)
     }
 
     return NextResponse.json({ received: true })
