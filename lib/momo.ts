@@ -71,6 +71,13 @@ export async function requestToPay(params: RequestToPayParams): Promise<void> {
   console.error(`[MOMO REQUESTTOPAY ERROR] ${res.status} — Body:`, errBody)
   throw new Error(`MoMo requesttopay failed (${res.status}): ${errBody}`)
 }
+console.log("[MOMO REQUEST] Sending:", {
+  referenceId: params.referenceId,
+  amount: params.amount,
+  currency: params.currency,
+  partyIdLength: params.partyId.length,
+  hasCallbackUrl: !!CALLBACK_URL,
+});
 }
 
 export type MoMoStatus = "PENDING" | "SUCCESSFUL" | "FAILED"
