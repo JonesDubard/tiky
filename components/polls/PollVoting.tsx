@@ -118,18 +118,17 @@ export default function PollVoting({
   useEffect(() => {
   if (!paymentId || paymentStatus !== 'pending') return;
 
-  let stopped = false;
+  let active = true;
 
-  // Poll DB every 3 seconds
-  const interval = setInterval(async () => {
+  const poll = async () => {
+    if (!active) return;
     try {
       const res = await fetch(`/api/payment/status?orderId=${paymentId}`);
       const data = await res.json();
+      console.log('[POLL] status:', data.orderStatus); // temp debug
 
       if (data.orderStatus === 'COMPLETED') {
-        if (stopped) return;
-        stopped = true;
-        clearInterval(interval);
+        active = false;
         setPaymentStatus('completed');
         setHasVotedAtLeastOnce(true);
         const resultsRes = await fetch(`/api/polls/${pollId}/results`);
@@ -145,32 +144,36 @@ export default function PollVoting({
         setTimeout(() => setToast(null), 5000);
         setSelected(null);
         setQuantity(1);
-      } else if (data.orderStatus === 'FAILED') {
-        if (stopped) return;
-        stopped = true;
-        clearInterval(interval);
+        return; // stop polling
+      }
+
+      if (data.orderStatus === 'FAILED') {
+        active = false;
         setPaymentStatus('failed');
         setToast({ msg: 'Payment failed. Please try again.', type: 'error' });
+        return;
       }
-    } catch {
-      // keep polling on network error
-    }
-  }, 3000);
 
-  // Countdown display — purely visual, doesn't affect polling
+      // Still PENDING — schedule next poll in 3s
+      if (active) setTimeout(poll, 3000);
+
+    } catch {
+      if (active) setTimeout(poll, 3000); // retry on network error
+    }
+  };
+
+  // Start polling after 3s (give webhook time to fire)
+  const initialDelay = setTimeout(poll, 3000);
+
+  // Countdown ticker — purely visual
   const ticker = setInterval(() => {
-    setCountdown(prev => {
-      if (prev <= 1) return 0;
-      return prev - 1;
-    });
+    setCountdown(prev => Math.max(0, prev - 1));
   }, 1000);
 
-  // Hard timeout at 2 minutes — dismiss overlay if nothing happened
+  // Hard timeout at 3 minutes
   const timeout = setTimeout(() => {
-    if (stopped) return;
-    stopped = true;
-    clearInterval(interval);
-    clearInterval(ticker);
+    if (!active) return;
+    active = false;
     setPaymentStatus(null);
     setPaymentId(null);
     setCountdown(120);
@@ -178,11 +181,11 @@ export default function PollVoting({
       msg: 'Payment is taking longer than expected. Check your MoMo and try again.',
       type: 'error'
     });
-  }, 120_000); // exactly 2 minutes, not dependent on countdown state
+  }, 180_000); // 3 minutes
 
   return () => {
-    stopped = true;
-    clearInterval(interval);
+    active = false;
+    clearTimeout(initialDelay);
     clearInterval(ticker);
     clearTimeout(timeout);
   };
