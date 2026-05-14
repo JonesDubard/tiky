@@ -15,6 +15,8 @@ if (!SUBSCRIPTION_KEY || !API_USER_ID || !API_KEY) {
 let cachedToken: string | null = null
 let tokenExpiresAt = 0
 
+
+
 async function getBearerToken(): Promise<string> {
   if (cachedToken && Date.now() < tokenExpiresAt - 60_000) return cachedToken
   const credentials = Buffer.from(`${API_USER_ID}:${API_KEY}`).toString("base64")
@@ -53,34 +55,38 @@ export async function requestToPay(params: RequestToPayParams): Promise<void> {
     "Ocp-Apim-Subscription-Key": SUBSCRIPTION_KEY,
     "Content-Type":              "application/json",
   }
-
-  console.log("[MOMO REQUEST] Sending:", {
-  referenceId: params.referenceId,
-  amount: params.amount,
-  currency: params.currency,
-  partyIdLength: params.partyId.length,
-  hasCallbackUrl: !!CALLBACK_URL,
-  environment: ENVIRONMENT,
-})
-
   if (CALLBACK_URL) headers["X-Callback-Url"] = CALLBACK_URL
+
+  const bodyObj = {
+    amount:       params.amount,
+    currency:     params.currency,
+    externalId:   params.referenceId,
+    payer:        { partyIdType: "MSISDN", partyId: params.partyId },
+    payerMessage: params.payerMessage,
+    payeeNote:    params.payeeNote,
+  }
+
+  console.log("[MOMO REQUEST BODY]", JSON.stringify(bodyObj, null, 2))
+  console.log("[MOMO REQUEST HEADERS]", JSON.stringify(headers, null, 2));
+  console.log("[MOMO URL]", `${BASE_URL}/collection/v1_0/requesttopay`);
+
   const res = await fetch(`${BASE_URL}/collection/v1_0/requesttopay`, {
     method: "POST",
     headers,
-    body: JSON.stringify({
-      amount:       params.amount,
-      currency:     params.currency,
-      externalId:   params.referenceId,
-      payer:        { partyIdType: "MSISDN", partyId: params.partyId },
-      payerMessage: params.payerMessage,
-      payeeNote:    params.payeeNote,
-    }),
+    body: JSON.stringify(bodyObj),
   })
+
+  console.log("[MOMO RESPONSE]", {
+    status: res.status,
+    headers: Object.fromEntries(res.headers.entries()),
+    body: await res.text(),
+  })
+
   if (res.status !== 202) {
-  const errBody = await res.text()
-  console.error(`[MOMO REQUESTTOPAY ERROR] ${res.status} — Body:`, errBody)
-  throw new Error(`MoMo requesttopay failed (${res.status}): ${errBody}`)
-}
+    const errBody = await res.text()
+    console.error(`[MOMO REQUESTTOPAY ERROR] ${res.status} — Body:`, errBody)
+    throw new Error(`MoMo requesttopay failed (${res.status}): ${errBody}`)
+  }
 }
 
 export type MoMoStatus = "PENDING" | "SUCCESSFUL" | "FAILED"
