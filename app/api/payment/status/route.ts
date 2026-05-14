@@ -130,57 +130,27 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ orderStatus: "PENDING", ticketsReady: false })
     }
 
-    // ── No order found → probably a vote-only payment ──────────────────
-    // ── No order found → vote-only payment ────────────────────────────
+   // ── No order found → vote-only payment ────────────────────────────
 const payment = await prisma.payment.findUnique({
   where: { id: orderId },
-  select: { id: true, status: true, providerRef: true, metadata: true },  // ← add providerRef
+  select: { id: true, status: true, metadata: true },
 })
 
 if (!payment) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
+// For vote payments: ONLY trust the DB status.
+// The webhook already handles crediting votes and marking COMPLETED.
+// Re-calling MTN here causes race conditions — MTN may return PENDING
+// on a second call even after the payment succeeded.
 if (payment.status === "COMPLETED") {
   return NextResponse.json({ orderStatus: "COMPLETED", ticketsReady: true })
 }
 if (payment.status === "FAILED") {
   return NextResponse.json({ orderStatus: "FAILED", ticketsReady: false })
 }
-
-// ✅ FIX: Don't just trust DB status — also check MTN directly
-// This catches the race condition where webhook hasn't written yet
-if (payment.providerRef) {
-  try {
-    const momoStatus = await getPaymentStatus(payment.providerRef)
-    if (momoStatus.status === "SUCCESSFUL") {
-      // Webhook may not have fired yet — credit votes now
-      const meta = JSON.parse(payment.metadata as string ?? "{}")
-      if (meta?.type === "vote" && meta?.pollId && meta?.optionId && meta?.quantity) {
-        await prisma.$transaction([
-          ...Array.from({ length: meta.quantity }, () =>
-            prisma.vote.create({
-              data: { pollId: meta.pollId, optionId: meta.optionId },
-            })
-          ),
-          prisma.payment.update({
-            where: { id: payment.id },
-            data: { status: "COMPLETED", externalId: momoStatus.financialTransactionId ?? undefined },
-          }),
-        ])
-      }
-      return NextResponse.json({ orderStatus: "COMPLETED", ticketsReady: true })
-    }
-    if (momoStatus.status === "FAILED") {
-      await prisma.payment.update({ where: { id: payment.id }, data: { status: "FAILED" } })
-      return NextResponse.json({ orderStatus: "FAILED", ticketsReady: false })
-    }
-  } catch (err) {
-    console.error(`[STATUS] Vote payment MTN check error:`, err)
-    // Fall through to PENDING if MTN check fails
-  }
-}
 return NextResponse.json({ orderStatus: "PENDING", ticketsReady: false })
   } catch (err) {
-    console.error(`[STATUS] ${orderId} unexpected error:`, err)
+    console.error(`[STATUS] ${orderId} error:`, err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

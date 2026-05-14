@@ -115,36 +115,39 @@ export default function PollVoting({
     return () => { cancelled = true; };
   }, [pollId, authStatus, options]);
 
-  // Poll payment status
   useEffect(() => {
   if (!paymentId || paymentStatus !== 'pending') return;
 
+  let stopped = false;
+
+  // Poll DB every 3 seconds
   const interval = setInterval(async () => {
     try {
       const res = await fetch(`/api/payment/status?orderId=${paymentId}`);
       const data = await res.json();
 
       if (data.orderStatus === 'COMPLETED') {
+        if (stopped) return;
+        stopped = true;
         clearInterval(interval);
         setPaymentStatus('completed');
-
+        setHasVotedAtLeastOnce(true);
         const resultsRes = await fetch(`/api/polls/${pollId}/results`);
         const resultsData = await resultsRes.json();
         if (resultsData.results) {
-          const merged = resultsData.results.map((r: ResultOption) => ({
+          setResults(resultsData.results.map((r: ResultOption) => ({
             ...r,
             imageUrl: options.find(o => o.id === r.id)?.imageUrl ?? r.imageUrl ?? null,
-          }));
-          setResults(merged);
+          })));
           setTotalVotes(resultsData.totalVotes ?? 0);
         }
-        setHasVotedAtLeastOnce(true);   // ← show results after paid vote too
         setToast({ msg: 'Your votes have been added! 🎉', type: 'success' });
         setTimeout(() => setToast(null), 5000);
         setSelected(null);
         setQuantity(1);
-
       } else if (data.orderStatus === 'FAILED') {
+        if (stopped) return;
+        stopped = true;
         clearInterval(interval);
         setPaymentStatus('failed');
         setToast({ msg: 'Payment failed. Please try again.', type: 'error' });
@@ -154,37 +157,31 @@ export default function PollVoting({
     }
   }, 3000);
 
-  // ✅ FIX 2: Auto-dismiss after countdown expires
-  const timeout = setTimeout(() => {
-    clearInterval(interval);
-    // Check one final time before giving up
-    fetch(`/api/payment/status?orderId=${paymentId}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.orderStatus === 'COMPLETED') {
-          setPaymentStatus('completed');
-          setHasVotedAtLeastOnce(true);
-          setToast({ msg: 'Your votes have been added! 🎉', type: 'success' });
-          setTimeout(() => setToast(null), 5000);
-        } else {
-          // Timed out — dismiss overlay, let user try again
-          setPaymentStatus(null);
-          setPaymentId(null);
-          setToast({ msg: 'Payment timed out. Check your MoMo and try again.', type: 'error' });
-        }
-      })
-      .catch(() => {
-        setPaymentStatus(null);
-        setPaymentId(null);
-      });
-  }, countdown * 1000);
-
-  // Countdown display ticker
+  // Countdown display — purely visual, doesn't affect polling
   const ticker = setInterval(() => {
-    setCountdown(prev => Math.max(0, prev - 1));
+    setCountdown(prev => {
+      if (prev <= 1) return 0;
+      return prev - 1;
+    });
   }, 1000);
 
+  // Hard timeout at 2 minutes — dismiss overlay if nothing happened
+  const timeout = setTimeout(() => {
+    if (stopped) return;
+    stopped = true;
+    clearInterval(interval);
+    clearInterval(ticker);
+    setPaymentStatus(null);
+    setPaymentId(null);
+    setCountdown(120);
+    setToast({
+      msg: 'Payment is taking longer than expected. Check your MoMo and try again.',
+      type: 'error'
+    });
+  }, 120_000); // exactly 2 minutes, not dependent on countdown state
+
   return () => {
+    stopped = true;
     clearInterval(interval);
     clearInterval(ticker);
     clearTimeout(timeout);
