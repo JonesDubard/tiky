@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   CheckCircle, Loader2, BarChart2, User,
@@ -81,6 +81,10 @@ export default function PollVoting({
   const [showPhoneInput, setShowPhoneInput] = useState(false);
   const [pendingMethod, setPendingMethod] = useState<'mtn_momo' | 'orange_money' | null>(null);
 
+  // Keep options in a ref for access inside async callbacks without stale closure issues
+  const optionsRef = useRef(options);
+  useEffect(() => { optionsRef.current = options; }, [options]);
+
   useEffect(() => {
     let id = localStorage.getItem('tiky_device_id');
     if (!id) {
@@ -134,11 +138,11 @@ export default function PollVoting({
         const resultsRes = await fetch(`/api/polls/${pollId}/results`);
         const resultsData = await resultsRes.json();
         if (resultsData.results) {
-          setResults(resultsData.results.map((r: ResultOption) => ({
-            ...r,
-            imageUrl: options.find(o => o.id === r.id)?.imageUrl ?? r.imageUrl ?? null,
-          })));
-          setTotalVotes(resultsData.totalVotes ?? 0);
+  setResults(resultsData.results.map((r: ResultOption) => ({
+    ...r,
+    imageUrl: optionsRef.current.find(o => o.id === r.id)?.imageUrl ?? r.imageUrl ?? null,
+  })));
+  setTotalVotes(resultsData.totalVotes ?? 0);
         }
         setToast({ msg: 'Your votes have been added! 🎉', type: 'success' });
         setTimeout(() => setToast(null), 5000);
@@ -189,7 +193,7 @@ export default function PollVoting({
     clearInterval(ticker);
     clearTimeout(timeout);
   };
-}, [paymentId, paymentStatus, pollId, options]);
+}, [paymentId, paymentStatus, pollId]);
 
   const handleBuyVotes = async (method: 'mtn_momo' | 'orange_money') => {
   if (!selected) {
@@ -250,7 +254,7 @@ const handleConfirmPayment = async () => {
       if (data.results) {
         const merged = (data.results ?? []).map((r: ResultOption) => ({
           ...r,
-          imageUrl: options.find(o => o.id === r.id)?.imageUrl ?? r.imageUrl ?? null,
+          imageUrl: optionsRef.current.find(o => o.id === r.id)?.imageUrl ?? r.imageUrl ?? null,
         }));
         setResults(merged);
         setTotalVotes(data.totalVotes);
