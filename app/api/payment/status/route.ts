@@ -10,6 +10,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "orderId required" }, { status: 400 })
   }
 
+  console.log(`[STATUS DEBUG] Checking orderId: ${orderId}`)
+
   try {
     // First, try to find an order (for ticket purchases)
     const order = await prisma.order.findUnique({
@@ -135,6 +137,8 @@ const payment = await prisma.payment.findUnique({
   where: { id: orderId },
   select: { id: true, status: true, metadata: true },
 })
+
+console.log(`[STATUS DEBUG] Vote payment lookup:`, payment ? `found, status=${payment.status}` : 'NOT FOUND')
 
 if (!payment) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
