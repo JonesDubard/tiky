@@ -153,6 +153,7 @@ model Payment {
   externalId  String? @unique
   amount      Float
   currency    String
+  metadata String?
   status      String  @default("PENDING")
 
   userId String?
@@ -183,6 +184,7 @@ model Poll {
   isFeatured     Boolean   @default(false)
   eventId        String? // link to event for PAID/TOKEN_GATED
   createdById    String? // creator FK
+  votePrice      Float?
   deletedAt      DateTime?
   requiresTicket Boolean   @default(false)
   createdAt      DateTime  @default(now())

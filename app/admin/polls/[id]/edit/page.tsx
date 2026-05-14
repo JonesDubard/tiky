@@ -42,12 +42,11 @@ export default async function EditPollPage({
     id: poll.id,
     title: poll.title,
     description: poll.description ?? undefined,
-    pollType: poll.pollType ?? "FREE",
     status: poll.status,
     endDate: poll.endDate ? poll.endDate.toISOString() : null,
     eventId: poll.eventId ?? null,
     isFeatured: poll.isFeatured ?? false,
-    requiresTicket: poll.requiresTicket ?? false,
+    votePrice: poll.votePrice ?? null,
     options: poll.options.map((opt) => ({ id: opt.id, text: opt.text })),
   };
 

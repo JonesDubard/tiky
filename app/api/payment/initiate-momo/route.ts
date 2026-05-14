@@ -31,29 +31,6 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       )
     }
-
-    // ── NEW: Guest restriction for events with token-gated polls ──────
-if (!session?.user?.id) {
-  const hasTokenGatedPoll = await prisma.poll.findFirst({
-    where: {
-      eventId: eventId,
-      status: "ACTIVE",
-      pollType: "TOKEN_GATED",
-      deletedAt: null,
-    },
-    select: { id: true },
-  });
-
-  if (hasTokenGatedPoll) {
-    return NextResponse.json(
-      {
-        error: "This event requires login to vote. Please log in before purchasing tickets.",
-      },
-      { status: 401 }
-    );
-  }
-}
-
     const msisdn = normalisePhone(phoneNumber)
 
     if (!msisdn) {

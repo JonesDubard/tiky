@@ -24,12 +24,11 @@ export async function POST(req: NextRequest) {
     const {
       title,
       description,
-      pollType,
       status,
       isFeatured,
       endDate,
       eventId,
-      requiresTicket,
+      votePrice,
       options,
     } = body;
 
@@ -45,28 +44,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "At least 2 options are required" }, { status: 400 });
     }
 
-    // Validate pollType
-    const normalizedPollType = pollType === "TOKEN_GATED" ? "TOKEN_GATED" : "PUBLIC";
+    // Normalize
+    const normalizedPollType = "PUBLIC";
 
     const poll = await prisma.poll.create({
-      data: {
-        title: title.trim(),
-        description: description?.trim() || null,
-        pollType: normalizedPollType,
-        status: status || "ACTIVE",
-        isFeatured: isFeatured ?? false,
-        endDate: endDate ? new Date(endDate) : null,
-        eventId: normalizedPollType === "TOKEN_GATED" ? eventId || null : null,
-        requiresTicket: normalizedPollType === "TOKEN_GATED" ? (requiresTicket ?? false) : false,
-        createdById: user.id,
-        options: {
-          create: validOptions.map((o: { text?: string } | string) => ({
-            text: (typeof o === "string" ? o : o.text!).trim(),
-          })),
-        },
-      },
-      include: { options: true },
-    });
+  data: {
+    title: title.trim(),
+    description: description?.trim() || null,
+    pollType: "PUBLIC",
+    status: status || "ACTIVE",
+    isFeatured: isFeatured ?? false,
+    endDate: endDate ? new Date(endDate) : null,
+    eventId: eventId || null,
+    votePrice: votePrice ? parseFloat(votePrice) : null,
+    createdById: user.id,
+    options: {
+      create: validOptions.map((o: { text?: string } | string) => ({
+        text: (typeof o === "string" ? o : o.text!).trim(),
+      })),
+    },
+  },
+  include: { options: true },
+});
 
     return NextResponse.json({ poll, id: poll.id }, { status: 201 });
   } catch (error) {

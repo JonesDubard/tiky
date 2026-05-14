@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus, Trash2, Loader2, CalendarDays,
-  Link2, ImagePlus, X, Upload, Globe, Ticket,
+  Link2, ImagePlus, X, Upload,
 } from "lucide-react";
 
 interface Event { id: string; title: string }
@@ -20,12 +20,11 @@ interface PollFormProps {
     id?: string;
     title: string;
     description?: string;
-    pollType: string;
     status: string;
     endDate?: string | null;
     eventId?: string | null;
     isFeatured?: boolean;
-    requiresTicket?: boolean;
+    votePrice?: number | null;
     options: PollOption[];
   };
   mode?: "create" | "edit";
@@ -42,14 +41,13 @@ export default function PollForm({ initialData, mode = "create" }: PollFormProps
   const [form, setForm] = useState({
     title: initialData?.title ?? "",
     description: initialData?.description ?? "",
-    pollType: initialData?.pollType ?? "PUBLIC",
     status: initialData?.status ?? "ACTIVE",
     endDate: initialData?.endDate
       ? new Date(initialData.endDate).toISOString().slice(0, 16)
       : "",
     eventId: initialData?.eventId ?? "",
     isFeatured: initialData?.isFeatured ?? false,
-    requiresTicket: initialData?.requiresTicket ?? false,
+    votePrice: initialData?.votePrice ?? "",
   });
 
   const [options, setOptions] = useState<PollOption[]>(
@@ -114,18 +112,13 @@ export default function PollForm({ initialData, mode = "create" }: PollFormProps
     const validOptions = options.filter((o) => o.text.trim());
     if (validOptions.length < 2) return showToast("At least 2 options are required", "error");
 
-    // Validate event selection for TOKEN_GATED digital ticket flow
-    if (form.pollType === "TOKEN_GATED" && !form.eventId) {
-  return showToast("Please select an event for ticket‑gated voting.", "error");
-}
-
     setLoading(true);
     try {
       const payload = {
         ...form,
+        votePrice: form.votePrice ? parseFloat(form.votePrice as string) : null,
         endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
-        eventId: form.pollType === "TOKEN_GATED" ? form.eventId || null : null,
-        requiresTicket: form.pollType === "TOKEN_GATED" ? form.requiresTicket : false,
+        eventId: form.eventId || null,
         options: validOptions,
       };
 
@@ -205,7 +198,6 @@ export default function PollForm({ initialData, mode = "create" }: PollFormProps
         <div className="space-y-3">
           {options.map((option, index) => (
             <div key={index} className="flex gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
-
               {/* Image slot */}
               <div className="shrink-0">
                 {option.imageUrl ? (
@@ -300,113 +292,30 @@ export default function PollForm({ initialData, mode = "create" }: PollFormProps
         </div>
       </div>
 
-      {/* Poll Type — visual cards */}
+      {/* Link to Event (optional) */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Who Can Vote?
+        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          <span className="flex items-center gap-1">
+            <Link2 className="w-3.5 h-3.5" />
+            Link to Event
+          </span>
         </label>
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            {
-              value: "PUBLIC",
-              icon: Globe,
-              label: "Public",
-              desc: "Any logged-in user can vote",
-              color: "blue",
-            },
-            {
-              value: "TOKEN_GATED",
-              icon: Ticket,
-              label: "Ticket Holders",
-              desc: "Only ticket holders (digital or physical)",
-              color: "orange",
-            },
-          ].map(({ value, icon: Icon, label, desc, color }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setForm({ ...form, pollType: value, requiresTicket: value === "TOKEN_GATED" ? form.requiresTicket : false })}
-              className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${
-                form.pollType === value
-                  ? color === "blue"
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-orange-500 bg-orange-50"
-                  : "border-gray-200 hover:border-gray-300"
-              }`}
-            >
-              <Icon className={`w-5 h-5 mt-0.5 shrink-0 ${
-                form.pollType === value
-                  ? color === "blue" ? "text-blue-600" : "text-orange-600"
-                  : "text-gray-400"
-              }`} />
-              <div>
-                <div className={`text-sm font-semibold ${
-                  form.pollType === value
-                    ? color === "blue" ? "text-blue-800" : "text-orange-800"
-                    : "text-gray-700"
-                }`}>
-                  {label}
-                </div>
-                <div className="text-xs text-gray-500 mt-0.5">{desc}</div>
-              </div>
-            </button>
+        <select
+          value={form.eventId}
+          onChange={(e) => setForm({ ...form, eventId: e.target.value })}
+          className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+        >
+          <option value="">— Select an event (optional) —</option>
+          {events.map((event) => (
+            <option key={event.id} value={event.id}>
+              {event.title}
+            </option>
           ))}
-        </div>
+        </select>
+        <p className="mt-1 text-xs text-gray-400">
+          This poll will appear on the linked event’s page.
+        </p>
       </div>
-
-      {/* TOKEN_GATED specific options */}
-      {form.pollType === "TOKEN_GATED" && (
-        <>
-          {/* Event link */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-              <span className="flex items-center gap-1">
-                <Link2 className="w-3.5 h-3.5" />
-                Link to Event
-              </span>
-            </label>
-            <select
-              value={form.eventId}
-              onChange={(e) => setForm({ ...form, eventId: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
-            >
-              <option value="">— Select an event —</option>
-              {events.map((event) => (
-                <option key={event.id} value={event.id}>
-                  {event.title}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1.5 text-xs text-gray-400">
-              {form.requiresTicket
-                ? "Optional: Restrict votes to tickets of this specific event."
-                : "Required: Users must have a paid ticket for this event."}
-            </p>
-          </div>
-
-          {/* Physical ticket requirement checkbox */}
-          <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-            <input
-              id="requiresTicket"
-              type="checkbox"
-              checked={form.requiresTicket}
-              onChange={(e) => setForm({ ...form, requiresTicket: e.target.checked })}
-              className="w-4 h-4 mt-0.5 text-amber-500 border-gray-300 rounded focus:ring-amber-400"
-            />
-            <label htmlFor="requiresTicket" className="text-sm text-gray-700">
-              <span className="font-semibold flex items-center gap-1.5">
-                <Ticket className="w-3.5 h-3.5 text-amber-600" />
-                Require Physical Ticket Code
-              </span>
-              <span className="text-gray-500 font-normal block mt-0.5">
-                Voters must enter a unique ticket code (printed on ticket). Each ticket can vote once.
-                <br />
-                <strong>If unchecked</strong>, voters can vote using their account's ticket purchase (no code entry).
-              </span>
-            </label>
-          </div>
-        </>
-      )}
 
       {/* Status + Close Date */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -456,6 +365,30 @@ export default function PollForm({ initialData, mode = "create" }: PollFormProps
       <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-100 rounded-xl text-xs text-blue-700">
         <Upload className="w-3.5 h-3.5 mt-0.5 shrink-0" />
         <span>JPEG, PNG, WebP accepted. Max 5MB each.</span>
+      </div>
+
+      {/* Vote Price */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+          <span className="flex items-center gap-1">
+            Vote Price (optional)
+          </span>
+        </label>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={form.votePrice}
+            onChange={(e) => setForm({ ...form, votePrice: e.target.value })}
+            placeholder="0.00 (free if empty)"
+            className="w-full pl-8 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-orange-400"
+          />
+        </div>
+        <p className="mt-1 text-xs text-gray-400">
+          Set a price per vote. Leave empty or 0 for free voting.
+        </p>
       </div>
 
       {/* Submit */}

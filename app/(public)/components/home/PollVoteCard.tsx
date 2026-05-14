@@ -1,207 +1,9 @@
-// // app/(public)/components/home/PollVoteCard.tsx
-// 'use client';
-
-// import { useState, useEffect } from 'react';
-
-// interface Contestant {
-//   id: string;
-//   text: string;
-//   imageUrl: string | null;
-// }
-
-// interface PollVoteCardProps {
-//   poll: {
-//     id: string;
-//     title: string;
-//     description: string | null;
-//     type: 'POLL' | 'CONTEST';
-//     endDate: Date | null;
-//     requiresTicket?: boolean; // true when poll needs a token
-//   };
-//   contestants: Contestant[];
-// }
-
-// export default function PollVoteCard({ poll, contestants }: PollVoteCardProps) {
-//   const [selectedContestant, setSelectedContestant] = useState<string | null>(null);
-//   const [token, setToken] = useState('');
-//   const [voting, setVoting] = useState(false);
-//   const [voted, setVoted] = useState(false);
-//   const [error, setError] = useState<string | null>(null);
-//   const [remainingVotes, setRemainingVotes] = useState<number | null>(null);
-
-//   // Fetch remaining votes when poll requires a ticket
-//   useEffect(() => {
-//     if (poll.requiresTicket) {
-//       fetch(`/api/polls/${poll.id}/remaining-votes`)
-//         .then(res => res.json())
-//         .then(data => setRemainingVotes(data.remaining))
-//         .catch(() => setRemainingVotes(null));
-//     }
-//   }, [poll.id, poll.requiresTicket]);
-
-//   const handleVote = async (contestantId: string) => {
-//     setError(null);
-//     setVoting(true);
-
-//     try {
-//       const body: any = {
-//         pollId: poll.id,
-//         optionId: contestantId,
-//       };
-//       if (poll.requiresTicket) {
-//         if (!token.trim()) {
-//           setError('Please enter your ticket code.');
-//           setVoting(false);
-//           return;
-//         }
-//         body.ticketCode = token.trim();
-//       }
-
-//       const response = await fetch(`/api/polls/${poll.id}/vote`, {
-//         method: 'POST',
-//         headers: { 'Content-Type': 'application/json' },
-//         body: JSON.stringify(body),
-//       });
-
-//       const result = await response.json();
-
-//       if (response.ok) {
-//         setVoted(true);
-//         setSelectedContestant(contestantId);
-//         if (remainingVotes !== null) {
-//           setRemainingVotes(prev => (prev && prev > 0 ? prev - 1 : 0));
-//         }
-//         setToken(''); // clear token after successful vote
-//       } else {
-//         setError(result.message || 'Voting failed.');
-//       }
-//     } catch (err) {
-//       setError('Network error. Please try again.');
-//     } finally {
-//       setVoting(false);
-//     }
-//   };
-
-//   const getTimeRemaining = () => {
-//     if (!poll.endDate) return 'No end date';
-//     const end = new Date(poll.endDate);
-//     const now = new Date();
-//     const diff = end.getTime() - now.getTime();
-//     if (diff <= 0) return 'Ended';
-//     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-//     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-//     return `${days}d ${hours}h remaining`;
-//   };
-
-//   return (
-//     <div className="bg-white rounded-xl shadow-lg p-6">
-//       {/* Header */}
-//       <div className="mb-6">
-//         <div className="flex items-center justify-between mb-2">
-//           <h2 className="text-2xl font-bold">{poll.title}</h2>
-//           <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-//             {poll.type === 'CONTEST' ? '💰 Paid Contest' : '📊 Poll'}
-//           </span>
-//         </div>
-//         {poll.description && <p className="text-gray-600 mb-3">{poll.description}</p>}
-//         <div className="flex items-center text-sm text-gray-500">
-//           <span className="mr-4">⏰ {getTimeRemaining()}</span>
-//           <span>👥 {contestants.length} contestants</span>
-//         </div>
-//       </div>
-
-//       {/* Token input (if required) */}
-//       {poll.requiresTicket && !voted && (
-//         <div className="mb-4">
-//           <label className="block text-sm font-medium text-gray-700 mb-1">
-//             🎟️ Ticket Code (from your purchase)
-//           </label>
-//           <input
-//             type="text"
-//             value={token}
-//             onChange={(e) => setToken(e.target.value)}
-//             placeholder="e.g. a1b2c3d4..."
-//             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-//           />
-//           {remainingVotes !== null && (
-//             <p className="mt-1 text-xs text-gray-500">
-//               You have {remainingVotes} vote{remainingVotes !== 1 ? 's' : ''} remaining.
-//             </p>
-//           )}
-//         </div>
-//       )}
-
-//       {error && (
-//         <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
-//           {error}
-//         </div>
-//       )}
-
-//       {/* Voting grid */}
-//       {voted ? (
-//         <div className="text-center py-8 bg-green-50 rounded-lg">
-//           <div className="text-4xl mb-4">✅</div>
-//           <p className="text-lg font-medium text-green-800">Vote Submitted!</p>
-//           <p className="text-gray-600">Thank you for voting</p>
-//         </div>
-//       ) : (
-//         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-//           {contestants.map((contestant) => (
-//             <button
-//               key={contestant.id}
-//               onClick={() => handleVote(contestant.id)}
-//               disabled={voting || (poll.requiresTicket && !token.trim())}
-//               className={`p-4 rounded-lg border-2 transition-all ${
-//                 selectedContestant === contestant.id
-//                   ? 'border-blue-500 bg-blue-50'
-//                   : 'border-gray-200 hover:border-blue-300 hover:bg-blue-25'
-//               } ${voting ? 'opacity-50 cursor-not-allowed' : ''}`}
-//             >
-//               <div className="flex flex-col items-center text-center">
-//                 <div className="mb-3">
-//                   {contestant.imageUrl ? (
-//                     <img
-//                       src={contestant.imageUrl}
-//                       alt={contestant.text}
-//                       className="h-20 w-20 rounded-full object-cover border-4 border-white shadow"
-//                     />
-//                   ) : (
-//                     <div className="h-20 w-20 rounded-full bg-gray-200 flex items-center justify-center">
-//                       <span className="text-2xl">👤</span>
-//                     </div>
-//                   )}
-//                 </div>
-//                 <div className="font-medium">{contestant.text}</div>
-//                 <div className="mt-3">
-//                   <div className="px-4 py-2 rounded-full text-sm font-medium bg-blue-100 text-blue-700">
-//                     {poll.type === 'CONTEST' ? 'Vote ($1)' : 'Vote'}
-//                   </div>
-//                 </div>
-//               </div>
-//             </button>
-//           ))}
-//         </div>
-//       )}
-
-//       {/* Footer stats */}
-//       <div className="border-t pt-4 mt-6">
-//         <div className="flex justify-between text-sm text-gray-500">
-//           <div>
-//             <span className="font-medium">Total Votes:</span> (load from results if needed)
-//           </div>
-//           <div>
-//             <span className="font-medium">Your Vote:</span>{' '}
-//             {selectedContestant ? 'Submitted' : 'Not yet'}
-//           </div>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
+// PollVoteCard.tsx is the new unified voting component for both free and paid polls. It handles vote submission, payment flow, and live results display in one place.
 
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 
 interface Contestant {
   id: string;
@@ -218,7 +20,7 @@ interface PollVoteCardProps {
     description: string | null;
     type: 'POLL' | 'CONTEST';
     endDate: Date | null;
-    requiresTicket?: boolean;
+    votePrice?: number | null;
   };
   contestants: Contestant[];
 }
@@ -226,102 +28,174 @@ interface PollVoteCardProps {
 export default function PollVoteCard({ poll, contestants: initialContestants }: PollVoteCardProps) {
   const [contestants, setContestants] = useState<Contestant[]>(initialContestants);
   const [selectedContestant, setSelectedContestant] = useState<string | null>(null);
-  const [token, setToken] = useState('');
+  const [quantity, setQuantity] = useState(1);
   const [voting, setVoting] = useState(false);
   const [hasVotedAtLeastOnce, setHasVotedAtLeastOnce] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
-  const [remainingVotes, setRemainingVotes] = useState<number | null>(null);
   const [totalVotes, setTotalVotes] = useState<number>(0);
+  const [deviceId, setDeviceId] = useState<string>('');
+  const [paymentId, setPaymentId] = useState<string | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'completed' | 'failed' | null>(null);
+  const [countdown, setCountdown] = useState(120);
 
-  // Sync contestants on re-render
+  // FIX 1: Resolve votePrice — trust prop if present, else fetch from results endpoint
+  // This ensures isPaidPoll is never falsely null when the prop is simply missing.
+  const [resolvedVotePrice, setResolvedVotePrice] = useState<number | null>(
+    poll.votePrice ?? null
+  );
+
+  // FIX 1 cont: isPaidPoll uses strict number check — not just truthy
+  const isPaidPoll = typeof resolvedVotePrice === 'number' && resolvedVotePrice > 0;
+  const totalPrice = isPaidPoll ? resolvedVotePrice! * quantity : 0;
+
+  // phone numbers for paid votes 
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [showPhoneInput, setShowPhoneInput] = useState(false);
+  const [pendingMethod, setPendingMethod] = useState<'mtn_momo' | 'orange_money' | null>(null);
+
   useEffect(() => {
-    setContestants(initialContestants);
-  }, [initialContestants]);
-
-  // Fetch remaining votes for token‑gated polls
-  useEffect(() => {
-  if (poll.requiresTicket) {
-    // Token‑gated poll
-    fetch(`/api/polls/${poll.id}/remaining-votes`, { cache: 'no-store' })
-      .then(res => res.json())
-      .then(data => {
-        setRemainingVotes(data.remaining ?? 0);
-        // If they've already used at least one ticket, show results
-        if (data.totalTickets > 0 && data.remaining < data.totalTickets) {
-          setHasVotedAtLeastOnce(true);
-        }
-      })
-      .catch(() => setRemainingVotes(null));
-  } else {
-    // Public poll – check if user already voted
-    fetch(`/api/polls/${poll.id}/remaining-votes`, { cache: 'no-store' })
-      .then(res => res.json())
-      .then(data => {
-        if (data.hasVoted) {
-          setHasVotedAtLeastOnce(true);
-          setRemainingVotes(0); // no votes left
-        } else {
-          setRemainingVotes(1); // can vote once
-        }
-      })
-      .catch(() => setRemainingVotes(null));
-  }
-}, [poll.id, poll.requiresTicket]);
-
-  const canVote = remainingVotes !== null && remainingVotes > 0;
-
-  const handleVote = async (contestantId: string) => {
-    setError(null);
-    if (!canVote) return;
-
-    if (poll.requiresTicket && !token.trim()) {
-      setToast({ msg: 'Please enter your ticket code.', type: 'error' });
-      return;
+    let id = localStorage.getItem('tiky_device_id');
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem('tiky_device_id', id);
     }
+    setDeviceId(id);
+  }, []);
 
-    setVoting(true);
-    try {
-      const body: any = {
-        pollId: poll.id,
-        optionId: contestantId,
-      };
-      if (poll.requiresTicket) {
-        body.ticketCode = token.trim();
-      }
-
-      const response = await fetch(`/api/polls/${poll.id}/vote`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        setHasVotedAtLeastOnce(true);
-        setSelectedContestant(contestantId);
-        setRemainingVotes(prev => (prev !== null && prev > 0 ? prev - 1 : 0));
-        setToken('');
-
-        // Update results from API response
-        if (result.results && Array.isArray(result.results)) {
+  useEffect(() => {
+    fetch(`/api/polls/${poll.id}/results`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.results) {
           setContestants(prev =>
             prev.map(c => {
-              const fresh = result.results.find((r: any) => r.id === c.id);
+              const fresh = data.results.find((r: any) => r.id === c.id);
               return fresh ? { ...c, votes: fresh.votes, percentage: fresh.percentage } : c;
             })
           );
-          setTotalVotes(result.totalVotes ?? 0);
+          setTotalVotes(data.totalVotes ?? 0);
         }
-        setToast({ msg: 'Your vote was recorded! 🎉 Thank you for voting!', type: 'success' });
-        setTimeout(() => setToast(null), 5000);
-      } else {
-        setError(result.message || 'Voting failed.');
-        setToast({ msg: result.message || 'Voting failed.', type: 'error' });
+
+        // FIX 1 cont: If votePrice wasn't in the prop, pull it from the poll detail endpoint
+        if (resolvedVotePrice === null) {
+          fetch(`/api/polls/${poll.id}`)
+            .then(r => r.json())
+            .then(pollData => {
+              const price = pollData?.poll?.votePrice ?? pollData?.votePrice ?? null;
+              if (typeof price === 'number') setResolvedVotePrice(price);
+            })
+            .catch(() => {});
+        }
+      })
+      .catch(console.error);
+  }, [poll.id]);
+
+  useEffect(() => {
+    if (!paymentId || paymentStatus !== 'pending') return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/payment/status?orderId=${paymentId}`);
+        const data = await res.json();
+        if (data.orderStatus === 'COMPLETED') {
+          setPaymentStatus('completed');
+          const resultsRes = await fetch(`/api/polls/${poll.id}/results`);
+          const resultsData = await resultsRes.json();
+          if (resultsData.results) {
+            setContestants(prev =>
+              prev.map(c => {
+                const fresh = resultsData.results.find((r: any) => r.id === c.id);
+                return fresh ? { ...c, votes: fresh.votes, percentage: fresh.percentage } : c;
+              })
+            );
+            setTotalVotes(resultsData.totalVotes ?? 0);
+          }
+          setToast({ msg: 'Your votes have been added! 🎉', type: 'success' });
+          setTimeout(() => setToast(null), 5000);
+          setSelectedContestant(null);
+          setQuantity(1);
+        } else if (data.orderStatus === 'FAILED') {
+          setPaymentStatus('failed');
+          setToast({ msg: 'Payment failed. Please try again.', type: 'error' });
+        }
+        setCountdown(prev => prev - 1);
+        if (data.orderStatus !== 'PENDING') clearInterval(interval);
+      } catch {
+        // keep polling
       }
-    } catch (err) {
-      setToast({ msg: 'Network error. Please try again.', type: 'error' });
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [paymentId, paymentStatus, poll.id]);
+
+ // handleBuyVotes is called when user clicks a payment button. It sets the pending method and shows the phone input modal.
+
+const handleBuyVotes = async (method: 'mtn_momo' | 'orange_money') => {
+  if (!selectedContestant) {          // ← was `selected`
+    setToast({ msg: 'Please select a contestant first', type: 'error' });
+    return;
+  }
+  setPendingMethod(method);
+  setShowPhoneInput(true);
+};
+
+const handleConfirmPayment = async () => {
+  if (!phoneNumber.trim() || !pendingMethod || !selectedContestant) return;  // ← was `selected`
+  setShowPhoneInput(false);
+  setVoting(true);                    // ← was `setLoading`
+  try {
+    const res = await fetch('/api/poll-votes/initiate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pollId: poll.id,              // ← was `pollId`
+        optionId: selectedContestant, // ← was `selected`
+        quantity,
+        phoneNumber: phoneNumber.trim(),
+        paymentMethod: pendingMethod,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Initiation failed');
+    setPaymentId(data.paymentId);
+    setPaymentStatus('pending');
+    setCountdown(120);
+    setPhoneNumber('');
+    setPendingMethod(null);
+  } catch (err: any) {
+    setToast({ msg: err.message, type: 'error' });
+  } finally {
+    setVoting(false);                 // ← was `setLoading`
+  }
+};
+
+  // FIX 4: Read `error` key (not `message`) to get the real server error text
+  const handleFreeVote = async (contestantId: string) => {
+    setVoting(true);
+    try {
+      const response = await fetch(`/api/polls/${poll.id}/vote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ optionId: contestantId, deviceId }),
+      });
+      const result = await response.json();
+
+      // ✅ FIX 4: API returns { error: "..." } — was reading result.message (always undefined)
+      if (!response.ok) throw new Error(result.error || result.message || 'Vote failed');
+
+      setHasVotedAtLeastOnce(true);
+      setSelectedContestant(contestantId);
+      if (result.results) {
+        setContestants(prev =>
+          prev.map(c => {
+            const fresh = result.results.find((r: any) => r.id === c.id);
+            return fresh ? { ...c, votes: fresh.votes, percentage: fresh.percentage } : c;
+          })
+        );
+        setTotalVotes(result.totalVotes ?? 0);
+      }
+      setToast({ msg: 'Your vote was recorded! 🎉', type: 'success' });
+      setTimeout(() => setToast(null), 5000);
+    } catch (err: any) {
+      setToast({ msg: err.message, type: 'error' });
     } finally {
       setVoting(false);
     }
@@ -340,12 +214,17 @@ export default function PollVoteCard({ poll, contestants: initialContestants }: 
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
-      {/* Header */}
+      {toast && (
+        <div className={`mb-4 p-3 rounded-lg text-sm ${toast.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+          {toast.msg}
+        </div>
+      )}
+
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-2xl font-bold">{poll.title}</h2>
           <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-            {poll.type === 'CONTEST' ? '💰 Paid Contest' : '📊 Poll'}
+            {isPaidPoll ? `💰 $${resolvedVotePrice!.toFixed(2)} / vote` : '📊 Free Poll'}
           </span>
         </div>
         {poll.description && <p className="text-gray-600 mb-3">{poll.description}</p>}
@@ -355,135 +234,193 @@ export default function PollVoteCard({ poll, contestants: initialContestants }: 
         </div>
       </div>
 
-      {/* Token input (only for token‑gated polls with remaining votes) */}
-      {poll.requiresTicket && (
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            🎟️ Ticket Code (from your purchase)
-          </label>
-          <input
-            type="text"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="e.g. a1b2c3d4..."
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-          {remainingVotes !== null && remainingVotes > 0 && (
-  <p className="mt-1 text-xs text-gray-500">
-    You have {remainingVotes} vote{remainingVotes !== 1 ? 's' : ''} remaining.
-  </p>
-)}
-        </div>
-      )}
-      {toast && (
-        <div className={`mb-4 p-3 rounded-lg text-sm ${toast.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-          {toast.msg}
-        </div>
-      )}
-
-      {/* ── Show live results if user has voted at least once, otherwise voting grid ── */}
-      {hasVotedAtLeastOnce ? (
+      {isPaidPoll ? (
         <div className="space-y-4">
-          {contestants
-            .sort((a, b) => (b.votes ?? 0) - (a.votes ?? 0))
-            .map((contestant) => {
-              const pct = contestant.percentage ?? 0;
-              const voteCount = contestant.votes ?? 0;
-              return (
-                <div key={contestant.id} className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center gap-3 mb-2">
-                    {contestant.imageUrl ? (
-                      <img src={contestant.imageUrl} alt={contestant.text} className="w-10 h-10 rounded-full object-cover" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-lg">👤</div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-800">{contestant.text}</p>
-                      <div className="flex items-center gap-2">
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-blue-500 h-2 rounded-full transition-all duration-500"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <span className="text-xs font-medium text-gray-600 whitespace-nowrap">{pct}%</span>
-                      </div>
-                    </div>
-                    <span className="text-xs text-gray-500">{voteCount} vote{voteCount !== 1 ? 's' : ''}</span>
-                  </div>
-
-                  {/* Show vote button only if user can still vote */}
-                  {canVote && (
-                    <button
-                      onClick={() => handleVote(contestant.id)}
-                      disabled={voting || (poll.requiresTicket && !token.trim())}
-                      className="w-full mt-2 py-1.5 rounded-lg text-sm font-semibold bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50"
-                    >
-                      {voting ? 'Submitting...' : 'Vote'}
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          <p className="text-center text-xs text-gray-400 mt-2">
-            Total votes: {totalVotes}
-          </p>
-        </div>
-      ) : (
-        /* Voting grid (before first vote) */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {contestants.map((contestant) => (
+          {contestants.map(contestant => (
             <button
               key={contestant.id}
-              onClick={() => handleVote(contestant.id)}
-              disabled={voting || (poll.requiresTicket && !token.trim()) || !canVote}
-              className={`p-4 rounded-lg border-2 transition-all ${
+              onClick={() => setSelectedContestant(contestant.id)}
+              className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
                 selectedContestant === contestant.id
                   ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:border-blue-300 hover:bg-blue-25'
-              } ${voting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
             >
-              <div className="flex flex-col items-center text-center">
-                <div className="mb-3">
-                  {contestant.imageUrl ? (
-                    <img src={contestant.imageUrl} alt={contestant.text} className="h-20 w-20 rounded-full object-cover border-4 border-white shadow" />
-                  ) : (
-                    <div className="h-20 w-20 rounded-full bg-gray-200 flex items-center justify-center">
-                      <span className="text-2xl">👤</span>
-                    </div>
+              <div className="flex items-center gap-3">
+                {contestant.imageUrl ? (
+                  <img src={contestant.imageUrl} className="w-10 h-10 rounded-full object-cover" alt={contestant.text} />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">👤</div>
+                )}
+                <div className="flex-1">
+                  <span className="font-semibold text-gray-800">{contestant.text}</span>
+                  {/* FIX 3: Show vote count on paid contestants too */}
+                  {contestant.votes !== undefined && (
+                    <p className="text-xs text-gray-400 mt-0.5">{contestant.votes} votes</p>
                   )}
                 </div>
-                <div className="font-medium">{contestant.text}</div>
-                <div className="mt-3">
-                  <div className="px-4 py-2 rounded-full text-sm font-medium bg-blue-100 text-blue-700">
-                    {poll.type === 'CONTEST' ? 'Vote ($1)' : 'Vote'}
-                  </div>
-                </div>
+                {selectedContestant === contestant.id && (
+                  <span className="text-blue-500 text-lg">✓</span>
+                )}
+              </div>
+            </button>
+          ))}
+
+          {/* FIX 3: Quantity selector — always rendered in paid branch */}
+          <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-semibold text-gray-700">Number of votes:</label>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                  className="w-9 h-9 flex items-center justify-center bg-white border border-gray-200 rounded-lg text-lg font-bold hover:bg-gray-100 transition-colors"
+                  aria-label="Decrease quantity"
+                >
+                  −
+                </button>
+                <span className="w-8 text-center font-bold text-lg">{quantity}</span>
+                <button
+                  onClick={() => setQuantity(q => q + 1)}
+                  className="w-9 h-9 flex items-center justify-center bg-white border border-gray-200 rounded-lg text-lg font-bold hover:bg-gray-100 transition-colors"
+                  aria-label="Increase quantity"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200">
+              <span className="text-sm text-gray-500">
+                {quantity} vote{quantity !== 1 ? 's' : ''} × ${resolvedVotePrice!.toFixed(2)}
+              </span>
+              <span className="text-base font-bold text-blue-700">
+                Total: ${totalPrice.toFixed(2)}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => handleBuyVotes('mtn_momo')}
+              disabled={voting || !selectedContestant}
+              className="flex-1 py-3 bg-yellow-400 text-yellow-900 font-bold rounded-xl disabled:opacity-50 hover:bg-yellow-500 transition-colors"
+            >
+              {voting ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Pay with MoMo'}
+            </button>
+            <button
+              disabled
+              title="Coming soon"
+              className="flex-1 py-3 bg-gray-200 text-gray-400 font-bold rounded-xl cursor-not-allowed">
+              Orange Money (Coming Soon)
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {contestants.map(contestant => (
+            <button
+              key={contestant.id}
+              onClick={() => handleFreeVote(contestant.id)}
+              disabled={hasVotedAtLeastOnce || voting}
+              className={`p-4 rounded-xl border-2 transition-all ${
+                selectedContestant === contestant.id
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-200 hover:border-gray-300'
+              } disabled:opacity-50`}
+            >
+              <div className="flex flex-col items-center">
+                {contestant.imageUrl ? (
+                  <img src={contestant.imageUrl} className="w-16 h-16 rounded-full object-cover mb-2" alt={contestant.text} />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center mb-2">👤</div>
+                )}
+                <span className="font-medium">{contestant.text}</span>
               </div>
             </button>
           ))}
         </div>
       )}
 
-      {/* Footer */}
-      <div className="border-t pt-4 mt-6">
-        <div className="flex justify-between text-sm text-gray-500">
-          <div>
-            <span className="font-medium">Total Votes:</span> {totalVotes || 0}
-          </div>
-          <div>
-            {poll.requiresTicket ? (
-              <span className="font-medium">
-                Remaining: {remainingVotes ?? 0} vote{remainingVotes !== 1 ? 's' : ''}
-              </span>
-            ) : (
-              <span>
-                <span className="font-medium">Your Vote:</span>{' '}
-                {hasVotedAtLeastOnce ? 'Submitted' : 'Not yet'}
-              </span>
-            )}
+      {!isPaidPoll && hasVotedAtLeastOnce && (
+        <div className="mt-6 space-y-3">
+          <h3 className="text-lg font-semibold">Live Results</h3>
+          {[...contestants]
+            .sort((a, b) => (b.votes ?? 0) - (a.votes ?? 0))
+            .map(c => {
+              const pct = c.percentage ?? 0;
+              const votes = c.votes ?? 0;
+              return (
+                <div key={c.id} className="bg-gray-50 rounded-lg p-3 flex items-center gap-3">
+                  <span className="font-medium flex-1">{c.text}</span>
+                  <div className="w-32 bg-gray-200 rounded-full h-2">
+                    <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="text-xs text-gray-500 w-20 text-right">
+                    {votes} vote{votes !== 1 ? 's' : ''} ({pct}%)
+                  </span>
+                </div>
+              );
+            })}
+          <p className="text-center text-xs text-gray-400 mt-2">Total votes: {totalVotes}</p>
+        </div>
+      )}
+
+      {/* Phone number modal */}
+{showPhoneInput && (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+      <h3 className="font-bold text-lg mb-1">Enter your phone number</h3>
+      <p className="text-sm text-gray-500 mb-4">
+        We'll send a {pendingMethod === 'mtn_momo' ? 'MoMo' : 'Orange Money'} payment request to this number.
+      </p>
+      <input
+        type="tel"
+        value={phoneNumber}
+        onChange={e => setPhoneNumber(e.target.value)}
+        placeholder="e.g. 0886123456"
+        className="w-full border border-gray-300 rounded-xl px-4 py-3 text-base mb-4 focus:outline-none focus:ring-2 focus:ring-orange-400"
+        autoFocus
+        onKeyDown={e => { if (e.key === 'Enter') handleConfirmPayment(); }}
+      />
+      <div className="flex gap-3">
+        <button
+          onClick={() => { setShowPhoneInput(false); setPhoneNumber(''); setPendingMethod(null); }}
+          className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleConfirmPayment}
+          disabled={!phoneNumber.trim()}
+          className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white font-bold disabled:opacity-50 hover:bg-orange-600 transition-colors"
+        >
+          Confirm
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+      {paymentStatus === 'pending' && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-xs text-center shadow-xl">
+            <Loader2 className="w-10 h-10 animate-spin text-orange-500 mx-auto mb-4" />
+            <h3 className="font-bold text-lg mb-2">Confirm your payment</h3>
+            <p className="text-sm text-gray-500 mb-4">Open the prompt on your phone and enter your PIN.</p>
+            <div className="text-2xl font-bold text-gray-700">
+              {Math.floor(countdown / 60)}:{(countdown % 60).toString().padStart(2, '0')}
+            </div>
+            <button
+              onClick={() => { setPaymentStatus(null); setPaymentId(null); }}
+              className="mt-4 text-sm text-red-500 underline"
+            >
+              Cancel
+            </button>
           </div>
         </div>
+      )}
+
+      <div className="border-t pt-4 mt-6 text-right text-sm text-gray-500">
+        Total Votes: {totalVotes}
       </div>
     </div>
   );

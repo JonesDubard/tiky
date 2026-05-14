@@ -82,17 +82,16 @@ export async function PUT(
     const {
       title,
       description,
-      pollType,
       status,
       isFeatured,
       endDate,
       eventId,
-      requiresTicket,
+      votePrice,
       options,
     } = body;
 
     // Normalize pollType
-    const normalizedPollType = pollType === "TOKEN_GATED" ? "TOKEN_GATED" : "PUBLIC";
+    const normalizedPollType = "PUBLIC";
 
     const updatedPoll = await prisma.$transaction(async (tx) => {
       const updated = await tx.poll.update({
@@ -100,12 +99,12 @@ export async function PUT(
         data: {
           title: title?.trim(),
           description: description?.trim() || null,
-          pollType: normalizedPollType,
+          pollType: "PUBLIC",
           status,
           isFeatured: isFeatured ?? false,
           endDate: endDate ? new Date(endDate) : null,
-          eventId: normalizedPollType === "TOKEN_GATED" ? eventId || null : null,
-          requiresTicket: normalizedPollType === "TOKEN_GATED" ? (requiresTicket ?? false) : false,
+          eventId: eventId || null,
+          votePrice: votePrice ? parseFloat(votePrice) : null,
         },
       });
 
@@ -173,7 +172,7 @@ export async function DELETE(
 
     await prisma.poll.update({
       where: { id },
-      data: { deletedAt: new Date() },
+      data: { deletedAt: new Date() }, 
     });
 
     return NextResponse.json({ success: true });
