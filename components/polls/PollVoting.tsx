@@ -117,39 +117,79 @@ export default function PollVoting({
 
   // Poll payment status
   useEffect(() => {
-    if (!paymentId || paymentStatus !== 'pending') return;
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/payment/status?orderId=${paymentId}`);
-        const data = await res.json();
+  if (!paymentId || paymentStatus !== 'pending') return;
+
+  const interval = setInterval(async () => {
+    try {
+      const res = await fetch(`/api/payment/status?orderId=${paymentId}`);
+      const data = await res.json();
+
+      if (data.orderStatus === 'COMPLETED') {
+        clearInterval(interval);
+        setPaymentStatus('completed');
+
+        const resultsRes = await fetch(`/api/polls/${pollId}/results`);
+        const resultsData = await resultsRes.json();
+        if (resultsData.results) {
+          const merged = resultsData.results.map((r: ResultOption) => ({
+            ...r,
+            imageUrl: options.find(o => o.id === r.id)?.imageUrl ?? r.imageUrl ?? null,
+          }));
+          setResults(merged);
+          setTotalVotes(resultsData.totalVotes ?? 0);
+        }
+        setHasVotedAtLeastOnce(true);   // ← show results after paid vote too
+        setToast({ msg: 'Your votes have been added! 🎉', type: 'success' });
+        setTimeout(() => setToast(null), 5000);
+        setSelected(null);
+        setQuantity(1);
+
+      } else if (data.orderStatus === 'FAILED') {
+        clearInterval(interval);
+        setPaymentStatus('failed');
+        setToast({ msg: 'Payment failed. Please try again.', type: 'error' });
+      }
+    } catch {
+      // keep polling on network error
+    }
+  }, 3000);
+
+  // ✅ FIX 2: Auto-dismiss after countdown expires
+  const timeout = setTimeout(() => {
+    clearInterval(interval);
+    // Check one final time before giving up
+    fetch(`/api/payment/status?orderId=${paymentId}`)
+      .then(r => r.json())
+      .then(data => {
         if (data.orderStatus === 'COMPLETED') {
           setPaymentStatus('completed');
-          const resultsRes = await fetch(`/api/polls/${pollId}/results`);
-          const resultsData = await resultsRes.json();
-          if (resultsData.results) {
-            const merged = resultsData.results.map((r: ResultOption) => ({
-              ...r,
-              imageUrl: options.find(o => o.id === r.id)?.imageUrl ?? r.imageUrl ?? null,
-            }));
-            setResults(merged);
-            setTotalVotes(resultsData.totalVotes ?? 0);
-          }
+          setHasVotedAtLeastOnce(true);
           setToast({ msg: 'Your votes have been added! 🎉', type: 'success' });
           setTimeout(() => setToast(null), 5000);
-          setSelected(null);
-          setQuantity(1);
-        } else if (data.orderStatus === 'FAILED') {
-          setPaymentStatus('failed');
-          setToast({ msg: 'Payment failed. Please try again.', type: 'error' });
+        } else {
+          // Timed out — dismiss overlay, let user try again
+          setPaymentStatus(null);
+          setPaymentId(null);
+          setToast({ msg: 'Payment timed out. Check your MoMo and try again.', type: 'error' });
         }
-        setCountdown(prev => prev - 1);
-        if (data.orderStatus !== 'PENDING') {
-          clearInterval(interval);
-        }
-      } catch (err) {}
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [paymentId, paymentStatus, pollId, options]);
+      })
+      .catch(() => {
+        setPaymentStatus(null);
+        setPaymentId(null);
+      });
+  }, countdown * 1000);
+
+  // Countdown display ticker
+  const ticker = setInterval(() => {
+    setCountdown(prev => Math.max(0, prev - 1));
+  }, 1000);
+
+  return () => {
+    clearInterval(interval);
+    clearInterval(ticker);
+    clearTimeout(timeout);
+  };
+}, [paymentId, paymentStatus, pollId, options]);
 
   const handleBuyVotes = async (method: 'mtn_momo' | 'orange_money') => {
   if (!selected) {
