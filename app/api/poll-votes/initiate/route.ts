@@ -66,10 +66,10 @@ export async function POST(req: NextRequest) {
       // no session — that's fine
     }
 
-    console.log("[MOMO PHONE]", {
-    original: phoneNumber,
-    normalized: msisdn,
-})
+//     console.log("[MOMO PHONE]", {
+//     original: phoneNumber,
+//     normalized: msisdn,
+// })
 
     // Create payment record
     const payment = await prisma.payment.create({
@@ -93,20 +93,12 @@ export async function POST(req: NextRequest) {
     if (paymentMethod === "mtn_momo") {
       try {
         await requestToPay({
-          // referenceId,
-          // amount: totalAmount.toFixed(2),
-          // currency: "USD",
-          // partyId: msisdn,
-          // payerMessage: `Vote purchase – poll ${pollId.slice(0, 8)}`,
-          // payeeNote: `${quantity} vote${quantity !== 1 ? "s" : ""}`,
-          
           referenceId,
-          amount: "1.00",           // fixed, like a ticket
+          amount: totalAmount.toFixed(2),
           currency: "USD",
           partyId: msisdn,
-          payerMessage: "Tiky ticket payment",   // exactly like ticket
-          payeeNote: "Ticket purchase",          // exactly like ticket
-
+          payerMessage: "Vote purchase",
+          payeeNote: `${quantity} vote${quantity !== 1 ? "s" : ""}`,
         });
       } catch (err) {
         console.error("[VOTE INITIATE] MoMo request failed:", err)

@@ -66,9 +66,9 @@ export async function requestToPay(params: RequestToPayParams): Promise<void> {
     payeeNote:    params.payeeNote,
   }
 
-  console.log("[MOMO REQUEST BODY]", JSON.stringify(bodyObj, null, 2))
-  console.log("[MOMO REQUEST HEADERS]", JSON.stringify(headers, null, 2));
-  console.log("[MOMO URL]", `${BASE_URL}/collection/v1_0/requesttopay`);
+  // console.log("[MOMO REQUEST BODY]", JSON.stringify(bodyObj, null, 2))
+  // console.log("[MOMO REQUEST HEADERS]", JSON.stringify(headers, null, 2));
+  // console.log("[MOMO URL]", `${BASE_URL}/collection/v1_0/requesttopay`);
 
   const res = await fetch(`${BASE_URL}/collection/v1_0/requesttopay`, {
     method: "POST",
@@ -76,11 +76,11 @@ export async function requestToPay(params: RequestToPayParams): Promise<void> {
     body: JSON.stringify(bodyObj),
   })
 
-  console.log("[MOMO RESPONSE]", {
-    status: res.status,
-    headers: Object.fromEntries(res.headers.entries()),
-    body: await res.text(),
-  })
+  // console.log("[MOMO RESPONSE]", {
+  //   status: res.status,
+  //   headers: Object.fromEntries(res.headers.entries()),
+  //   body: await res.text(),
+  // })
 
   if (res.status !== 202) {
     const errBody = await res.text()
