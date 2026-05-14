@@ -16,6 +16,10 @@ interface Props {
 }
 
 export default function TicketPurchaseCard({ eventId, tickets }: Props) {
+
+  if (!tickets || tickets.length === 0) {
+    return null;
+  }
   const router = useRouter()
   const [quantities, setQuantities] = useState<Record<string, number>>({})
 

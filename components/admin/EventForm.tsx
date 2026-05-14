@@ -147,10 +147,8 @@ export default function EventForm({ initialData }: EventFormProps) {
   }
 
   const removeTicketType = (index: number) => {
-    if (ticketTypes.length > 1) {
-      setTicketTypes(ticketTypes.filter((_, i) => i !== index))
-    }
-  }
+  setTicketTypes(ticketTypes.filter((_, i) => i !== index))
+}
 
   return (
     <div className="bg-white rounded-xl shadow p-6">
@@ -260,7 +258,7 @@ export default function EventForm({ initialData }: EventFormProps) {
         {/* Ticket Types */}
         <div className="border-t pt-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Ticket Types *</h3>
+            <h3 className="text-lg font-semibold">Ticket Types <span className="text-sm font-normal text-gray-400">(optional)</span></h3>
             <button
               type="button"
               onClick={addTicketType}
@@ -282,7 +280,7 @@ export default function EventForm({ initialData }: EventFormProps) {
                     onChange={(e) => updateTicketType(index, 'name', e.target.value)}
                     placeholder="e.g., General Admission, VIP"
                     className="w-full p-2 border rounded"
-                    required
+                    // required
                     disabled={loading}
                   />
                 </div>
@@ -319,8 +317,7 @@ export default function EventForm({ initialData }: EventFormProps) {
                     type="button"
                     onClick={() => removeTicketType(index)}
                     className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200"
-                    disabled={ticketTypes.length <= 1 || loading}
-                  >
+                    disabled={loading}                  >
                     Remove
                   </button>
                 </div>
@@ -329,7 +326,7 @@ export default function EventForm({ initialData }: EventFormProps) {
           </div>
           
           <p className="text-sm text-gray-500 mt-2">
-            Add at least one ticket type. Customers will see these options when booking.
+            Leave empty if this event is only for polls / voting.
           </p>
         </div>
     

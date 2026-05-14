@@ -76,9 +76,9 @@ export async function POST(req: NextRequest) {
     const eventData = JSON.parse(eventDataJson);
     const { title, description, date, location, published, isFeatured, ticketTypes } = eventData;
 
-    if (!title || !date || !location || !ticketTypes?.length) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-    }
+    if (!title || !date || !location) {
+  return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+}
 
     let imageUrl = eventData.imageUrl || "";
     const imageFile = formData.get("image") as File | null;
@@ -110,30 +110,32 @@ export async function POST(req: NextRequest) {
     }
 
     const event = await prisma.event.create({
-      data: {
-        title,
-        description: description || "",
-        date: new Date(date),
-        location,
-        imageUrl,
-        published: published !== undefined ? published : true,
-        isFeatured: isFeatured || false,
-        createdById: user.id,
-        ticketTypes: {
-          create: ticketTypes.map((ticket: any) => ({
-            name: ticket.name,
-            price: parseFloat(ticket.price) || 0,
-            quantity: parseInt(ticket.quantity) || 0,
-            maxPerOrder: ticket.maxPerOrder || 5,
-            description: ticket.description || "",
-          })),
-        },
+  data: {
+    title,
+    description: description || "",
+    date: new Date(date),
+    location,
+    imageUrl,
+    published: published !== undefined ? published : true,
+    isFeatured: isFeatured || false,
+    createdById: user.id,
+    ...(ticketTypes?.length > 0 && {
+      ticketTypes: {
+        create: ticketTypes.map((ticket: any) => ({
+          name: ticket.name,
+          price: parseFloat(ticket.price) || 0,
+          quantity: parseInt(ticket.quantity) || 0,
+          maxPerOrder: ticket.maxPerOrder || 5,
+          description: ticket.description || "",
+        })),
       },
-      include: {
-        ticketTypes: true,
-        createdBy: { select: { name: true, email: true } },
-      },
-    });
+    }),
+  },
+  include: {
+    ticketTypes: true,
+    createdBy: { select: { name: true, email: true } },
+  },
+});
 
     return NextResponse.json({ success: true, event, message: "Event created successfully" });
   } catch (error: unknown) {

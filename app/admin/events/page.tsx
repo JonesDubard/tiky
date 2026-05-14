@@ -37,6 +37,11 @@ export default async function AdminEventsPage() {
         },
       },
       _count: { select: { ticketTypes: true } },
+      polls: {
+      where: { deletedAt: null },
+      select: { id: true, title: true, status: true },
+      take: 1,
+    },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -95,7 +100,13 @@ export default async function AdminEventsPage() {
                   </div>
                   <div className="flex gap-4 text-xs text-gray-400 mb-3">
                     <span>📅 {new Date(event.date).toLocaleDateString()}</span>
-                    <span>🎟 {sold} sold · {event.ticketTypes.length} type(s)</span>
+                   {event.ticketTypes.length > 0 ? (
+  <span>🎟 {sold} sold · {event.ticketTypes.length} type(s)</span>
+) : event.polls?.length > 0 ? (
+  <span>🗳️ Vote-only event</span>
+) : (
+  <span className="text-amber-500">⚠️ No tickets or poll</span>
+)}
                   </div>
                   <div className="flex items-center justify-end gap-1 border-t border-gray-50 pt-3">
                     <Link
@@ -146,13 +157,25 @@ export default async function AdminEventsPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">
-                          {event.ticketTypes.reduce((sum, t) => sum + t._count.tickets, 0)} sold
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {event.ticketTypes.length} type(s)
-                        </div>
-                      </td>
+  {event.ticketTypes.length > 0 ? (
+    <>
+      <div className="text-sm text-gray-900">
+        {event.ticketTypes.reduce((sum, t) => sum + t._count.tickets, 0)} sold
+      </div>
+      <div className="text-sm text-gray-500">
+        {event.ticketTypes.length} type(s)
+      </div>
+    </>
+  ) : event.polls?.length > 0 ? (
+    <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-50 text-orange-700 text-xs font-medium rounded-full">
+      🗳️ Vote-only
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-700 text-xs font-medium rounded-full">
+      ⚠️ No tickets
+    </span>
+  )}
+</td>
                       <td className="px-6 py-4">
                         <span className={`px-2 py-1 text-xs rounded-full ${
                           event.published
