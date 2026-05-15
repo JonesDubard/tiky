@@ -5,13 +5,7 @@ import Image from "next/image"
 import { Calendar, MapPin, Clock, Users } from "lucide-react"
 import { format } from "date-fns"
 import TicketPurchaseCard from "components/Events/TicketPurchaseCard"
-
-
-// ── Force dynamic rendering ───────────────────────────────────────────────────
-// Without this Next.js caches the page at build time and ticket quantities
-// shown to users will never update after a purchase. Setting dynamic to
-// "force-dynamic" ensures every request hits the database for fresh data.
-// revalidatePath() calls in the payment route will also work correctly.
+import PollSection from "app/(public)/components/polls/PollSection";
 
 export const dynamic = "force-dynamic"
 
@@ -37,7 +31,6 @@ async function getEvent(id: string) {
   }
 }
 
-// Fetch poll separately (it does not belong inside getEvent)
 async function getPollForEvent(eventId: string) {
   try {
     return await prisma.poll.findFirst({
@@ -46,8 +39,22 @@ async function getPollForEvent(eventId: string) {
         status: "ACTIVE",
         deletedAt: null,
       },
-      include: {
-        options: { orderBy: { createdAt: "asc" } },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        endDate: true,
+        pollType: true,
+        requiresTicket: true,
+        votePrice: true,
+        options: {
+          select: {
+            id: true,
+            text: true,
+            imageUrl: true,
+          },
+          orderBy: { createdAt: "asc" },
+        },
       },
     })
   } catch (error) {
@@ -60,7 +67,6 @@ export default async function EventPage({ params }: EventPageProps) {
   const { id } = await params
   if (!id) notFound()
 
-  // Fetch event and poll in parallel (both independent)
   const [event, poll] = await Promise.all([
     getEvent(id),
     getPollForEvent(id),
@@ -73,7 +79,6 @@ export default async function EventPage({ params }: EventPageProps) {
 
   return (
     <main className="min-h-screen bg-gray-50">
-      {/* ── Hero ── */}
       <div className="relative h-[40vh] md:h-[50vh] bg-gray-900">
         {event.imageUrl ? (
           <Image
@@ -92,25 +97,24 @@ export default async function EventPage({ params }: EventPageProps) {
         )}
         <div className="absolute inset-0 bg-black/50" />
 
-        {/* Title overlay */}
         <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12 text-white">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center gap-3 mb-3">
               {event.ticketTypes.length > 0 ? (
-  isSoldOut ? (
-    <span className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
-      Sold Out
-    </span>
-  ) : totalRemaining <= 10 ? (
-    <span className="bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
-      Only {totalRemaining} left!
-    </span>
-  ) : null
-) : poll ? (
-  <span className="bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
-    🗳️ Voting Event
-  </span>
-) : null}
+                isSoldOut ? (
+                  <span className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+                    Sold Out
+                  </span>
+                ) : totalRemaining <= 10 ? (
+                  <span className="bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+                    Only {totalRemaining} left!
+                  </span>
+                ) : null
+              ) : poll ? (
+                <span className="bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+                  🗳️ Voting Event
+                </span>
+              ) : null}
             </div>
             <h1 className="text-3xl md:text-5xl font-bold mb-4">{event.title}</h1>
             <div className="flex flex-wrap gap-4 text-sm md:text-base">
@@ -131,12 +135,9 @@ export default async function EventPage({ params }: EventPageProps) {
         </div>
       </div>
 
-      {/* ── Content ── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left — details */}
           <div className="lg:col-span-2 space-y-6">
-            {/* About */}
             <section className="bg-white rounded-xl shadow-sm p-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">About This Event</h2>
               <p className="text-gray-700 whitespace-pre-line">
@@ -145,49 +146,11 @@ export default async function EventPage({ params }: EventPageProps) {
             </section>
 
             {poll && (
+              <section className="bg-orange-50 border border-orange-200 rounded-xl p-6">
+                <PollSection poll={poll} />
+              </section>
+            )}
 
-  <section className="bg-orange-50 border border-orange-200 rounded-xl p-6">
-
-    <div className="flex items-start justify-between gap-4">
-
-      <div className="flex-1">
-
-        <span className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-1 block">
-
-          Live Voting
-
-        </span>
-
-        <h3 className="text-xl font-bold text-gray-900 mb-1">{poll.title}</h3>
-
-        {poll.description && (
-
-          <p className="text-sm text-gray-600 mb-4 line-clamp-2">{poll.description}</p>
-
-        )}
-
-        <div className="flex items-center gap-3 text-sm text-gray-500 mb-4">
-          <span>🗳️ {poll.options.length} contestants</span>
-          {poll.endDate && (
-            <span>⏰ Ends {format(new Date(poll.endDate), "MMM d, yyyy")}</span>
-          )}
-        </div>
-        
-        <a
-          href={`/polls/${poll.id}`}
-          className="inline-block px-6 py-3 bg-orange-500 text-white font-bold rounded-xl hover:bg-orange-600 transition-colors"
-        >
-          Vote Now →
-        </a>
-
-      </div>
-
-    </div>
-
-  </section>
-
-)}
-            {/* Live ticket availability summary */}
             <section className="bg-white rounded-xl shadow-sm p-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Ticket Availability</h2>
               {event.ticketTypes.length === 0 ? (
@@ -219,7 +182,6 @@ export default async function EventPage({ params }: EventPageProps) {
               )}
             </section>
 
-            {/* Organizer */}
             <section className="bg-white rounded-xl shadow-sm p-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Organizer</h2>
               <div className="flex items-center">
@@ -236,7 +198,6 @@ export default async function EventPage({ params }: EventPageProps) {
             </section>
           </div>
 
-          {/* Right — purchase card */}
           <div className="lg:col-span-1">
             <div className="sticky top-24">
               <TicketPurchaseCard eventId={event.id} tickets={event.ticketTypes} />

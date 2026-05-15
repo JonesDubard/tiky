@@ -14,17 +14,82 @@ export async function GET(req: NextRequest) {
     // ── 1. Try to find a standalone payment (vote purchase) ──────────
     const standalonePayment = await prisma.payment.findUnique({
       where: { id: orderId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, providerRef: true, metadata: true },
     })
 
     if (standalonePayment) {
       console.log(`[STATUS] Vote payment ${orderId} status: ${standalonePayment.status}`)
+
       if (standalonePayment.status === "COMPLETED") {
         return NextResponse.json({ orderStatus: "COMPLETED", ticketsReady: true })
       }
+
       if (standalonePayment.status === "FAILED") {
         return NextResponse.json({ orderStatus: "FAILED", ticketsReady: false })
       }
+
+      // ── Still PENDING — actively verify with MTN instead of just waiting ──
+      // Without this, the frontend can only resolve via webhook timing.
+      // If the webhook is delayed or missed, the user sees a timeout.
+      if (standalonePayment.providerRef) {
+        try {
+          const momoStatus = await getPaymentStatus(standalonePayment.providerRef)
+          console.log(`[STATUS] Vote payment MTN check: ${momoStatus.status}`)
+
+          if (momoStatus.status === "SUCCESSFUL") {
+            // Parse vote metadata and issue votes
+            let meta: { pollId: string; optionId: string; quantity: number } | null = null
+            try {
+              const parsed = JSON.parse(standalonePayment.metadata as string)
+              if (parsed?.type === "vote") meta = parsed
+            } catch {
+              console.error("[STATUS] Failed to parse vote metadata")
+            }
+
+            if (meta) {
+              const { pollId, optionId, quantity } = meta
+              await prisma.$transaction([
+                ...Array.from({ length: quantity }, () =>
+                  prisma.vote.create({ data: { pollId, optionId } })
+                ),
+                prisma.payment.update({
+                  where: { id: orderId },
+                  data: { status: "COMPLETED", processedAt: new Date() },
+                }),
+              ])
+              console.log(
+                `[STATUS] Vote payment fulfilled via status check — poll: ${pollId}, option: ${optionId}, votes: ${quantity}`
+              )
+            } else {
+              // Metadata missing or not a vote — just mark completed
+              await prisma.payment.update({
+                where: { id: orderId },
+                data: { status: "COMPLETED", processedAt: new Date() },
+              })
+            }
+
+            return NextResponse.json({ orderStatus: "COMPLETED", ticketsReady: true })
+          }
+
+          if (momoStatus.status === "FAILED") {
+            await prisma.payment.update({
+              where: { id: orderId },
+              data: { status: "FAILED" },
+            })
+            return NextResponse.json({
+              orderStatus: "FAILED",
+              ticketsReady: false,
+              error: momoStatus.reason
+                ? `Payment declined: ${momoStatus.reason}`
+                : "Payment was declined. Please try again.",
+            })
+          }
+        } catch (err) {
+          console.error("[STATUS] Vote payment MTN check error:", err)
+          // Fall through to PENDING — don't fail hard on MTN API errors
+        }
+      }
+
       return NextResponse.json({ orderStatus: "PENDING", ticketsReady: false })
     }
 
@@ -71,8 +136,7 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // ── Still PENDING — run all fallbacks and MTN check ──────────────
-    // 1. Payment already marked COMPLETED (webhook/admin did it)
+    // ── Payment already marked COMPLETED (webhook/admin did it) ──────
     if (payment.status === "COMPLETED") {
       if (order.status !== "COMPLETED") {
         console.log(`[STATUS] ${orderId} payment COMPLETED but order not — fixing`)
@@ -87,7 +151,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ orderStatus: "COMPLETED", ticketsReady: true })
     }
 
-    // 2. Tickets already PAID (webhook may have issued them)
+    // ── Tickets already PAID (webhook may have issued them) ──────────
     if (order.tickets.length > 0 && order.tickets.every(t => t.status === "PAID")) {
       console.log(`[STATUS] ${orderId} tickets PAID — forcing order completion`)
       await prisma.$transaction([
@@ -97,7 +161,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ orderStatus: "COMPLETED", ticketsReady: true })
     }
 
-    // 3. Timeout (order older than 5 minutes)
+    // ── Timeout (order older than 5 minutes) ─────────────────────────
     const FIVE_MINUTES = 5 * 60 * 1000
     if (order.createdAt && Date.now() - new Date(order.createdAt).getTime() > FIVE_MINUTES) {
       console.warn(`[STATUS] ${orderId} timeout — forcing completion`)
@@ -110,7 +174,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ orderStatus: "COMPLETED", ticketsReady: true })
     }
 
-    // 4. Normal MTN check
+    // ── Normal MTN check ─────────────────────────────────────────────
     try {
       const momoStatus = await getPaymentStatus(payment.providerRef!)
       console.log(`[STATUS] ${orderId} MTN status: ${momoStatus.status}`)
