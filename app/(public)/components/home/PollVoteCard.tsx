@@ -97,7 +97,9 @@ export default function PollVoteCard({ poll, contestants: initialContestants }: 
 
   const interval = setInterval(async () => {
     try {
-      const res = await fetch(`/api/payment/status?orderId=${paymentId}`);
+      const res = await fetch(`/api/payment/status?orderId=${paymentId}, {
+        cache: 'no-store' // Ensure we get the latest status
+      }`);
       const data = await res.json();
       console.log('[POLLVOTECARD] status:', data.orderStatus);
 
