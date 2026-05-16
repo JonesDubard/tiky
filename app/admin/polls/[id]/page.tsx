@@ -61,7 +61,7 @@ export default function AdminPollDetailPage() {
 
   const fetchResults = useCallback(async () => {
     try {
-      const res = await fetch(`/api/polls/${id}/results`);
+      const res = await fetch(`/api/polls/${id}/results`, { cache: 'no-store' });
       if (!res.ok) return;
       const data = await res.json();
       setResults(data.results ?? []);

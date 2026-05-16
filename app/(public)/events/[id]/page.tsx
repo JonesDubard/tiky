@@ -52,6 +52,7 @@ async function getPollForEvent(eventId: string) {
             id: true,
             text: true,
             imageUrl: true,
+            _count: { select: { votes: true } },
           },
           orderBy: { createdAt: "asc" },
         },
