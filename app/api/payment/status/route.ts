@@ -4,9 +4,7 @@ import { prisma } from "lib/prisma"
 import { getPaymentStatus } from "lib/momo"
 import { issueTicketsForOrder } from "lib/manual-payment"
 
-// THIS IS THE ROOT CAUSE FIX:
-// Vercel was caching the PENDING response and serving it from CDN (Cache: HIT, 4ms)
-// so the frontend never saw COMPLETED even after the webhook updated the DB.
+
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 

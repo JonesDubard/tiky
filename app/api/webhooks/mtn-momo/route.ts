@@ -6,7 +6,7 @@ import { getPaymentStatus } from "lib/momo"
 import { issueTicketsForOrder } from "lib/manual-payment"
 
 export async function PUT(req: NextRequest) {
-  console.log("[MOMO WEBHOOK] ← HIT", req.method, req.url)
+  // console.log("[MOMO WEBHOOK] ← HIT", req.method, req.url)
   try {
     const body = await req.json().catch(() => ({}))
     console.log("[MOMO WEBHOOK] Received:", JSON.stringify(body))

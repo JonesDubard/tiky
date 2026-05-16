@@ -4,6 +4,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "lib/auth";
 import { prisma } from "lib/prisma";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -23,7 +26,10 @@ export async function GET(
     });
 
     if (!poll) {
-      return NextResponse.json({ error: "Poll not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Poll not found" },
+        { status: 404, headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     const totalVotes = poll._count.votes;
@@ -56,16 +62,28 @@ export async function GET(
       }
     }
 
-    return NextResponse.json({
-      pollId,
-      totalVotes,
-      results,
-      userVotedOptionId,
-      status: poll.status,
-      endDate: poll.endDate,
-    });
+    return NextResponse.json(
+      {
+        pollId,
+        totalVotes,
+        results,
+        userVotedOptionId,
+        status: poll.status,
+        endDate: poll.endDate,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Pragma": "no-cache",
+          "Surrogate-Control": "no-store",
+        },
+      }
+    );
   } catch (error) {
     console.error("Results fetch error:", error);
-    return NextResponse.json({ error: "Failed to fetch results" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch results" },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
   }
 }
