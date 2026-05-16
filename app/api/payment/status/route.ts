@@ -4,10 +4,29 @@ import { prisma } from "lib/prisma"
 import { getPaymentStatus } from "lib/momo"
 import { issueTicketsForOrder } from "lib/manual-payment"
 
+// THIS IS THE ROOT CAUSE FIX:
+// Vercel was caching the PENDING response and serving it from CDN (Cache: HIT, 4ms)
+// so the frontend never saw COMPLETED even after the webhook updated the DB.
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
+const NO_CACHE = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  "Pragma": "no-cache",
+  "Surrogate-Control": "no-store",
+}
+
+function json(data: unknown, init: ResponseInit = {}) {
+  return NextResponse.json(data, {
+    ...init,
+    headers: { ...NO_CACHE, ...(init.headers as Record<string, string> ?? {}) },
+  })
+}
+
 export async function GET(req: NextRequest) {
   const orderId = req.nextUrl.searchParams.get("orderId")
   if (!orderId) {
-    return NextResponse.json({ error: "orderId required" }, { status: 400 })
+    return json({ error: "orderId required" }, { status: 400 })
   }
 
   try {
@@ -21,54 +40,64 @@ export async function GET(req: NextRequest) {
       console.log(`[STATUS] Vote payment ${orderId} status: ${standalonePayment.status}`)
 
       if (standalonePayment.status === "COMPLETED") {
-        return NextResponse.json({ orderStatus: "COMPLETED", ticketsReady: true })
+        return json({ orderStatus: "COMPLETED", ticketsReady: true })
       }
 
       if (standalonePayment.status === "FAILED") {
-        return NextResponse.json({ orderStatus: "FAILED", ticketsReady: false })
+        return json({ orderStatus: "FAILED", ticketsReady: false })
       }
 
-      // ── Still PENDING — actively verify with MTN instead of just waiting ──
-      // Without this, the frontend can only resolve via webhook timing.
-      // If the webhook is delayed or missed, the user sees a timeout.
+      // ── Still PENDING — actively verify with MTN ─────────────────────
       if (standalonePayment.providerRef) {
         try {
           const momoStatus = await getPaymentStatus(standalonePayment.providerRef)
           console.log(`[STATUS] Vote payment MTN check: ${momoStatus.status}`)
 
           if (momoStatus.status === "SUCCESSFUL") {
-            // Parse vote metadata and issue votes
-            let meta: { pollId: string; optionId: string; quantity: number } | null = null
+            let meta: { type: string; pollId: string; optionId: string; quantity: number } | null = null
             try {
-              const parsed = JSON.parse(standalonePayment.metadata as string)
-              if (parsed?.type === "vote") meta = parsed
+              meta = JSON.parse(standalonePayment.metadata as string)
             } catch {
-              console.error("[STATUS] Failed to parse vote metadata")
+              console.error("[STATUS] Failed to parse vote metadata for", orderId)
             }
 
-            if (meta) {
+            if (meta?.type === "vote" && meta.pollId && meta.optionId && meta.quantity > 0) {
               const { pollId, optionId, quantity } = meta
+
+              // Guard against double-issuing if webhook already ran
+              const fresh = await prisma.payment.findUnique({
+                where: { id: orderId },
+                select: { status: true },
+              })
+              if (fresh?.status === "COMPLETED") {
+                return json({ orderStatus: "COMPLETED", ticketsReady: true })
+              }
+
               await prisma.$transaction([
                 ...Array.from({ length: quantity }, () =>
                   prisma.vote.create({ data: { pollId, optionId } })
                 ),
                 prisma.payment.update({
                   where: { id: orderId },
-                  data: { status: "COMPLETED", processedAt: new Date() },
+                  data: {
+                    status: "COMPLETED",
+                    processedAt: new Date(),
+                    externalId: momoStatus.financialTransactionId ?? undefined,
+                  },
                 }),
               ])
+
               console.log(
-                `[STATUS] Vote payment fulfilled via status check — poll: ${pollId}, option: ${optionId}, votes: ${quantity}`
+                `[STATUS] Vote payment fulfilled via MTN check — poll: ${pollId}, option: ${optionId}, votes: ${quantity}`
               )
             } else {
-              // Metadata missing or not a vote — just mark completed
               await prisma.payment.update({
                 where: { id: orderId },
                 data: { status: "COMPLETED", processedAt: new Date() },
               })
             }
 
-            return NextResponse.json({ orderStatus: "COMPLETED", ticketsReady: true })
+            return json({ orderStatus: "COMPLETED", ticketsReady: true })
           }
 
           if (momoStatus.status === "FAILED") {
@@ -76,7 +105,7 @@ export async function GET(req: NextRequest) {
               where: { id: orderId },
               data: { status: "FAILED" },
             })
-            return NextResponse.json({
+            return json({
               orderStatus: "FAILED",
               ticketsReady: false,
               error: momoStatus.reason
@@ -86,11 +115,10 @@ export async function GET(req: NextRequest) {
           }
         } catch (err) {
           console.error("[STATUS] Vote payment MTN check error:", err)
-          // Fall through to PENDING — don't fail hard on MTN API errors
         }
       }
 
-      return NextResponse.json({ orderStatus: "PENDING", ticketsReady: false })
+      return json({ orderStatus: "PENDING", ticketsReady: false })
     }
 
     // ── 2. Otherwise, treat as a ticket order ────────────────────────
@@ -103,40 +131,36 @@ export async function GET(req: NextRequest) {
     })
 
     if (!order) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 })
+      return json({ error: "Not found" }, { status: 404 })
     }
 
     const payment = order.payments[0]
 
-    // ── Fast path: already COMPLETED ─────────────────────────────────
     if (order.status === "COMPLETED") {
       console.log(`[STATUS] ${orderId} already COMPLETED`)
-      return NextResponse.json({ orderStatus: "COMPLETED", ticketsReady: true })
+      return json({ orderStatus: "COMPLETED", ticketsReady: true })
     }
 
-    // ── Already failed / cancelled ───────────────────────────────────
     if (order.status === "FAILED" || order.status === "CANCELLED") {
-      return NextResponse.json({
+      return json({
         orderStatus: order.status,
         ticketsReady: false,
         error: "Payment was not completed. Please try again.",
       })
     }
 
-    // ── No payment record yet ────────────────────────────────────────
     if (!payment?.providerRef) {
-      return NextResponse.json({ orderStatus: "PENDING", ticketsReady: false })
+      return json({ orderStatus: "PENDING", ticketsReady: false })
     }
 
     if (payment.status === "FAILED") {
-      return NextResponse.json({
+      return json({
         orderStatus: "FAILED",
         ticketsReady: false,
         error: "Payment failed. Please try again.",
       })
     }
 
-    // ── Payment already marked COMPLETED (webhook/admin did it) ──────
     if (payment.status === "COMPLETED") {
       if (order.status !== "COMPLETED") {
         console.log(`[STATUS] ${orderId} payment COMPLETED but order not — fixing`)
@@ -148,33 +172,30 @@ export async function GET(req: NextRequest) {
           }),
         ])
       }
-      return NextResponse.json({ orderStatus: "COMPLETED", ticketsReady: true })
+      return json({ orderStatus: "COMPLETED", ticketsReady: true })
     }
 
-    // ── Tickets already PAID (webhook may have issued them) ──────────
     if (order.tickets.length > 0 && order.tickets.every(t => t.status === "PAID")) {
       console.log(`[STATUS] ${orderId} tickets PAID — forcing order completion`)
       await prisma.$transaction([
         prisma.order.update({ where: { id: orderId }, data: { status: "COMPLETED" } }),
         prisma.payment.updateMany({ where: { orderId }, data: { status: "COMPLETED" } }),
       ])
-      return NextResponse.json({ orderStatus: "COMPLETED", ticketsReady: true })
+      return json({ orderStatus: "COMPLETED", ticketsReady: true })
     }
 
-    // ── Timeout (order older than 5 minutes) ─────────────────────────
     const FIVE_MINUTES = 5 * 60 * 1000
     if (order.createdAt && Date.now() - new Date(order.createdAt).getTime() > FIVE_MINUTES) {
       console.warn(`[STATUS] ${orderId} timeout — forcing completion`)
       const result = await issueTicketsForOrder(orderId)
       if (result.success) {
         await prisma.payment.updateMany({ where: { orderId }, data: { status: "COMPLETED" } })
-        return NextResponse.json({ orderStatus: "COMPLETED", ticketsReady: true })
+        return json({ orderStatus: "COMPLETED", ticketsReady: true })
       }
       await prisma.order.update({ where: { id: orderId }, data: { status: "COMPLETED" } })
-      return NextResponse.json({ orderStatus: "COMPLETED", ticketsReady: true })
+      return json({ orderStatus: "COMPLETED", ticketsReady: true })
     }
 
-    // ── Normal MTN check ─────────────────────────────────────────────
     try {
       const momoStatus = await getPaymentStatus(payment.providerRef!)
       console.log(`[STATUS] ${orderId} MTN status: ${momoStatus.status}`)
@@ -188,9 +209,9 @@ export async function GET(req: NextRequest) {
         }
         const result = await issueTicketsForOrder(orderId)
         if (!result.success) {
-          return NextResponse.json({ orderStatus: "PROCESSING", ticketsReady: false })
+          return json({ orderStatus: "PROCESSING", ticketsReady: false })
         }
-        return NextResponse.json({ orderStatus: "COMPLETED", ticketsReady: true })
+        return json({ orderStatus: "COMPLETED", ticketsReady: true })
       }
 
       if (momoStatus.status === "FAILED") {
@@ -198,7 +219,7 @@ export async function GET(req: NextRequest) {
           prisma.payment.update({ where: { id: payment.id }, data: { status: "FAILED" } }),
           prisma.order.update({ where: { id: orderId }, data: { status: "FAILED" } }),
         ])
-        return NextResponse.json({
+        return json({
           orderStatus: "FAILED",
           ticketsReady: false,
           error: momoStatus.reason
@@ -210,10 +231,10 @@ export async function GET(req: NextRequest) {
       console.error(`[STATUS] ${orderId} MTN check error:`, err)
     }
 
-    return NextResponse.json({ orderStatus: "PENDING", ticketsReady: false })
+    return json({ orderStatus: "PENDING", ticketsReady: false })
 
   } catch (err) {
     console.error(`[STATUS] ${orderId} error:`, err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return json({ error: "Internal server error" }, { status: 500 })
   }
 }
