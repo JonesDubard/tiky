@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
 
     // Validate phone
     const msisdn = normalisePhone(phoneNumber)
+    console.log("[VOTE INITIATE] phone input:", phoneNumber, "→ normalised:", msisdn)
     if (!msisdn) {
       return NextResponse.json({ error: "Invalid phone number." }, { status: 400 })
     }
