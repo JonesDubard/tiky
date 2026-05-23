@@ -21,7 +21,7 @@ export default async function EditPollPage({
       where: { id, deletedAt: null },
       include: {
         options: {
-          select: { id: true, text: true },
+          select: { id: true, text: true, imageUrl: true },
           orderBy: { createdAt: "asc" },
         },
       },
@@ -47,7 +47,7 @@ export default async function EditPollPage({
     eventId: poll.eventId ?? null,
     isFeatured: poll.isFeatured ?? false,
     votePrice: poll.votePrice ?? null,
-    options: poll.options.map((opt) => ({ id: opt.id, text: opt.text })),
+    options: poll.options.map((opt) => ({ id: opt.id, text: opt.text, imageUrl: opt.imageUrl ?? null, })),
   };
 
   return (

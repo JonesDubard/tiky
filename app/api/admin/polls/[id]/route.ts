@@ -127,11 +127,23 @@ export async function PUT(
           const text = (typeof o === "string" ? o : o.text!).trim();
           const oid = typeof o !== "string" ? o.id : undefined;
 
-          if (oid) {
-            await tx.pollOption.update({ where: { id: oid }, data: { text } });
-          } else {
-            await tx.pollOption.create({ data: { pollId: id, text } });
-          }
+         if (oid) {
+  await tx.pollOption.update({
+    where: { id: oid },
+    data: {
+      text,
+      imageUrl: typeof o !== "string" ? (o.imageUrl ?? null) : null,
+    },
+  });
+} else {
+  await tx.pollOption.create({
+    data: {
+      pollId: id,
+      text,
+      imageUrl: typeof o !== "string" ? (o.imageUrl ?? null) : null, 
+    },
+  });
+}
         }
       }
 
