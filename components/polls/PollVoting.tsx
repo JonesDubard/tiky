@@ -378,10 +378,22 @@ export default function PollVoting({
               disabled={loading || !selected}
               className="flex-1 py-3 bg-yellow-400 text-yellow-900 font-bold rounded-xl disabled:opacity-50 hover:bg-yellow-500 transition-colors flex items-center justify-center gap-2"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Pay with MoMo'}
+              {loading && pendingMethod === 'mtn_momo' ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                'Pay with MoMo'
+              )}
             </button>
-            <button disabled title="Coming soon" className="flex-1 py-3 bg-gray-100 text-gray-400 font-bold rounded-xl cursor-not-allowed text-sm">
-              Orange Money<br /><span className="text-xs font-normal">Coming Soon</span>
+            <button
+              onClick={() => handleBuyVotes('orange_money')}
+              disabled={loading || !selected}
+              className="flex-1 py-3 bg-orange-500 text-white font-bold rounded-xl disabled:opacity-50 hover:bg-orange-600 transition-colors flex items-center justify-center gap-2 text-sm"
+            >
+              {loading && pendingMethod === 'orange_money' ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                'Orange Money'
+              )}
             </button>
           </div>
         </div>

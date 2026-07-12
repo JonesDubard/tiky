@@ -2,6 +2,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "lib/prisma"
 import { requestToPay, normalisePhone } from "lib/momo"
+import {
+  getOrangeCurrency,
+  initiateDebit,
+  toOrangePeerId,
+} from "lib/orange/client"
 import crypto from "crypto"
 
 export async function POST(req: NextRequest) {
@@ -90,7 +95,6 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Send MoMo request
     if (paymentMethod === "mtn_momo") {
       try {
         await requestToPay({
@@ -100,7 +104,7 @@ export async function POST(req: NextRequest) {
           partyId: msisdn,
           payerMessage: "Vote purchase",
           payeeNote: `${quantity} vote${quantity !== 1 ? "s" : ""}`,
-        });
+        })
       } catch (err) {
         console.error("[VOTE INITIATE] MoMo request failed:", err)
         await prisma.payment.update({
@@ -112,10 +116,28 @@ export async function POST(req: NextRequest) {
           { status: 502 }
         )
       }
+    } else if (paymentMethod === "orange_money") {
+      try {
+        await initiateDebit({
+          transactionId: referenceId,
+          amount: totalAmount.toFixed(2),
+          peerId: toOrangePeerId(msisdn),
+          currency: getOrangeCurrency(),
+        })
+      } catch (err) {
+        console.error("[VOTE INITIATE] Orange debit failed:", err)
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: { status: "FAILED" },
+        })
+        return NextResponse.json(
+          { error: "Could not initiate payment. Please try again." },
+          { status: 502 }
+        )
+      }
     } else {
-      // Orange Money not yet integrated
       return NextResponse.json(
-        { error: "Orange Money is not yet available." },
+        { error: "Unsupported payment method." },
         { status: 400 }
       )
     }

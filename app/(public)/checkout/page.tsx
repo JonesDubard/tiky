@@ -372,37 +372,21 @@ const PAYMENT_METHODS = [
       </svg>
     ),
   },
-  // {
-  //   id: "orange_money" as PaymentMethod,
-  //   label: "Orange Money",
-  //   description: "Transfer manually, upload receipt",
-  //   badge: null,
-  //   color: "border-orange-400 bg-orange-50 text-orange-700",
-  //   activeColor: "ring-2 ring-orange-400 border-orange-400",
-  //   needsPhone: false,
-  //   isInstant: false,
-  //   icon: (
-  //     <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-  //       <circle cx="12" cy="12" r="10" />
-  //     </svg>
-  //   ),
-  // },
-  // {
-  //   id: "bank_transfer" as PaymentMethod,
-  //   label: "Bank Transfer",
-  //   description: "Ecobank · UBA · Any bank",
-  //   badge: null,
-  //   color: "border-blue-400 bg-blue-50 text-blue-700",
-  //   activeColor: "ring-2 ring-blue-400 border-blue-400",
-  //   needsPhone: false,
-  //   isInstant: false,
-  //   icon: (
-  //     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-  //       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-  //         d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-  //     </svg>
-  //   ),
-  // },
+  {
+    id: "orange_money" as PaymentMethod,
+    label: "Orange Money",
+    description: "Instant — approve on your phone",
+    badge: null,
+    color: "border-orange-400 bg-orange-50 text-orange-700",
+    activeColor: "ring-2 ring-orange-400 border-orange-400",
+    needsPhone: true,
+    isInstant: true,
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+        <circle cx="12" cy="12" r="10" />
+      </svg>
+    ),
+  },
 ]
 
 function CheckoutInner() {
@@ -459,31 +443,55 @@ function CheckoutInner() {
   const handleCheckout = async () => {
     setError(null)
     if (!selectedMethod) return setError("Please select a payment method")
-    if (selectedMethod === "mtn_momo" && !phoneNumber.trim()) {
-      return setError("Please enter your MTN MoMo phone number")
+    if (
+      (selectedMethod === "mtn_momo" || selectedMethod === "orange_money") &&
+      !phoneNumber.trim()
+    ) {
+      return setError(
+        selectedMethod === "orange_money"
+          ? "Please enter your Orange Money phone number"
+          : "Please enter your MTN MoMo phone number"
+      )
     }
 
     setLoading(true)
     try {
-      // ── Route: MTN MoMo → real API (USSD push) ──────────────────────────
       if (selectedMethod === "mtn_momo") {
         const res = await fetch("/api/payment/initiate-momo", {
-          method:  "POST",
+          method: "POST",
           headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify({ eventId, quantities, phoneNumber: phoneNumber.trim() }),
+          body: JSON.stringify({
+            eventId,
+            quantities,
+            phoneNumber: phoneNumber.trim(),
+          }),
         })
         const result = await res.json()
         if (!res.ok) throw new Error(result.error ?? "Payment initiation failed")
-        // Redirect to polling page — customer approves on their phone
         router.push(result.redirectUrl)
         return
       }
 
-      // ── Route: Orange Money / Bank Transfer → manual flow ────────────────
+      if (selectedMethod === "orange_money") {
+        const res = await fetch("/api/payment/initiate-orange", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventId,
+            quantities,
+            phoneNumber: phoneNumber.trim(),
+          }),
+        })
+        const result = await res.json()
+        if (!res.ok) throw new Error(result.error ?? "Payment initiation failed")
+        router.push(result.redirectUrl)
+        return
+      }
+
       const res = await fetch("/api/payment/initiate-manual", {
-        method:  "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ eventId, quantities, paymentMethod: selectedMethod }),
+        body: JSON.stringify({ eventId, quantities, paymentMethod: selectedMethod }),
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error ?? "Failed to create order")
@@ -575,40 +583,54 @@ function CheckoutInner() {
         </div>
       </div>
 
-      {/* Phone input — only for MTN MoMo */}
-      {selectedMethod === "mtn_momo" && (
+      {/* Phone input — MTN MoMo + Orange Money */}
+      {(selectedMethod === "mtn_momo" || selectedMethod === "orange_money") && (
         <div className="mb-6">
           <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-            MTN MoMo Phone Number
+            {selectedMethod === "orange_money"
+              ? "Orange Money Phone Number"
+              : "MTN MoMo Phone Number"}
           </label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">🇱🇷</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">
+              🇱🇷
+            </span>
             <input
               type="tel"
               value={phoneNumber}
-              onChange={e => setPhoneNumber(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl pl-9 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
-              placeholder="+231 88 000 0000"
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              className={`w-full border border-gray-300 rounded-xl pl-9 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:border-transparent ${
+                selectedMethod === "orange_money"
+                  ? "focus:ring-orange-400"
+                  : "focus:ring-yellow-400"
+              }`}
+              placeholder={
+                selectedMethod === "orange_money"
+                  ? "+231 77 000 0000"
+                  : "+231 88 000 0000"
+              }
               inputMode="tel"
             />
           </div>
           <p className="text-xs text-gray-400 mt-1.5">
-            A payment prompt will be sent to this number. Make sure it has MoMo enabled and sufficient balance.
+            {selectedMethod === "orange_money"
+              ? "A payment request will be sent to this Orange Money number. Approve it on your phone."
+              : "A payment prompt will be sent to this number. Make sure it has MoMo enabled and sufficient balance."}
           </p>
         </div>
       )}
 
-      {/* Manual flow notice — orange money and bank transfer */}
-      {(selectedMethod === "orange_money" || selectedMethod === "bank_transfer") && (
+      {/* Manual flow notice — bank transfer only */}
+      {selectedMethod === "bank_transfer" && (
         <div className="mb-6 bg-amber-50 border border-amber-200 rounded-2xl p-4">
           <div className="flex gap-3">
             <div className="text-2xl">💡</div>
             <div>
               <p className="text-sm font-semibold text-amber-800 mb-1">How this works</p>
               <p className="text-xs text-amber-700 leading-relaxed">
-                You'll receive a reference code and payment instructions.
-                Transfer the amount, upload your receipt, and we'll confirm your
-                tickets — usually within minutes.
+                You'll receive a reference code and payment instructions. Transfer
+                the amount, upload your receipt, and we'll confirm your tickets —
+                usually within minutes.
               </p>
             </div>
           </div>
@@ -641,10 +663,14 @@ function CheckoutInner() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
             </svg>
-            {selectedMethod === "mtn_momo" ? "Sending payment request…" : "Creating your order…"}
+            {selectedMethod === "mtn_momo" || selectedMethod === "orange_money"
+              ? "Sending payment request…"
+              : "Creating your order…"}
           </span>
         ) : selectedMethod === "mtn_momo" ? (
           "Pay with MTN MoMo →"
+        ) : selectedMethod === "orange_money" ? (
+          "Pay with Orange Money →"
         ) : selectedMethod ? (
           `Continue with ${PAYMENT_METHODS.find(m => m.id === selectedMethod)?.label} →`
         ) : (

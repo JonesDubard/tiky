@@ -485,19 +485,34 @@ function PendingInner() {
 
         <h1 className="text-xl font-bold text-gray-900 mb-2">Check Your Phone</h1>
         <p className="text-gray-500 text-sm mb-6 leading-relaxed">
-          {method === "mtn_momo"
-            ? "An MTN MoMo payment request has been sent to your phone. Open the prompt and enter your PIN to confirm."
-            : "A payment request has been sent to your phone. Please approve it to complete your purchase."}
+          {method === "orange_money"
+            ? "An Orange Money payment request has been sent to your phone. Approve it to complete your purchase."
+            : method === "mtn_momo"
+              ? "An MTN MoMo payment request has been sent to your phone. Open the prompt and enter your PIN to confirm."
+              : "A payment request has been sent to your phone. Please approve it to complete your purchase."}
         </p>
 
         <div className="bg-gray-50 rounded-2xl p-4 text-left space-y-3 mb-6">
-          {[
-            "Open the MTN MoMo notification on your phone",
-            "Enter your MoMo PIN when prompted",
-            "Wait here — don't close this page",
-          ].map((text, i) => (
+          {(method === "orange_money"
+            ? [
+                "Open the Orange Money notification or USSD prompt on your phone",
+                "Approve the payment with your PIN / OTP",
+                "Wait here — don't close this page",
+              ]
+            : [
+                "Open the MTN MoMo notification on your phone",
+                "Enter your MoMo PIN when prompted",
+                "Wait here — don't close this page",
+              ]
+          ).map((text, i) => (
             <div key={i} className="flex items-start gap-3">
-              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-yellow-400 text-yellow-900 text-xs font-bold flex items-center justify-center mt-0.5">
+              <span
+                className={`flex-shrink-0 w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center mt-0.5 ${
+                  method === "orange_money"
+                    ? "bg-orange-500 text-white"
+                    : "bg-yellow-400 text-yellow-900"
+                }`}
+              >
                 {i + 1}
               </span>
               <p className="text-sm text-gray-600">{text}</p>
