@@ -10,8 +10,8 @@ import { timingSafeEqual } from "crypto"
 export function verifyOrangeCallbackAuth(
   authorizationHeader: string | null
 ): "ok" | "missing" | "invalid" | "misconfigured" {
-  const expectedUser = process.env.ORANGE_CALLBACK_USER
-  const expectedPass = process.env.ORANGE_CALLBACK_PASS
+  const expectedUser = process.env.ORANGE_CALLBACK_USER?.trim()
+  const expectedPass = process.env.ORANGE_CALLBACK_PASS?.trim()
 
   if (!expectedUser || !expectedPass) {
     console.error("[ORANGE CALLBACK] ORANGE_CALLBACK_USER/PASS are not set")
