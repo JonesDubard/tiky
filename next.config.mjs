@@ -18,6 +18,16 @@ const nextConfig = {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
   },
   turbopack: { root: process.cwd() },
+  async rewrites() {
+    return [
+      // Orange Money Business API docs refer to POST /notifications.
+      // Keep a short public callback URL for portal subscription forms.
+      {
+        source: '/notifications',
+        destination: '/api/webhooks/orange-money',
+      },
+    ];
+  },
   async headers() {
     return [
       {
