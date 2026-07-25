@@ -1,5 +1,7 @@
 // lib/momo.ts
-
+// MoMo OpenAPI Collections client.
+// Auth: Authorization Basic base64(User ID : Credential Token)
+// Env mapping: MOMO_API_USER_ID = User ID, MOMO_API_KEY = Credential Token
 
 const BASE_URL         = process.env.MOMO_BASE_URL         ?? "https://proxy.momoapi.mtn.com"
 const SUBSCRIPTION_KEY = process.env.MOMO_SUBSCRIPTION_KEY ?? ""
@@ -15,16 +17,16 @@ if (!SUBSCRIPTION_KEY || !API_USER_ID || !API_KEY) {
 let cachedToken: string | null = null
 let tokenExpiresAt = 0
 
-
-
 async function getBearerToken(): Promise<string> {
   if (cachedToken && Date.now() < tokenExpiresAt - 60_000) return cachedToken
+  // CreateAccessToken: Basic(user-id:credential-token) + mandatory X-Target-Environment
   const credentials = Buffer.from(`${API_USER_ID}:${API_KEY}`).toString("base64")
   const res = await fetch(`${BASE_URL}/collection/token/`, {
     method: "POST",
     headers: {
       "Authorization":             `Basic ${credentials}`,
       "Ocp-Apim-Subscription-Key": SUBSCRIPTION_KEY,
+      "X-Target-Environment":      ENVIRONMENT,
     },
   })
   if (!res.ok) {

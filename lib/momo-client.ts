@@ -23,6 +23,8 @@ async function getAccessToken() {
         Authorization: `Basic ${credentials}`,
         "Ocp-Apim-Subscription-Key":
           process.env.MOMO_SUBSCRIPTION_KEY!,
+        "X-Target-Environment":
+          process.env.MOMO_ENV ?? "mtnliberia",
       },
     }
   )
