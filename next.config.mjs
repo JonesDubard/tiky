@@ -26,6 +26,11 @@ const nextConfig = {
         source: '/notifications',
         destination: '/api/webhooks/orange-money',
       },
+      // Orange Money Business API notification endpoint.
+      {
+        source: '/orangeMoneyProvTest',
+        destination: '/api/webhooks/orange-money/orangeMoneyProvTest',
+      },
     ];
   },
   async headers() {
