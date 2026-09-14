@@ -31,6 +31,11 @@ const nextConfig = {
         source: '/orangeMoneyProvTest',
         destination: '/api/webhooks/orange-money/orangeMoneyProvTest',
       },
+      {
+        source: '/mandates/activation/notifications',
+        destination:
+          '/api/webhooks/orange-money/mandates/activation/notifications',
+      },
     ];
   },
   async headers() {
