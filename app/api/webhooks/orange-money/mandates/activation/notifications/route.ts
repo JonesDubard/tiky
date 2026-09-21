@@ -3,6 +3,12 @@ import {
   orangeUnauthorizedResponse,
   verifyOrangeCallbackAuth,
 } from "lib/orange/callback-auth"
+import {
+  isOrangeTestProbe,
+  orangeProbeOkResponse,
+  orangeTestProbeResponse,
+  parseOrangeCallbackBody,
+} from "lib/orange/callback-probe"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
@@ -26,10 +32,10 @@ export async function POST(req: NextRequest) {
     return orangeUnauthorizedResponse()
   }
 
-  const body = await req.json().catch(() => ({}))
+  const body = await parseOrangeCallbackBody(req)
 
-  if (body?.action === "test") {
-    return NextResponse.json({ status: "ok", action: "test" })
+  if (isOrangeTestProbe(body)) {
+    return orangeTestProbeResponse()
   }
 
   if (Object.keys(body).length > 0) {
@@ -39,5 +45,5 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  return NextResponse.json({ status: "OK" }, { status: 200 })
+  return orangeProbeOkResponse()
 }

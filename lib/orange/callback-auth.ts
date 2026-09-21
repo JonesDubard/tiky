@@ -1,11 +1,17 @@
 import { timingSafeEqual } from "crypto"
 
+const BASIC_AUTH_RE = /^Basic\s+(\S+)$/i
+const BASE64_RE = /^[A-Za-z0-9+/]*={0,2}$/
+
 /**
  * Validates Orange Money Business API callback Basic Auth.
  * Orange subscription probes require:
  * - valid Authorization  → 200
  * - missing Authorization → 401/403
  * - invalid Authorization → 401/403
+ *
+ * Orange's fake-auth probe appends "%" to the Base64 token; Node's lenient
+ * base64 decoder would accept that unless we compare the token exactly.
  */
 export function verifyOrangeCallbackAuth(
   authorizationHeader: string | null
@@ -22,27 +28,23 @@ export function verifyOrangeCallbackAuth(
     return "missing"
   }
 
-  const [scheme, encoded] = authorizationHeader.split(" ")
-  if (!scheme || scheme.toLowerCase() !== "basic" || !encoded) {
+  const trimmed = authorizationHeader.trim()
+  const match = trimmed.match(BASIC_AUTH_RE)
+  if (!match) {
     return "invalid"
   }
 
-  let decoded: string
-  try {
-    decoded = Buffer.from(encoded, "base64").toString("utf8")
-  } catch {
+  const encoded = match[1]
+  if (!BASE64_RE.test(encoded)) {
     return "invalid"
   }
 
-  const colon = decoded.indexOf(":")
-  if (colon < 0) {
-    return "invalid"
-  }
+  const expectedEncoded = Buffer.from(
+    `${expectedUser}:${expectedPass}`,
+    "utf8"
+  ).toString("base64")
 
-  const user = decoded.slice(0, colon)
-  const pass = decoded.slice(colon + 1)
-
-  if (!constantTimeEqual(user, expectedUser) || !constantTimeEqual(pass, expectedPass)) {
+  if (!constantTimeEqual(encoded, expectedEncoded)) {
     return "invalid"
   }
 

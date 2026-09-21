@@ -11,6 +11,11 @@ import {
   orangeUnauthorizedResponse,
   verifyOrangeCallbackAuth,
 } from "lib/orange/callback-auth"
+import {
+  isOrangeTestProbe,
+  orangeTestProbeResponse,
+  parseOrangeCallbackBody,
+} from "lib/orange/callback-probe"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
@@ -30,16 +35,17 @@ async function handleOrangeCallback(req: NextRequest) {
     return orangeUnauthorizedResponse()
   }
 
-  const body = await req.json().catch(() => ({}))
+  const body = await parseOrangeCallbackBody(req)
   console.log("[ORANGE CALLBACK] Received:", JSON.stringify(body))
 
   // Orange Developer Portal subscription compliance probe
-  if (body?.action === "test") {
-    return NextResponse.json({ status: "ok", action: "test" })
+  if (isOrangeTestProbe(body)) {
+    return orangeTestProbeResponse()
   }
 
   const transactionId: string | undefined =
-    body?.transactionData?.transactionId ?? body?.transactionId
+    (body.transactionData as { transactionId?: string } | undefined)
+      ?.transactionId ?? (body.transactionId as string | undefined)
 
   if (!transactionId) {
     console.warn("[ORANGE CALLBACK] No transactionId in payload")
