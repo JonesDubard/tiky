@@ -121,7 +121,8 @@ export async function POST(req: NextRequest) {
         await initiateDebit({
           transactionId: referenceId,
           amount: totalAmount.toFixed(2),
-          peerId: toOrangePeerId(msisdn),
+          // Raw number: normalisePhone drops Orange's 10th national digit for MTN.
+          peerId: toOrangePeerId(phoneNumber),
           currency: getOrangeCurrency(),
         })
       } catch (err) {

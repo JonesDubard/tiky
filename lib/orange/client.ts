@@ -100,35 +100,24 @@ async function getBearerToken(): Promise<string> {
 }
 
 /**
- * Orange Debit examples use national MSISDN without country code
- * (e.g. 771234567). Convert from our 231… normalised form.
+ * Orange Debit peerId is the national MSISDN, with no country code.
+ * Keep every national digit: 7704100030 stays 10 digits. Strip one leading 0,
+ * or country code 231. A number typed as 9 digits stays 9 — do not add a 0.
+ * Pass the raw phone. normalisePhone drops this 10th digit for MTN.
  */
-export function toOrangePeerId(msisdn231: string): string {
-  const digits = msisdn231.replace(/\D/g, "")
-  if (digits.startsWith("231") && digits.length === 12) {
+export function toOrangePeerId(rawPhone: string): string {
+  const digits = rawPhone.replace(/\D/g, "")
+
+  // 231 + 9 national digits, or 231 + 10 national digits
+  if (digits.startsWith("231") && (digits.length === 12 || digits.length === 13)) {
     return digits.slice(3)
   }
-  if (
-    (digits.startsWith("077") || digits.startsWith("088")) &&
-    digits.length === 11
-  ) {
-    return digits.slice(1, 10)
-  }
-  if (digits.startsWith("0") && digits.length === 10) {
+
+  // 0770410003 → 770410003; 07704100030 → 7704100030
+  if (digits.startsWith("0") && (digits.length === 10 || digits.length === 11)) {
     return digits.slice(1)
   }
-  if (
-    (digits.startsWith("77") || digits.startsWith("88")) &&
-    digits.length === 10
-  ) {
-    return digits.slice(0, 9)
-  }
-  if (
-    (digits.startsWith("77") || digits.startsWith("88")) &&
-    digits.length === 9
-  ) {
-    return digits
-  }
+
   return digits
 }
 

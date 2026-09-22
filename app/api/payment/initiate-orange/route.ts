@@ -47,7 +47,8 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const peerId = toOrangePeerId(msisdn)
+    // Raw number: normalisePhone drops Orange's 10th national digit for MTN.
+    const peerId = toOrangePeerId(phoneNumber)
     const entries = Object.entries(quantities).filter(([, qty]) => qty > 0)
     if (entries.length === 0) {
       return NextResponse.json({ error: "No tickets selected" }, { status: 400 })
