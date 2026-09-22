@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const baseUrl = process.env.MOMO_BASE_URL ?? "https://proxy.momoapi.mtn.com";
+    const baseUrl = process.env.MOMO_BASE_URL ?? "https://momoapi.momo.africa";
     const environment = process.env.MOMO_ENV ?? "mtnliberia";
     const res = await fetch(`${baseUrl}/collection/token/`, {
       method: "POST",

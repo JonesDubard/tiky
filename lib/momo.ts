@@ -3,7 +3,7 @@
 // Auth: Authorization Basic base64(User ID : Credential Token)
 // Env mapping: MOMO_API_USER_ID = User ID, MOMO_API_KEY = Credential Token
 
-const BASE_URL         = process.env.MOMO_BASE_URL         ?? "https://proxy.momoapi.mtn.com"
+const BASE_URL         = process.env.MOMO_BASE_URL         ?? "https://momoapi.momo.africa"
 const SUBSCRIPTION_KEY = process.env.MOMO_SUBSCRIPTION_KEY ?? ""
 const API_USER_ID      = process.env.MOMO_API_USER_ID      ?? ""
 const API_KEY          = process.env.MOMO_API_KEY          ?? ""
