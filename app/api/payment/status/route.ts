@@ -3,7 +3,14 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "lib/prisma"
 import { getPaymentStatus } from "lib/momo"
 import { getOrangePaymentStatus } from "lib/orange/client"
+import {
+  appendOrangeFailureMetadata,
+  readOrangeFailureMessage,
+} from "lib/orange/payment-metadata"
 import { issueTicketsForOrder } from "lib/manual-payment"
+
+/** Wait for Orange webhook before treating provider FAILED as final. */
+const ORANGE_FAIL_GRACE_MS = 15_000
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -182,6 +189,7 @@ export async function GET(req: NextRequest) {
             externalId: true,
             eventId: true,
             paymentMethod: true,
+            metadata: true,
           },
         },
         tickets: { select: { id: true, status: true } },
@@ -199,10 +207,13 @@ export async function GET(req: NextRequest) {
     }
 
     if (order.status === "FAILED" || order.status === "CANCELLED") {
+      const storedReason = readOrangeFailureMessage(payment?.metadata)
       return json({
         orderStatus: order.status,
         ticketsReady: false,
-        error: "Payment was not completed. Please try again.",
+        error:
+          storedReason ??
+          "Payment was not completed. Please try again.",
       })
     }
 
@@ -211,10 +222,13 @@ export async function GET(req: NextRequest) {
     }
 
     if (payment.status === "FAILED") {
+      const storedReason = readOrangeFailureMessage(payment.metadata)
       return json({
         orderStatus: "FAILED",
         ticketsReady: false,
-        error: "Payment failed. Please try again.",
+        error:
+          storedReason ??
+          "Payment failed. Please try again.",
       })
     }
 
@@ -298,10 +312,33 @@ export async function GET(req: NextRequest) {
       }
 
       if (providerStatus.status === "FAILED") {
+        const orderAgeMs = order.createdAt
+          ? Date.now() - new Date(order.createdAt).getTime()
+          : ORANGE_FAIL_GRACE_MS
+
+        if (
+          payment.paymentMethod === "orange_money" &&
+          orderAgeMs < ORANGE_FAIL_GRACE_MS
+        ) {
+          console.log(
+            `[STATUS] ${orderId} Orange FAILED from provider within grace window — still PENDING`
+          )
+          return json({ orderStatus: "PENDING", ticketsReady: false })
+        }
+
+        const declineMessage =
+          providerStatus.reason ??
+          "Payment was declined by Orange Money."
         await prisma.$transaction([
           prisma.payment.update({
             where: { id: payment.id },
-            data: { status: "FAILED" },
+            data: {
+              status: "FAILED",
+              metadata: appendOrangeFailureMetadata(
+                payment.metadata,
+                declineMessage
+              ),
+            },
           }),
           prisma.order.update({
             where: { id: orderId },
@@ -311,9 +348,7 @@ export async function GET(req: NextRequest) {
         return json({
           orderStatus: "FAILED",
           ticketsReady: false,
-          error: providerStatus.reason
-            ? `Payment declined: ${providerStatus.reason}`
-            : "Payment was declined. Please try again.",
+          error: `Payment declined: ${declineMessage}`,
         })
       }
     } catch (err) {

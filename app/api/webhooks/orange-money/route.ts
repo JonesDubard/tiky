@@ -16,6 +16,7 @@ import {
   orangeTestProbeResponse,
   parseOrangeCallbackBody,
 } from "lib/orange/callback-probe"
+import { appendOrangeFailureMetadata } from "lib/orange/payment-metadata"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
@@ -70,6 +71,10 @@ async function handleOrangeCallback(req: NextRequest) {
   const txnId: string | null =
     body?.transactionData?.txnId ?? body?.txnId ?? null
   const message: string | null = body?.message ?? null
+
+  console.log(
+    `[ORANGE CALLBACK] outcome=${rawStatus || "UNKNOWN"} transactionId=${transactionId} message=${message ?? ""}`
+  )
 
   if (rawStatus === "SUCCESS" || rawStatus === "SUCCESSFUL") {
     const isVotePurchase =
@@ -141,11 +146,15 @@ async function handleOrangeCallback(req: NextRequest) {
   }
 
   if (rawStatus === "FAILED" || rawStatus === "FAIL") {
+    const failureMetadata = appendOrangeFailureMetadata(
+      payment.metadata,
+      message
+    )
     if (payment.order) {
       await prisma.$transaction([
         prisma.payment.update({
           where: { id: payment.id },
-          data: { status: "FAILED" },
+          data: { status: "FAILED", metadata: failureMetadata },
         }),
         prisma.order.update({
           where: { id: payment.order.id },
@@ -159,7 +168,7 @@ async function handleOrangeCallback(req: NextRequest) {
     } else {
       await prisma.payment.update({
         where: { id: payment.id },
-        data: { status: "FAILED" },
+        data: { status: "FAILED", metadata: failureMetadata },
       })
     }
     console.log(

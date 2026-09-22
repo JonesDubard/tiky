@@ -614,7 +614,7 @@ function CheckoutInner() {
           </div>
           <p className="text-xs text-gray-400 mt-1.5">
             {selectedMethod === "orange_money"
-              ? "A payment request will be sent to this Orange Money number. Approve it on your phone."
+              ? "A payment request will be sent to this Orange Money number. Approve it on your phone. For Orange sandbox testing, use the client test MSISDN from Orange (not your merchant number); PIN 1357 often auto-approves in sandbox."
               : "A payment prompt will be sent to this number. Make sure it has MoMo enabled and sufficient balance."}
           </p>
         </div>

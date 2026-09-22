@@ -496,7 +496,7 @@ function PendingInner() {
           {(method === "orange_money"
             ? [
                 "Open the Orange Money notification or USSD prompt on your phone",
-                "Approve the payment with your PIN / OTP",
+                "Approve with your PIN (sandbox test wallets often use PIN 1357)",
                 "Wait here — don't close this page",
               ]
             : [
