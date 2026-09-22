@@ -1,29 +1,56 @@
 // lib/orange/client.ts
 // Orange Money Business API — OAuth + Debit + status
 
-const OAUTH_URL =
+const OAUTH_URL = (
   process.env.ORANGE_OAUTH_URL ?? "https://api.orange.com/oauth/v3/token"
+).trim()
 
 const OAUTH_BASIC = (process.env.ORANGE_OAUTH_BASIC ?? "").trim()
 const BASE_URL = (
   process.env.ORANGE_BASE_URL ?? "https://api.orange.com/om_partner_api/v1/sx"
-).replace(/\/$/, "")
+).trim().replace(/\/+$/, "")
 const COUNTRY = (process.env.ORANGE_COUNTRY ?? "sx").trim()
 const CURRENCY = (process.env.ORANGE_CURRENCY ?? "OUV").trim()
 
 /**
- * Sandbox env often sets ORANGE_BASE_URL to …/v1/sx while ORANGE_COUNTRY=sx.
- * Debit lives at …/v1/sx/debit — not …/v1/sx/sx/debit.
+ * Resolve …/om_partner_api/v1/{country} exactly once.
+ * Handles ORANGE_BASE_URL that already includes /sx, or duplicate /sx/sx from env typos.
  */
 export function resolveOrangeCountryBaseUrl(
   baseUrl: string,
   country: string
 ): string {
-  const base = baseUrl.replace(/\/$/, "")
   const c = country.trim()
-  if (!c) return base
-  if (base.endsWith(`/${c}`)) return base
-  return `${base}/${c}`
+  if (!c) return baseUrl.trim().replace(/\/+$/, "")
+
+  const cLower = c.toLowerCase()
+  let u: URL
+  try {
+    u = new URL(baseUrl.trim())
+  } catch {
+    const base = baseUrl.trim().replace(/\/+$/, "")
+    if (base.toLowerCase().endsWith(`/${cLower}`)) return base
+    return `${base}/${c}`
+  }
+
+  let segments = u.pathname.split("/").filter(Boolean)
+
+  // Collapse trailing …/sx/sx → …/sx
+  while (
+    segments.length >= 2 &&
+    segments[segments.length - 1].toLowerCase() === cLower &&
+    segments[segments.length - 2].toLowerCase() === cLower
+  ) {
+    segments.pop()
+  }
+
+  const last = segments[segments.length - 1]?.toLowerCase()
+  if (last !== cLower) {
+    segments.push(c)
+  }
+
+  u.pathname = `/${segments.join("/")}`
+  return `${u.origin}${u.pathname}`.replace(/\/+$/, "")
 }
 
 function countryBaseUrl(): string {
@@ -97,7 +124,8 @@ export interface OrangeDebitParams {
 export async function initiateDebit(params: OrangeDebitParams): Promise<void> {
   const token = await getBearerToken()
   const currency = params.currency ?? CURRENCY
-  const url = `${countryBaseUrl()}/debit`
+  const countryBase = countryBaseUrl()
+  const url = `${countryBase}/debit`
 
   const body = {
     peerId: params.peerId,
@@ -106,6 +134,10 @@ export async function initiateDebit(params: OrangeDebitParams): Promise<void> {
     currency,
     transactionId: params.transactionId,
   }
+
+  console.log(
+    `[ORANGE] debit POST ${url} peerId=${params.peerId} amount=${body.amount} ${currency}`
+  )
 
   const res = await fetch(url, {
     method: "POST",
@@ -119,7 +151,11 @@ export async function initiateDebit(params: OrangeDebitParams): Promise<void> {
 
   if (res.status !== 202 && res.status !== 200) {
     const errBody = await res.text()
-    console.error(`[ORANGE DEBIT ERROR] ${res.status} POST ${url} —`, errBody)
+    const requestId = res.headers.get("x-oapi-request-id")
+    console.error(
+      `[ORANGE DEBIT ERROR] ${res.status} POST ${url} requestId=${requestId ?? "n/a"} —`,
+      errBody
+    )
     throw new Error(`Orange debit failed (${res.status}): ${errBody}`)
   }
 
@@ -183,4 +219,8 @@ export async function getOrangePaymentStatus(
 
 export function getOrangeCurrency(): string {
   return CURRENCY
+}
+
+export function getOrangeCountryBaseForDebug(): string {
+  return countryBaseUrl()
 }

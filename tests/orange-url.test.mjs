@@ -17,4 +17,22 @@ assert.equal(
   "https://api.orange.com/om_partner_api/v1/lr"
 )
 
+// Misconfigured env with duplicate country segment
+assert.equal(
+  resolveOrangeCountryBaseUrl(
+    "https://api.orange.com/om_partner_api/v1/sx/sx",
+    "sx"
+  ),
+  "https://api.orange.com/om_partner_api/v1/sx"
+)
+
+// Trailing newline on base URL (common Vercel paste issue)
+assert.equal(
+  resolveOrangeCountryBaseUrl(
+    "https://api.orange.com/om_partner_api/v1/sx\n",
+    "sx"
+  ),
+  sandboxBase
+)
+
 console.log("orange-url.test.mjs: ok")
