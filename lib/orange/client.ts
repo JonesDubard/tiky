@@ -11,6 +11,25 @@ const BASE_URL = (
 const COUNTRY = (process.env.ORANGE_COUNTRY ?? "sx").trim()
 const CURRENCY = (process.env.ORANGE_CURRENCY ?? "OUV").trim()
 
+/**
+ * Sandbox env often sets ORANGE_BASE_URL to …/v1/sx while ORANGE_COUNTRY=sx.
+ * Debit lives at …/v1/sx/debit — not …/v1/sx/sx/debit.
+ */
+export function resolveOrangeCountryBaseUrl(
+  baseUrl: string,
+  country: string
+): string {
+  const base = baseUrl.replace(/\/$/, "")
+  const c = country.trim()
+  if (!c) return base
+  if (base.endsWith(`/${c}`)) return base
+  return `${base}/${c}`
+}
+
+function countryBaseUrl(): string {
+  return resolveOrangeCountryBaseUrl(BASE_URL, COUNTRY)
+}
+
 if (!OAUTH_BASIC) {
   console.warn(
     "[Orange] Missing ORANGE_OAUTH_BASIC — debit payments will fail until set."
@@ -78,7 +97,7 @@ export interface OrangeDebitParams {
 export async function initiateDebit(params: OrangeDebitParams): Promise<void> {
   const token = await getBearerToken()
   const currency = params.currency ?? CURRENCY
-  const url = `${BASE_URL}/${COUNTRY}/debit`
+  const url = `${countryBaseUrl()}/debit`
 
   const body = {
     peerId: params.peerId,
@@ -100,7 +119,7 @@ export async function initiateDebit(params: OrangeDebitParams): Promise<void> {
 
   if (res.status !== 202 && res.status !== 200) {
     const errBody = await res.text()
-    console.error(`[ORANGE DEBIT ERROR] ${res.status} —`, errBody)
+    console.error(`[ORANGE DEBIT ERROR] ${res.status} POST ${url} —`, errBody)
     throw new Error(`Orange debit failed (${res.status}): ${errBody}`)
   }
 
@@ -125,7 +144,7 @@ export async function getOrangePaymentStatus(
   transactionId: string
 ): Promise<OrangeStatusResult> {
   const token = await getBearerToken()
-  const url = `${BASE_URL}/${COUNTRY}/debit/transactions/${transactionId}`
+  const url = `${countryBaseUrl()}/debit/transactions/${transactionId}`
 
   const res = await fetch(url, {
     method: "GET",
