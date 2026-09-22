@@ -1,5 +1,9 @@
 import assert from "node:assert/strict"
-import { resolveOrangeCountryBaseUrl } from "../lib/orange/client.ts"
+import {
+  formatOrangeDebitAmount,
+  resolveOrangeCountryBaseUrl,
+  toOrangePeerId,
+} from "../lib/orange/client.ts"
 
 const sandboxBase = "https://api.orange.com/om_partner_api/v1/sx"
 assert.equal(
@@ -34,5 +38,14 @@ assert.equal(
   ),
   sandboxBase
 )
+
+assert.equal(toOrangePeerId("231770410003"), "770410003")
+assert.equal(toOrangePeerId("0770410003"), "770410003")
+assert.equal(toOrangePeerId("770410003"), "770410003")
+assert.equal(toOrangePeerId("7704100030"), "770410003")
+assert.equal(toOrangePeerId("07704100030"), "770410003")
+
+assert.equal(formatOrangeDebitAmount(0.05), 1)
+assert.equal(formatOrangeDebitAmount(10.55), 11)
 
 console.log("orange-url.test.mjs: ok")

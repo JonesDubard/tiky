@@ -138,9 +138,19 @@ export function normalisePhone(raw: string): string | null {
     return `231${digits.slice(1)}`
   }
 
+  // Local with leading 0 and an extra trailing digit (e.g. 07704100030 → 231770410003)
+  if ((digits.startsWith("077") || digits.startsWith("088")) && digits.length === 11) {
+    return `231${digits.slice(1, 10)}`
+  }
+
   // Liberian format without leading 0 (e.g., 881234567 → 231881234567)
   if ((digits.startsWith("77") || digits.startsWith("88")) && digits.length === 9) {
     return `231${digits}`
+  }
+
+  // 10-digit form without leading 0 (e.g. Orange email 7704100030 → 231770410003)
+  if ((digits.startsWith("77") || digits.startsWith("88")) && digits.length === 10) {
+    return `231${digits.slice(0, 9)}`
   }
 
   // Generic fallback: if the number looks like a plausible MSISDN, try to normalize

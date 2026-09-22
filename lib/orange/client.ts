@@ -108,10 +108,41 @@ export function toOrangePeerId(msisdn231: string): string {
   if (digits.startsWith("231") && digits.length === 12) {
     return digits.slice(3)
   }
+  if (
+    (digits.startsWith("077") || digits.startsWith("088")) &&
+    digits.length === 11
+  ) {
+    return digits.slice(1, 10)
+  }
   if (digits.startsWith("0") && digits.length === 10) {
     return digits.slice(1)
   }
+  if (
+    (digits.startsWith("77") || digits.startsWith("88")) &&
+    digits.length === 10
+  ) {
+    return digits.slice(0, 9)
+  }
+  if (
+    (digits.startsWith("77") || digits.startsWith("88")) &&
+    digits.length === 9
+  ) {
+    return digits
+  }
   return digits
+}
+
+/**
+ * Orange Debit amount for the active country/currency.
+ * SX sandbox OUV rejects fractional amounts (e.g. 0.05); use whole units, min 1.
+ */
+export function formatOrangeDebitAmount(amount: number): number {
+  const parsed = Number.isFinite(amount) ? amount : 0
+  if (CURRENCY.toUpperCase() === "OUV" && COUNTRY.toLowerCase() === "sx") {
+    const whole = Math.round(parsed)
+    return Math.max(1, whole)
+  }
+  return Math.round(parsed * 100) / 100
 }
 
 export interface OrangeDebitParams {
@@ -130,7 +161,7 @@ export async function initiateDebit(params: OrangeDebitParams): Promise<void> {
   const body = {
     peerId: params.peerId,
     peerIdType: "msisdn",
-    amount: Number(params.amount),
+    amount: formatOrangeDebitAmount(Number(params.amount)),
     currency,
     transactionId: params.transactionId,
   }
