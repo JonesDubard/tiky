@@ -5,6 +5,7 @@ import { authOptions } from "lib/auth"
 import { revalidatePath } from "next/cache"
 import { normalisePhone } from "lib/momo"
 import {
+  getOrangeContractRef,
   getOrangeCurrency,
   initiateDebit,
   toOrangePeerId,
@@ -117,9 +118,12 @@ export async function POST(req: NextRequest) {
         data: {
           providerRef: transactionId,
           amount: totalAmount,
-          currency: "USD",
+          currency: getOrangeCurrency(),
           status: "PENDING",
           paymentMethod: "orange_money",
+          metadata: JSON.stringify({
+            omContractRef: getOrangeContractRef() || undefined,
+          }),
           orderId: order.id,
           eventId,
           userId: session?.user?.id ?? undefined,

@@ -24,9 +24,12 @@ export async function POST(req: NextRequest) {
   const authResult = verifyOrangeCallbackAuth(req.headers.get("authorization"))
 
   if (authResult === "misconfigured") {
+    console.error(
+      "[ORANGE PROV TEST] Rejected: ORANGE_CALLBACK_USER/PASS are not set"
+    )
     return NextResponse.json(
       { error: "Callback credentials are not configured" },
-      { status: 500 }
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     )
   }
 

@@ -68,6 +68,7 @@ export function orangeUnauthorizedResponse() {
       status: 401,
       headers: {
         "WWW-Authenticate": 'Basic realm="Orange Money Callback"',
+        "Cache-Control": "no-store",
       },
     }
   )

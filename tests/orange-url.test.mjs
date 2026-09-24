@@ -20,6 +20,22 @@ assert.equal(
   resolveOrangeCountryBaseUrl(prodRoot, "lr"),
   "https://api.orange.com/om_partner_api/v1/lr"
 )
+assert.equal(
+  resolveOrangeCountryBaseUrl(prodRoot, "lr") + "/debit",
+  "https://api.orange.com/om_partner_api/v1/lr/debit"
+)
+// Leftover sandbox country segment must be replaced, not appended.
+assert.equal(
+  resolveOrangeCountryBaseUrl(sandboxBase, "lr"),
+  "https://api.orange.com/om_partner_api/v1/lr"
+)
+assert.equal(
+  resolveOrangeCountryBaseUrl(
+    "https://api.orange.com/om_partner_api/v1/sx/sx",
+    "lr"
+  ),
+  "https://api.orange.com/om_partner_api/v1/lr"
+)
 
 // Misconfigured env with duplicate country segment
 assert.equal(
@@ -51,7 +67,9 @@ assert.equal(toOrangePeerId("2317704100030"), "7704100030")
 assert.notEqual(toOrangePeerId("+2317704100030"), "770410003")
 assert.notEqual(toOrangePeerId("2317704100030"), "770410003")
 
-assert.equal(formatOrangeDebitAmount(0.05), 1)
-assert.equal(formatOrangeDebitAmount(10.55), 11)
+assert.equal(formatOrangeDebitAmount(0.05, "OUV", "sx"), 1)
+assert.equal(formatOrangeDebitAmount(10.55, "OUV", "sx"), 11)
+assert.equal(formatOrangeDebitAmount(10.55, "USD", "lr"), 10.55)
+assert.equal(formatOrangeDebitAmount(10.5, "LRD", "lr"), 10.5)
 
 console.log("orange-url.test.mjs: ok")

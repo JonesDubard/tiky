@@ -6,15 +6,23 @@ const OAUTH_URL = (
 ).trim()
 
 const OAUTH_BASIC = (process.env.ORANGE_OAUTH_BASIC ?? "").trim()
+/** Root only. Country is appended so sandbox `/sx` cannot stick when COUNTRY is `lr`. */
 const BASE_URL = (
-  process.env.ORANGE_BASE_URL ?? "https://api.orange.com/om_partner_api/v1/sx"
+  process.env.ORANGE_BASE_URL ?? "https://api.orange.com/om_partner_api/v1"
 ).trim().replace(/\/+$/, "")
-const COUNTRY = (process.env.ORANGE_COUNTRY ?? "sx").trim()
-const CURRENCY = (process.env.ORANGE_CURRENCY ?? "OUV").trim()
+const COUNTRY = (process.env.ORANGE_COUNTRY ?? "lr").trim()
+/** Liberia accepts LRD or USD. Ticket prices in this app are USD. */
+const CURRENCY = (process.env.ORANGE_CURRENCY ?? "USD").trim()
+/**
+ * Production contract from OMLR. Entered on the Orange Developer subscription
+ * form. The Debit API does not accept this field in the request body.
+ */
+const CONTRACT_REF = (process.env.ORANGE_OM_CONTRACT_REF ?? "").trim()
 
 /**
  * Resolve …/om_partner_api/v1/{country} exactly once.
- * Handles ORANGE_BASE_URL that already includes /sx, or duplicate /sx/sx from env typos.
+ * Replaces a leftover sandbox segment (`/sx`) when the target country differs,
+ * and collapses duplicate segments such as `/sx/sx`.
  */
 export function resolveOrangeCountryBaseUrl(
   baseUrl: string,
@@ -33,19 +41,22 @@ export function resolveOrangeCountryBaseUrl(
     return `${base}/${c}`
   }
 
-  let segments = u.pathname.split("/").filter(Boolean)
+  const segments = u.pathname.split("/").filter(Boolean)
 
-  // Collapse trailing …/sx/sx → …/sx
   while (
     segments.length >= 2 &&
-    segments[segments.length - 1].toLowerCase() === cLower &&
-    segments[segments.length - 2].toLowerCase() === cLower
+    segments[segments.length - 1].toLowerCase() ===
+      segments[segments.length - 2].toLowerCase()
   ) {
     segments.pop()
   }
 
-  const last = segments[segments.length - 1]?.toLowerCase()
-  if (last !== cLower) {
+  const last = segments[segments.length - 1]?.toLowerCase() ?? ""
+  if (last === cLower) {
+    // already …/v1/{country}
+  } else if (/^[a-z]{2}$/.test(last)) {
+    segments[segments.length - 1] = c
+  } else {
     segments.push(c)
   }
 
@@ -59,9 +70,19 @@ function countryBaseUrl(): string {
 
 if (!OAUTH_BASIC) {
   console.warn(
-    "[Orange] Missing ORANGE_OAUTH_BASIC — debit payments will fail until set."
+    "[Orange] Missing ORANGE_OAUTH_BASIC — debit payments will fail until the production app credentials are set."
   )
 }
+
+if (!CONTRACT_REF) {
+  console.warn(
+    "[Orange] Missing ORANGE_OM_CONTRACT_REF — subscribe the production app with the OMLR contract before the first debit."
+  )
+}
+
+console.info(
+  `[Orange] POST ${countryBaseUrl()}/debit currency=${CURRENCY} contract=${CONTRACT_REF || "unset"}`
+)
 
 let cachedToken: string | null = null
 let tokenExpiresAt = 0
@@ -123,11 +144,15 @@ export function toOrangePeerId(rawPhone: string): string {
 
 /**
  * Orange Debit amount for the active country/currency.
- * SX sandbox OUV rejects fractional amounts (e.g. 0.05); use whole units, min 1.
+ * Sandbox OUV accepts integers only. Production USD/LRD keep two decimals.
  */
-export function formatOrangeDebitAmount(amount: number): number {
+export function formatOrangeDebitAmount(
+  amount: number,
+  currency: string = CURRENCY,
+  country: string = COUNTRY
+): number {
   const parsed = Number.isFinite(amount) ? amount : 0
-  if (CURRENCY.toUpperCase() === "OUV" && COUNTRY.toLowerCase() === "sx") {
+  if (currency.toUpperCase() === "OUV" && country.toLowerCase() === "sx") {
     const whole = Math.round(parsed)
     return Math.max(1, whole)
   }
@@ -239,6 +264,10 @@ export async function getOrangePaymentStatus(
 
 export function getOrangeCurrency(): string {
   return CURRENCY
+}
+
+export function getOrangeContractRef(): string {
+  return CONTRACT_REF
 }
 
 export function getOrangeCountryBaseForDebug(): string {

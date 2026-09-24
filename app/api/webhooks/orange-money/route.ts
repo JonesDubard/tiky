@@ -21,13 +21,36 @@ import { appendOrangeFailureMetadata } from "lib/orange/payment-metadata"
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
 
+const NO_STORE = { "Cache-Control": "no-store" }
+
+function callbackJson(body: Record<string, unknown>, status = 200) {
+  return NextResponse.json(body, { status, headers: NO_STORE })
+}
+
+function callbackSummary(body: Record<string, unknown>) {
+  const data = body.transactionData as
+    | { transactionId?: string; type?: string; txnId?: string }
+    | undefined
+  const transactionId = data?.transactionId ?? (body.transactionId as string | undefined)
+  return {
+    status: String(body.status ?? ""),
+    transactionId: transactionId ?? "",
+    type: data?.type ?? "",
+    txnId: data?.txnId ?? (body.txnId as string | undefined) ?? "",
+    message: typeof body.message === "string" ? body.message : "",
+  }
+}
+
 async function handleOrangeCallback(req: NextRequest) {
   const authResult = verifyOrangeCallbackAuth(req.headers.get("authorization"))
 
   if (authResult === "misconfigured") {
-    return NextResponse.json(
+    console.error(
+      "[ORANGE CALLBACK] Rejected: ORANGE_CALLBACK_USER/PASS are not set"
+    )
+    return callbackJson(
       { error: "Callback credentials are not configured" },
-      { status: 500 }
+      500
     )
   }
 
@@ -37,7 +60,10 @@ async function handleOrangeCallback(req: NextRequest) {
   }
 
   const body = await parseOrangeCallbackBody(req)
-  console.log("[ORANGE CALLBACK] Received:", JSON.stringify(body))
+  const summary = callbackSummary(body)
+  console.log(
+    `[ORANGE CALLBACK] Received status=${summary.status || "none"} transactionId=${summary.transactionId || "none"} type=${summary.type || "none"}`
+  )
 
   // Orange Developer Portal subscription compliance probe
   if (isOrangeTestProbe(body)) {
@@ -49,8 +75,10 @@ async function handleOrangeCallback(req: NextRequest) {
       ?.transactionId ?? (body.transactionId as string | undefined)
 
   if (!transactionId) {
-    console.warn("[ORANGE CALLBACK] No transactionId in payload")
-    return NextResponse.json({ received: true })
+    console.warn(
+      `[ORANGE CALLBACK] No transactionId status=${summary.status || "none"} message=${summary.message || "none"}`
+    )
+    return callbackJson({ status: "OK", received: true })
   }
 
   const payment = await prisma.payment.findUnique({
@@ -60,11 +88,14 @@ async function handleOrangeCallback(req: NextRequest) {
 
   if (!payment) {
     console.warn(`[ORANGE CALLBACK] No payment for ref: ${transactionId}`)
-    return NextResponse.json({ received: true })
+    return callbackJson({ status: "OK", received: true })
   }
 
   if (payment.status === "COMPLETED" || payment.status === "FAILED") {
-    return NextResponse.json({ received: true })
+    console.log(
+      `[ORANGE CALLBACK] Duplicate ignored transactionId=${transactionId} payment=${payment.status}`
+    )
+    return callbackJson({ status: "OK", received: true })
   }
 
   const rawStatus = String(body?.status ?? "").toUpperCase()
@@ -115,18 +146,22 @@ async function handleOrangeCallback(req: NextRequest) {
       console.log(
         `[ORANGE CALLBACK] Vote fulfilled — poll: ${meta.pollId}, votes: ${meta.quantity}`
       )
-      return NextResponse.json({ received: true })
+      return callbackJson({ status: "OK", received: true })
     }
 
     if (!payment.order) {
-      console.warn("[ORANGE CALLBACK] No order on payment")
-      return NextResponse.json({ received: true })
+      console.error(
+        `[ORANGE CALLBACK] SUCCESS with no order transactionId=${transactionId} payment=${payment.id}`
+      )
+      return callbackJson({ error: "Payment has no order" }, 500)
     }
 
     const result = await issueTicketsForOrder(payment.order.id)
     if (!result.success) {
-      console.error(`[ORANGE CALLBACK] Fulfillment failed: ${result.error}`)
-      return NextResponse.json({ received: true })
+      console.error(
+        `[ORANGE CALLBACK] Fulfillment failed transactionId=${transactionId} order=${payment.order.id} error=${result.error ?? "unknown"}`
+      )
+      return callbackJson({ error: "Fulfillment failed" }, 500)
     }
 
     await prisma.payment.update({
@@ -142,7 +177,7 @@ async function handleOrangeCallback(req: NextRequest) {
     console.log(
       `[ORANGE CALLBACK] Fulfilled order ${payment.order.id} — ${result.ticketCount} tickets`
     )
-    return NextResponse.json({ received: true })
+    return callbackJson({ status: "OK", received: true })
   }
 
   if (rawStatus === "FAILED" || rawStatus === "FAIL") {
@@ -171,15 +206,16 @@ async function handleOrangeCallback(req: NextRequest) {
         data: { status: "FAILED", metadata: failureMetadata },
       })
     }
-    console.log(
-      `[ORANGE CALLBACK] Payment failed — reason: ${message ?? "unknown"}`
+    console.error(
+      `[ORANGE CALLBACK] Payment failed transactionId=${transactionId} reason=${message ?? "unknown"}`
     )
-    return NextResponse.json({ received: true })
+    return callbackJson({ status: "OK", received: true })
   }
 
-  // Unknown / intermediate status — acknowledge so Orange does not retry forever
-  console.log(`[ORANGE CALLBACK] Unhandled status: ${rawStatus || "(empty)"}`)
-  return NextResponse.json({ received: true })
+  console.error(
+    `[ORANGE CALLBACK] Unhandled status=${rawStatus || "empty"} transactionId=${transactionId} message=${message ?? ""}`
+  )
+  return callbackJson({ status: "OK", received: true })
 }
 
 export async function POST(req: NextRequest) {
@@ -187,7 +223,7 @@ export async function POST(req: NextRequest) {
     return await handleOrangeCallback(req)
   } catch (err) {
     console.error("[ORANGE CALLBACK] Unhandled error:", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return callbackJson({ error: "Internal server error" }, 500)
   }
 }
 

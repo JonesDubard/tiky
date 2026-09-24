@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "lib/prisma"
 import { requestToPay, normalisePhone } from "lib/momo"
 import {
+  getOrangeContractRef,
   getOrangeCurrency,
   initiateDebit,
   toOrangePeerId,
@@ -82,7 +83,8 @@ export async function POST(req: NextRequest) {
       data: {
         providerRef: referenceId,
         amount: totalAmount,
-        currency: "USD",
+        currency:
+          paymentMethod === "orange_money" ? getOrangeCurrency() : "USD",
         status: "PENDING",
         paymentMethod,
         userId, // null for guests
@@ -91,6 +93,9 @@ export async function POST(req: NextRequest) {
           pollId,
           optionId,
           quantity,
+          ...(paymentMethod === "orange_money"
+            ? { omContractRef: getOrangeContractRef() || undefined }
+            : {}),
         }),
       },
     })
