@@ -54,8 +54,7 @@ export default function HeroSection() {
       {/* Payment Badges */}
       <div className="flex flex-wrap justify-center items-center gap-3 text-xs text-gray-500">
         <Badge color="bg-green-500" text="MTN MoMo" />
-        <Badge color="bg-yellow-500" text="Card (Coming Soon)" />
-        <Badge color="bg-purple-500" text="SMS Tickets" />
+        <Badge color="bg-orange-500" text="Orange Money" />
       </div>
     </div>
   );
