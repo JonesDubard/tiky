@@ -122,13 +122,37 @@ async function getBearerToken(): Promise<string> {
 
 /**
  * Orange Debit peerId is the national MSISDN, with no country code.
- * Keep every national digit: 7704100030 stays 10 digits. Strip one leading 0,
- * or country code 231. A number typed as 9 digits stays 9 — do not add a 0.
+ * Liberia production (lr) is 10 digits starting with 0: 07XXXXXXXX.
+ * Sandbox (sx) keeps the issued wallet as-is: 7704100030 stays 10 digits.
  * Pass the raw phone. normalisePhone drops this 10th digit for MTN.
  */
-export function toOrangePeerId(rawPhone: string): string {
+export function toOrangePeerId(
+  rawPhone: string,
+  country: string = COUNTRY
+): string {
   const digits = rawPhone.replace(/\D/g, "")
+  if (country.trim().toLowerCase() === "lr") {
+    return toLiberiaOrangePeerId(digits)
+  }
+  return toSandboxOrangePeerId(digits)
+}
 
+/** 0773295060, 773295060, and 231773295060 all become 0773295060. */
+function toLiberiaOrangePeerId(digits: string): string {
+  let national = digits
+  if (
+    national.startsWith("231") &&
+    (national.length === 12 || national.length === 13)
+  ) {
+    national = national.slice(3)
+  }
+  if (national.length === 9 && national.startsWith("7")) {
+    return `0${national}`
+  }
+  return national
+}
+
+function toSandboxOrangePeerId(digits: string): string {
   // 231 + 9 national digits, or 231 + 10 national digits
   if (digits.startsWith("231") && (digits.length === 12 || digits.length === 13)) {
     return digits.slice(3)
