@@ -99,9 +99,8 @@ async function handleOrangeCallback(req: NextRequest) {
   }
 
   const rawStatus = String(body?.status ?? "").toUpperCase()
-  const txnId: string | null =
-    body?.transactionData?.txnId ?? body?.txnId ?? null
-  const message: string | null = body?.message ?? null
+  const txnId: string | null = (body?.transactionData as { txnId?: string } | undefined)?.txnId ?? (body?.txnId as string | undefined) ?? null
+  const message: string | null = typeof body?.message === "string" ? body.message : null
 
   console.log(
     `[ORANGE CALLBACK] outcome=${rawStatus || "UNKNOWN"} transactionId=${transactionId} message=${message ?? ""}`
